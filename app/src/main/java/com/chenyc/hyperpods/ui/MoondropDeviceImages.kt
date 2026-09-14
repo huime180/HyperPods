@@ -16,7 +16,7 @@ enum class PodImagePart { BOX, LEFT, RIGHT }
  *
  * ⚠ 需要知道的前提：那个仓库里**只有这一套**设备图，不是每机型一套 —— 它自身只面向 Pudding
  *   （其 `pods/DeviceCapabilities.kt:6`：「MOONDROP Pudding 实测支持自适应/抗风噪」）；
- *   全库 47 个 PNG 除这套外只有充电动画帧（charge_*/common_*）与 docs 截图。
+ *   全库 47 个 PNG 除这套外只有充电动画帧（charge_1..10 / common_1..10）与 docs 截图。
  *   官方 App（`_refs/_device/apks/moondrop_app.apk`）里 130 张 flutter 图只有图标与提示插图，
  *   同样没有机型渲染图。这两处都实地核对过（见 docs/UPSTREAM.md 同类记录的写法）。
  *

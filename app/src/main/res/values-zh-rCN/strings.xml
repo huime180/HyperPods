@@ -175,5 +175,7 @@
     <string name="anc_normal_title">基本</string>
     <string name="anc_anti_wind_title">抗风噪</string>
     <string name="anc_live_title">直播</string>
+    <string name="system_low_latency">低延迟</string>
+    <string name="system_low_latency_summary">由系统蓝牙设置提供，点按进入系统设备页</string>
     <string name="active_codec">当前编码</string>
 </resources>

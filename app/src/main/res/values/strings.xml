@@ -174,5 +174,7 @@
     <string name="anc_normal_title">Basic</string>
     <string name="anc_anti_wind_title">Wind noise reduction</string>
     <string name="anc_live_title">Live</string>
+    <string name="system_low_latency">Low Latency</string>
+    <string name="system_low_latency_summary">Provided by the system Bluetooth settings; tapping opens the system device page</string>
     <string name="active_codec">Current Codec</string>
 </resources>

@@ -112,6 +112,8 @@ fun MainUI(
     onBlurBottomBarChange: (Boolean) -> Unit = {},
     appLanguage: MutableState<Int> = mutableStateOf(AppLocale.SYSTEM),
     onAppLanguageChange: (Int) -> Unit = {},
+    showEarphonesRequest: MutableState<Int> = mutableStateOf(0),
+    requestedDeviceAddress: MutableState<String?> = mutableStateOf(null),
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -311,6 +313,29 @@ fun MainUI(
             selectedTab = if (canShowDetailPage) MainTab.Earphones else MainTab.Module
             hasAppliedDefaultTab = true
         }
+    }
+
+    // 系统蓝牙设置里点受管耳机时的落点（HeadsetPageRedirectHook 用显式组件启动本 Activity，
+    // 带 SHOW_UI）。MainActivity 每消费一次就把计数加一，这里按计数消费一次；
+    // 计数放在 Activity 上，所以 CLEAR_TOP 复用实例也走得到。
+    LaunchedEffect(showEarphonesRequest.value) {
+        if (showEarphonesRequest.value <= 0) return@LaunchedEffect
+        // 地址只用来补齐「当前连接设备地址」，且只在模块已经认为有设备连着、而该地址还空着时补：
+        // 这个状态由蓝牙进程的广播维护（ACTION_PODS_CONNECTED / CONNECTION_STATE_CHANGED 等），
+        // 不管连没连上就从 intent 写进去，会让设备选择页把一台没连上的耳机画成「已连接」
+        // （DevicePickerPage 的 connected 判定只看地址），点它还会走「点已连接设备」那条路；
+        // 已有值也不覆盖，免得和广播维护的状态分叉。
+        val redirectAddress = requestedDeviceAddress.value
+        if (canShowDetailPage && connectedDeviceAddress.isBlank() && !redirectAddress.isNullOrBlank()) {
+            connectedDeviceAddress = redirectAddress
+        }
+        requestedDeviceAddress.value = null
+        selectedTab = MainTab.Earphones
+        // 默认页签那条效果只认这一个开关，不置真它会按「当前有没有连上设备」把页签改回去
+        hasAppliedDefaultTab = true
+        // 不清这个开关，耳机页会被挡在设备选择页上（见 showEarphoneDetail 的算法）
+        showDevicePicker = false
+        pendingOpenEarphonesAfterPickerLoaded = false
     }
 
     LaunchedEffect(hookConnectionState) {

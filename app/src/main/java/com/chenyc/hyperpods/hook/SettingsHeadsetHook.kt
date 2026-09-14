@@ -58,9 +58,15 @@ object SettingsHeadsetHook : HookContext() {
         // 原生「耳机按键配置」页（MiuiHeadsetKeyConfigFragment）的水月雨手势接管：
         // 只在这套原生 UI 上补「单击」两组、把长按拆成「长按1秒 / 长按3秒」，读写都走本模块广播。
         NativeGestureKeyConfig.install(this)
-        // 原生「蓝牙设置里的耳机设备页」整页重定向到模块耳机页（只对受管设备生效，
-        // 防死循环与降级策略见 HeadsetPageRedirectHook 的文件头）。
-        HeadsetPageRedirectHook.install(this)
+        // 原生耳机页的 ANC 三档内嵌：保留系统那四档滑杆/标签对象只做隐藏，在同一个父容器
+        // 的同一位置放我们的三段控件（自适应 / 抗风噪 / 基本），读写走既有的
+        // ANC_CHANGED / ANC_SELECT 契约（只对水月雨设备生效，见 NativeAncThreeModeUi 的文件头）。
+        NativeAncThreeModeUi.install(this)
+        // 原生「蓝牙设置里的耳机设备页」整页重定向到模块耳机页：**本轮先关掉**。
+        // 为什么：内嵌控件要落在**原生页**上，而重定向会在 onCreate 里直接把原生页 finish 掉、
+        // 跳到模块 App —— 原生页根本到不了，内嵌的东西也就无从验证；内嵌正是用来取代跳转的。
+        // 重定向的代码 (HeadsetPageRedirectHook.kt) 原样保留，等内嵌在真机上稳定后再决定删除。
+        // HeadsetPageRedirectHook.install(this)
     }
 
     private fun hookActivityEntry() {

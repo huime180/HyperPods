@@ -116,7 +116,6 @@ fun PodDetailPage(
             ) {
                 podControlItems(
                     moondrop = moondrop,
-                    moondrop = moondrop,
                     batteryParams = batteryParams,
                     wearStatus = wearStatus,
                     ancMode = ancMode,
@@ -161,6 +160,7 @@ fun PodDetailPage(
         }
 
         podControlItems(
+            moondrop = moondrop,
             batteryParams = batteryParams,
             wearStatus = wearStatus,
             ancMode = ancMode,

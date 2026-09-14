@@ -778,7 +778,6 @@ object MoondropController {
             hasDualConnection = model.features.dualConnection || MoondropGaia.F_ONEBRINGTWO in feats,
             // 手势：**只看能力位图**（Pudding 真机位图里确有 feature 22）；型号档案不参与判定
             hasGestures = MoondropGaia.F_TOUCHV2 in feats,
-            hasLowLatency = model.features.lowLatency,
             probed = true,
         )
         ancModes = model.anc?.modes ?: emptyList()

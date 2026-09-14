@@ -98,13 +98,32 @@ object HeadsetStateDispatcher : HookContext() {
                     }
                     HyperPodsAction.ACTION_CONNECT_POD_REQUEST -> {
                         val device = intent.getParcelableExtra("device", BluetoothDevice::class.java) ?: return
-                        Log.d("HyperPods", "connect request from app device=${device.name}/${device.address}")
-                        RfcommController.connectPod(context, device, prefs, appRequested = true)
+                        // 设备选择页是手选入口，两个品牌的设备都会从这里进来，
+                        // 所以同样要先分流——否则水月雨设备会被交给 OPPO 的 RFCOMM 控制器，
+                        // 连不上（UUID 与通道都不是它那套）。
+                        val brand = resolveBrand(context, device)
+                        Log.d(TAG, "connect request from app device=${device.address} brand=$brand")
+                        when (brand) {
+                            PodBrand.OPPO ->
+                                RfcommController.connectPod(context, device, prefs, appRequested = true)
+
+                            PodBrand.MOONDROP -> {
+                                MoondropController.init(context)
+                                MoondropController.connect(device)
+                            }
+
+                            null -> Unit
+                        }
                     }
                     HyperPodsAction.ACTION_DISCONNECT_POD_REQUEST -> {
                         val device = intent.getParcelableExtra("device", BluetoothDevice::class.java) ?: return
-                        Log.d("HyperPods", "disconnect request from app device=${device.name}/${device.address}")
-                        RfcommController.disconnectedPod(context, device)
+                        val brand = resolveBrand(context, device)
+                        Log.d(TAG, "disconnect request from app device=${device.address} brand=$brand")
+                        when (brand) {
+                            PodBrand.OPPO -> RfcommController.disconnectedPod(context, device)
+                            PodBrand.MOONDROP -> MoondropController.disconnect()
+                            null -> Unit
+                        }
                     }
 
                     else -> {

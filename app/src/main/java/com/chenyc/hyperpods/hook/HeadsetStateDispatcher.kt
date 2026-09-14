@@ -12,11 +12,13 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.chenyc.hyperpods.pods.PodBrand
 import com.chenyc.hyperpods.pods.PodCatalog
 import com.chenyc.hyperpods.pods.RfcommController
 import com.chenyc.hyperpods.pods.moondrop.MoondropController
+import com.chenyc.hyperpods.utils.SystemApisUtils
 import com.chenyc.hyperpods.utils.SystemApisUtils.setIconVisibility
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
 
@@ -82,6 +84,26 @@ object HeadsetStateDispatcher : HookContext() {
             }
             Log.d(TAG, "hooked ${serviceCreateMethod.declaringClass.name}.onCreate for connected-device bootstrap")
         }.onFailure { Log.w(TAG, "hook connected-device bootstrap skipped", it) }
+
+        // 锚点兜底：真机上实测这两个类锚点会一个都找不到（日志 "bootstrap skipped"），
+        // 上面那条路整条失效。此时「模块后装、耳机已连」就永远等不到连接事件，
+        // 应用界面会一直停在设备选择页 —— 所以这里不再依赖任何类锚点，
+        // 直接用本进程的 Application 延迟自查一次已连接的耳机。
+        // 重复执行是安全的：两个控制器都会对「同一台设备已在连接」直接返回。
+        scheduleBootstrapFallback()
+    }
+
+    /** 不依赖类锚点的补扫兜底（被注入的蓝牙进程一定有 Application）。 */
+    private fun scheduleBootstrapFallback() {
+        val handler = Handler(Looper.getMainLooper())
+        val runnable = Runnable {
+            val context = SystemApisUtils.currentApplication() ?: return@Runnable
+            Log.d(TAG, "connected-device bootstrap via Application fallback")
+            bootstrapConnectedDevice(context)
+        }
+        bootstrapHandler = handler
+        bootstrapRunnable = runnable
+        handler.postDelayed(runnable, CONNECTED_DEVICE_BOOTSTRAP_DELAY_MS)
     }
 
     override fun onHotReloading() {

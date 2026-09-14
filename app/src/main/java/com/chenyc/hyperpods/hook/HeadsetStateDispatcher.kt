@@ -19,6 +19,9 @@ import com.chenyc.hyperpods.utils.SystemApisUtils.setIconVisibility
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
 
 object HeadsetStateDispatcher : HookContext() {
+
+    /** 日志 TAG（object 内是普通成员，不能放 companion：standalone object 不允许 companion）。 */
+    private const val TAG = "HyperPods-Bluetooth"
     private var appRequestReceiverRegistered = false
 
     override fun onHook() {
@@ -129,7 +132,4 @@ object HeadsetStateDispatcher : HookContext() {
         }
     }
 
-    private companion object {
-        const val TAG = "HyperPods-Bluetooth"
-    }
 }

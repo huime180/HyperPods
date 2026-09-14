@@ -24,6 +24,27 @@ object HeadsetStateDispatcher : HookContext() {
     private const val TAG = "HyperPods-Bluetooth"
     private var appRequestReceiverRegistered = false
 
+    /**
+     * 水月雨侧的控制命令（应用 UI / 被伪装的原生耳机页 → 本进程的控制器）。
+     *
+     * 为什么要在蓝牙进程收：水月雨的协议栈（[MoondropController]）就跑在本进程，
+     * 命令必须回到协议栈所在进程执行，跨进程只有广播这一条路。
+     */
+    private val MOONDROP_CONTROL_ACTIONS = arrayOf(
+        HyperPodsAction.UI_INIT,
+        HyperPodsAction.REQUEST_BATTERY,
+        HyperPodsAction.REQUEST_CAPABILITIES,
+        HyperPodsAction.ANC_SELECT,
+        HyperPodsAction.GAIN_SELECT,
+        HyperPodsAction.LED_SELECT,
+        HyperPodsAction.PROMPT_TONE_SELECT,
+        HyperPodsAction.PROMPT_VOLUME_SELECT,
+        HyperPodsAction.LHDC_SELECT,
+        HyperPodsAction.DUAL_CONNECTION_SELECT,
+        HyperPodsAction.GESTURE_SELECT,
+        HyperPodsAction.CODEC_CHANGED
+    )
+
     override fun onHook() {
         runCatching {
             hookAfter(findMethod("com.android.bluetooth.btservice.AdapterService", "onCreate")) {
@@ -85,6 +106,15 @@ object HeadsetStateDispatcher : HookContext() {
                         Log.d("HyperPods", "disconnect request from app device=${device.name}/${device.address}")
                         RfcommController.disconnectedPod(context, device)
                     }
+
+                    else -> {
+                        // 水月雨命令统一交给本进程的控制器解释（认不出的 action 会被它忽略）
+                        val action = intent?.action ?: return
+                        if (MOONDROP_CONTROL_ACTIONS.contains(action)) {
+                            MoondropController.init(context)
+                            MoondropController.handleUIEvent(intent, context)
+                        }
+                    }
                 }
             }
         }, IntentFilter().apply {
@@ -92,6 +122,8 @@ object HeadsetStateDispatcher : HookContext() {
             addAction(HyperPodsAction.ACTION_REFRESH_STATUS)
             addAction(HyperPodsAction.ACTION_CONNECT_POD_REQUEST)
             addAction(HyperPodsAction.ACTION_DISCONNECT_POD_REQUEST)
+            // 水月雨侧
+            MOONDROP_CONTROL_ACTIONS.forEach { addAction(it) }
         }, Context.RECEIVER_EXPORTED)
         appRequestReceiverRegistered = true
     }

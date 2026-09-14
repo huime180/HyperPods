@@ -8,14 +8,15 @@
 
 Xposed module that brings system-level **OPPO / OnePlus** and **MOONDROP** earphone control to Xiaomi HyperOS devices.
 
-HyperPods merges two projects into one module:
+HyperPods is assembled from two lines of work:
 
-| Source | What it contributes |
-|--------|--------------------|
-| [Leaf-lsgtky/OppoPods](https://github.com/Leaf-lsgtky/OppoPods) | Architecture, UI, build setup — the whole project skeleton |
-| [huime180/HyperPods-for-Moondrop](https://github.com/huime180/HyperPods-for-Moondrop) | MOONDROP support: the GAIA protocol, model profiles, feature set |
+| Line | What it contributes |
+|------|--------------------|
+| [Leaf-lsgtky/OppoPods](https://github.com/Leaf-lsgtky/OppoPods) | Architecture, UI, build setup — the whole project skeleton, and OPPO support |
+| MOONDROP support | The GAIA protocol, model profiles and feature set, rewritten from the author's earlier MOONDROP module onto the OppoPods architecture |
 
-Both descend from [Art-Chen/HyperPods](https://github.com/Art-Chen/HyperPods) by Art_Chen.
+Both lines descend from [Art-Chen/HyperPods](https://github.com/Art-Chen/HyperPods) by Art_Chen.
+The MOONDROP work in turn stands on the protocol research listed under Credits.
 
 ### Features
 
@@ -101,7 +102,9 @@ ANC replacement, device-card click) are still being ported. See
 
 - [Art-Chen/HyperPods](https://github.com/Art-Chen/HyperPods) by Art_Chen — the original project both parents descend from
 - [Leaf-lsgtky/OppoPods](https://github.com/Leaf-lsgtky/OppoPods) — architecture, UI and OPPO support
-- [huime180/HyperPods-for-Moondrop](https://github.com/huime180/HyperPods-for-Moondrop) — MOONDROP support
+- [bqj6666/FxxkMoondrop](https://github.com/bqj6666/FxxkMoondrop) — MOONDROP model adaptation and on-device measurements
+- [MegaSuite/moondrop-link-desktop](https://github.com/MegaSuite/moondrop-link-desktop) — EDGE protocol reverse engineering (GAIA V3 command catalogue)
+- [lingbai-rong/PuddingPods](https://github.com/lingbai-rong/PuddingPods) — PUDDING (MD-TWS-056) protocol documentation
 - [libxposed](https://github.com/libxposed/api) — Xposed module API
 - [Miuix](https://github.com/YuKongA/miuix) — HyperOS-style Compose UI components
 
@@ -115,14 +118,15 @@ GPL-3.0
 
 为小米 HyperOS 设备提供系统级 **OPPO / 一加** 与 **水月雨（MOONDROP）** 耳机控制的 Xposed 模块。
 
-HyperPods 由两个项目融合而成：
+HyperPods 由两条线拼装而成：
 
 | 来源 | 贡献 |
 |------|------|
-| [Leaf-lsgtky/OppoPods](https://github.com/Leaf-lsgtky/OppoPods) | 架构、界面与构建骨架 —— 整个项目的形态来源 |
-| [huime180/HyperPods-for-Moondrop](https://github.com/huime180/HyperPods-for-Moondrop) | 水月雨支持：GAIA 协议、型号档案与功能集 |
+| [Leaf-lsgtky/OppoPods](https://github.com/Leaf-lsgtky/OppoPods) | 架构、界面与构建骨架 —— 整个项目的形态来源，以及 OPPO 支持 |
+| 水月雨支持 | GAIA 协议、型号档案与功能集，由作者早先的水月雨模块改写到 OppoPods 架构上 |
 
-两者都源自 Art_Chen 的 [HyperPods](https://github.com/Art-Chen/HyperPods)。
+两条线都源自 Art_Chen 的 [HyperPods](https://github.com/Art-Chen/HyperPods)。
+水月雨那部分另立于下面这些协议研究成果之上。
 
 ### 功能
 
@@ -203,7 +207,9 @@ OPPO 线继承自 OppoPods 1.2.3，功能保持原样。水月雨线目前覆盖
 
 - [Art-Chen/HyperPods](https://github.com/Art-Chen/HyperPods) by Art_Chen — 两个上游共同的原始项目
 - [Leaf-lsgtky/OppoPods](https://github.com/Leaf-lsgtky/OppoPods) — 架构、界面与 OPPO 支持
-- [huime180/HyperPods-for-Moondrop](https://github.com/huime180/HyperPods-for-Moondrop) — 水月雨支持
+- [bqj6666/FxxkMoondrop](https://github.com/bqj6666/FxxkMoondrop) — 水月雨机型适配与真机实测数据
+- [MegaSuite/moondrop-link-desktop](https://github.com/MegaSuite/moondrop-link-desktop) — EDGE 协议逆向（GAIA V3 命令目录）
+- [lingbai-rong/PuddingPods](https://github.com/lingbai-rong/PuddingPods) — PUDDING（MD-TWS-056）协议文档
 - [libxposed](https://github.com/libxposed/api) — Xposed 模块 API
 - [Miuix](https://github.com/YuKongA/miuix) — HyperOS 风格 Compose UI 组件
 

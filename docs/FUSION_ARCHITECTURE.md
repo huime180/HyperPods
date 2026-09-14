@@ -8,7 +8,10 @@
 
 - 项目：**HyperPods** —— 一个在 Xiaomi HyperOS 上提供系统级耳机控制的 libxposed 模块，同时接管两个厂牌。
 - 形态来源（架构、UI、命名、注释、构建、CI）：`Leaf-lsgtky/OppoPods`。
-- 功能来源（能力与协议知识）：`huime180/HyperPods-for-Moondrop`。
+- 功能来源（能力与协议知识）：作者早先的水月雨模块，其上游为
+  [bqj6666/FxxkMoondrop](https://github.com/bqj6666/FxxkMoondrop)、
+  [MegaSuite/moondrop-link-desktop](https://github.com/MegaSuite/moondrop-link-desktop)、
+  [lingbai-rong/PuddingPods](https://github.com/lingbai-rong/PuddingPods)（详见 README 致谢）。
 
 **核心原则：只从水月雨侧取「功能」，一律用 OppoPods 的写法表达。**
 

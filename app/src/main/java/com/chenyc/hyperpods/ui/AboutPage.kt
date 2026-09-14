@@ -946,8 +946,16 @@ private fun AboutContent(
                             onClick = { uriHandler.openUri("https://github.com/Leaf-lsgtky/OppoPods") }
                         )
                         ArrowPreference(
-                            title = "huime180/HyperPods-for-Moondrop",
-                            onClick = { uriHandler.openUri("https://github.com/huime180/HyperPods-for-Moondrop") }
+                            title = "bqj6666/FxxkMoondrop",
+                            onClick = { uriHandler.openUri("https://github.com/bqj6666/FxxkMoondrop") }
+                        )
+                        ArrowPreference(
+                            title = "MegaSuite/moondrop-link-desktop",
+                            onClick = { uriHandler.openUri("https://github.com/MegaSuite/moondrop-link-desktop") }
+                        )
+                        ArrowPreference(
+                            title = "lingbai-rong/PuddingPods",
+                            onClick = { uriHandler.openUri("https://github.com/lingbai-rong/PuddingPods") }
                         )
                     }
                 }

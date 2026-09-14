@@ -1520,18 +1520,19 @@ fun MainUI(
             )
         }
         if (currentRootTab != null) {
+            // 顺序与 PuddingPods / OppoPods 一致：模块、耳机、设置
             NavigationBar {
-                NavigationBarItem(
-                    selected = currentRootTab == RootTab.PODS,
-                    onClick = { openRootTab(RootTab.PODS) },
-                    icon = Icons.Rounded.Headset,
-                    label = stringResource(R.string.tab_pods)
-                )
                 NavigationBarItem(
                     selected = currentRootTab == RootTab.MODULE,
                     onClick = { openRootTab(RootTab.MODULE) },
                     icon = Icons.Rounded.Extension,
                     label = stringResource(R.string.tab_module)
+                )
+                NavigationBarItem(
+                    selected = currentRootTab == RootTab.PODS,
+                    onClick = { openRootTab(RootTab.PODS) },
+                    icon = Icons.Rounded.Headset,
+                    label = stringResource(R.string.tab_pods)
                 )
                 NavigationBarItem(
                     selected = currentRootTab == RootTab.SETTINGS,

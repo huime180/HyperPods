@@ -25,7 +25,7 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 
 ## 融合原则（最重要的一条）
 
-本项目由两个上游融合而来：**架构、界面与代码风格取自 OppoPods；功能取自 HyperPods-for-Moondrop。**
+本项目由两个上游融合而来：**架构、界面与代码风格取自 OppoPods；水月雨功能来自作者早先的水月雨模块（其上游见 README 致谢）。**
 
 只从水月雨侧取「功能」，一律用 OppoPods 的写法表达。具体禁忌见 `docs/FUSION_ARCHITECTURE.md`，
 核心是：不要把水月雨侧的桥接架构（`ControlBridge` 那套「协议栈放应用进程 + manifest 接收器拉起」）、

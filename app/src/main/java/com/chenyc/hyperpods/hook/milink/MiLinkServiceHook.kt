@@ -18,7 +18,10 @@ import com.chenyc.hyperpods.hook.Log
 import com.chenyc.hyperpods.hook.callMethod
 import com.chenyc.hyperpods.hook.getObjectField
 import com.chenyc.hyperpods.hook.setObjectField
+import com.chenyc.hyperpods.pods.PodBrand
+import com.chenyc.hyperpods.pods.PodCatalog
 import com.chenyc.hyperpods.pods.RfcommController
+import com.chenyc.hyperpods.pods.moondrop.AncMode
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
 import com.chenyc.hyperpods.pods.detectDeviceCapabilities
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
@@ -29,7 +32,13 @@ import com.chenyc.hyperpods.utils.miuiStrongToast.data.PodParams
 object MiLinkServiceHook : HookContext() {
     internal const val TAG = "HyperPods-MiLink"
     private const val PREFS_NAME = "hyperpods_milink_state"
-    private val knownOppoAddresses = linkedSetOf<String>()
+    /**
+     * 已被本模块接管的地址（两个厂牌共用）。
+     *
+     * 不再叫 knownOppo*：融合设备中心侧的判据是「这台是不是我们接管的耳机」，
+     * 而不是「这台是不是 OPPO」—— 水月雨的地址同样要进来。
+     */
+    private val knownAddresses = linkedSetOf<String>()
     internal var context: Context? = null
     private var currentProductId: String? = null
     private var receiverRegistered = false
@@ -37,6 +46,13 @@ object MiLinkServiceHook : HookContext() {
     private var currentName: String? = null
     private var currentBattery: BatteryParams = BatteryParams()
     private var currentAnc = 1
+    /** 当前设备厂牌：由广播记录下来，冷启动时从偏好恢复（融合设备中心侧也要按厂牌分流）。 */
+    private var currentBrand: PodBrand? = null
+    /** 水月雨档位表（id 顺序即下标顺序）与当前下标 —— 小窗要按家族答「关/降噪/通透」。 */
+    private var currentAncIds: List<String> = emptyList()
+    private var currentAncIndex: Int = -1
+    /** 内存状态是否已从偏好读过：判据不能只看内存，否则进程刚起来时第一台设备会被判成不认识。 */
+    private var stateLoaded = false
     private var currentGameMode = false
     internal var currentSpatialAudioMode = ConfigManager.SPATIAL_AUDIO_OFF
     internal var lastAncBatteryController: Any? = null
@@ -117,7 +133,7 @@ object MiLinkServiceHook : HookContext() {
         runCatching {
             hookAfter(findMethod(className, methodName, BluetoothDevice::class.java)) {
                 val device = args[0] as? BluetoothDevice ?: return@hookAfter
-                if (!isOppoPod(device)) return@hookAfter
+                if (!isManagedPod(device)) return@hookAfter
                 cacheRuntimeOwner(className, instance)
                 captureRuntimeContext(instance)
                 this.result = result()
@@ -132,7 +148,7 @@ object MiLinkServiceHook : HookContext() {
         runCatching {
             hookAfter(findMethod(className, methodName, String::class.java)) {
                 val address = args[0] as? String ?: return@hookAfter
-                if (!isOppoAddress(address)) return@hookAfter
+                if (!isManagedAddress(address)) return@hookAfter
                 this.result = result()
             }
         }.onFailure { Log.w(TAG, "hook $className.$methodName(String) skipped", it) }
@@ -142,12 +158,18 @@ object MiLinkServiceHook : HookContext() {
         runCatching {
             hookBefore(findMethod(className, methodName, BluetoothDevice::class.java)) {
                 val device = args[0] as? BluetoothDevice ?: return@hookBefore
-                if (!isOppoPod(device)) return@hookBefore
+                if (!isManagedPod(device)) return@hookBefore
                 cacheRuntimeOwner(className, instance)
                 captureRuntimeContext(instance)
                 currentAnc = oppoAnc
-                sendOppoAnc(oppoAnc)
-                sendAncChanged(oppoAnc)
+                if (brandOf(device) == PodBrand.MOONDROP) {
+                    // 水月雨：小窗里点「降噪/通透」必须落到设备上，
+                    // 走的是水月雨自己的 ANC_SELECT（下标语义），OPPO 那套 1/2/3/4 它不认。
+                    selectMoondropAnc(familyOfOppoAnc(oppoAnc))
+                } else {
+                    sendOppoAnc(oppoAnc)
+                    sendAncChanged(oppoAnc)
+                }
                 this.result = result
             }
         }.onFailure { Log.w(TAG, "hook $className.$methodName command skipped", it) }
@@ -157,7 +179,7 @@ object MiLinkServiceHook : HookContext() {
         runCatching {
             hookBefore(findMethod("com.miui.headset.runtime.AncBatteryController", "setAncStateBlock", BluetoothDevice::class.java, Int::class.javaPrimitiveType!!)) {
                 val device = args[0] as? BluetoothDevice ?: return@hookBefore
-                if (!isOppoPod(device)) return@hookBefore
+                if (!isManagedPod(device)) return@hookBefore
                 lastAncBatteryController = instance
                 captureRuntimeContext(instance)
                 val miLinkMode = args[1] as? Int ?: return@hookBefore
@@ -166,11 +188,18 @@ object MiLinkServiceHook : HookContext() {
                 if (instanceContext != null) {
                     context = instanceContext.applicationContext ?: instanceContext
                 }
-                currentAnc = oppoAnc
-                sendOppoAnc(oppoAnc, instanceContext)
-                sendAncChanged(oppoAnc, instanceContext)
-                notifyHeadsetPropertyChanged(instance, device, 8)
-                notifyHeadsetPropertyChanged(instance, device, 4)
+                if (brandOf(device) == PodBrand.MOONDROP) {
+                    // 融合设备中心只会问三档，水月雨的档位是型号相关 id：按家族挑一个下标回传
+                    selectMoondropAnc(familyOfOppoAnc(oppoAnc))
+                    notifyHeadsetPropertyChanged(instance, device, 8)
+                    notifyHeadsetPropertyChanged(instance, device, 4)
+                } else {
+                    currentAnc = oppoAnc
+                    sendOppoAnc(oppoAnc, instanceContext)
+                    sendAncChanged(oppoAnc, instanceContext)
+                    notifyHeadsetPropertyChanged(instance, device, 8)
+                    notifyHeadsetPropertyChanged(instance, device, 4)
+                }
                 this.result = miLinkAncState()
             }
         }.onFailure { Log.w(TAG, "hook AncBatteryController.setAncStateBlock skipped", it) }
@@ -210,31 +239,35 @@ object MiLinkServiceHook : HookContext() {
                         notifyHeadsetPropertyChanged(lastAncBatteryController, currentBluetoothDevice(), 10)
                     }
                     HyperPodsAction.ACTION_PODS_CONNECTED -> {
+                        currentBrand = PodBrand.OPPO
                         currentAddress = intent.getStringExtra("address") ?: currentAddress
                         currentName = intent.getStringExtra("device_name") ?: currentName
                         currentProductId = intent.getStringExtra("product_id") ?: currentProductId
-                        currentAddress?.let { knownOppoAddresses.add(it.uppercase()) }
+                        currentAddress?.let { knownAddresses.add(it.uppercase()) }
                     }
                     HyperPodsAction.ACTION_PODS_DISCONNECTED -> {
                         currentAddress = intent.getStringExtra("address") ?: currentAddress
                         currentProductId = null
                     }
                     HyperPodsAction.ACTION_PODS_BATTERY_CHANGED -> {
+                        currentBrand = PodBrand.OPPO
                         currentAddress = intent.getStringExtra("address") ?: currentAddress
                         currentBattery = intent.batteryStatusFromExtras() ?: intent.parcelableStatus() ?: currentBattery
-                        currentAddress?.let { knownOppoAddresses.add(it.uppercase()) }
+                        currentAddress?.let { knownAddresses.add(it.uppercase()) }
                         saveState(context)
                     }
                     HyperPodsAction.ACTION_PODS_ANC_CHANGED -> {
+                        currentBrand = PodBrand.OPPO
                         currentAddress = intent.getStringExtra("address") ?: currentAddress
                         currentAnc = intent.getIntExtra("status", currentAnc)
-                        currentAddress?.let { knownOppoAddresses.add(it.uppercase()) }
+                        currentAddress?.let { knownAddresses.add(it.uppercase()) }
                         saveState(context)
                     }
                     HyperPodsAction.ACTION_PODS_GAME_MODE_CHANGED -> {
+                        currentBrand = PodBrand.OPPO
                         currentAddress = intent.getStringExtra("address") ?: currentAddress
                         currentGameMode = intent.getBooleanExtra("enabled", currentGameMode)
-                        currentAddress?.let { knownOppoAddresses.add(it.uppercase()) }
+                        currentAddress?.let { knownAddresses.add(it.uppercase()) }
                         saveState(context)
                         notifyHeadsetPropertyChanged(lastAncBatteryController, currentBluetoothDevice(), 10)
                     }
@@ -242,6 +275,7 @@ object MiLinkServiceHook : HookContext() {
                     // 状态字段与 OPPO 侧共用（融合设备中心只认这一份），
                     // 所以水月雨的档位要先翻译成 HyperOS 那套 1/2/3/4 语义。
                     HyperPodsAction.PODS_CONNECTED -> {
+                        currentBrand = PodBrand.MOONDROP
                         currentAddress = intent.getStringExtra(HyperPodsAction.EXTRA_MAC) ?: currentAddress
                         currentName = intent.getStringExtra(HyperPodsAction.EXTRA_DEVICE_NAME) ?: currentName
                     }
@@ -250,29 +284,27 @@ object MiLinkServiceHook : HookContext() {
                         currentProductId = null
                     }
                     HyperPodsAction.BATTERY_CHANGED -> {
+                        currentBrand = PodBrand.MOONDROP
                         currentAddress = intent.getStringExtra(HyperPodsAction.EXTRA_MAC) ?: currentAddress
                         currentBattery = intent.batteryStatusCompat() ?: currentBattery
                         saveState(context)
                     }
                     HyperPodsAction.ANC_CHANGED -> {
                         currentAddress = intent.getStringExtra(HyperPodsAction.EXTRA_MAC) ?: currentAddress
-                        val ids = intent.getStringArrayListExtra(HyperPodsAction.EXTRA_ANC_IDS)
-                        val index = intent.getIntExtra(HyperPodsAction.EXTRA_STATUS, -1)
-                        currentAnc = when (ids?.getOrNull(index)) {
-                            "anc" -> 2
-                            "transparent", "live", "anti_wind" -> 3
-                            "adaptive" -> 4
-                            else -> 1
-                        }
+                        currentBrand = PodBrand.MOONDROP
+                        intent.getStringArrayListExtra(HyperPodsAction.EXTRA_ANC_IDS)?.let { currentAncIds = it }
+                        currentAncIndex = intent.getIntExtra(HyperPodsAction.EXTRA_STATUS, currentAncIndex)
+                        currentAnc = oppoAncOfMoondrop(currentAncIds.getOrNull(currentAncIndex))
                         saveState(context)
                         notifyHeadsetPropertyChanged(lastAncBatteryController, currentBluetoothDevice(), 10)
                     }
 
                     HyperPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED -> {
+                        currentBrand = PodBrand.OPPO
                         currentAddress = intent.getStringExtra("address") ?: currentAddress
                         currentSpatialAudioMode = intent.getIntExtra("mode", currentSpatialAudioMode)
                             .coerceIn(ConfigManager.SPATIAL_AUDIO_OFF, ConfigManager.SPATIAL_AUDIO_HEAD_TRACKING)
-                        currentAddress?.let { knownOppoAddresses.add(it.uppercase()) }
+                        currentAddress?.let { knownAddresses.add(it.uppercase()) }
                         saveState(context)
                     }
                 }
@@ -291,7 +323,7 @@ object MiLinkServiceHook : HookContext() {
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
         val result = name.contains("oppo", ignoreCase = true)
         if (result && address != null) {
-            knownOppoAddresses.add(address.uppercase())
+            knownAddresses.add(address.uppercase())
             currentAddress = address
             currentName = name
         }
@@ -300,25 +332,45 @@ object MiLinkServiceHook : HookContext() {
 
     internal fun isOppoAddress(address: String): Boolean {
         val normalized = address.uppercase()
-        return normalized == currentAddress?.uppercase() || normalized in knownOppoAddresses
+        return normalized == currentAddress?.uppercase() || normalized in knownAddresses
     }
 
     private fun isTargetHeadsetInfo(info: Any?): Boolean {
         if (info == null) return false
         listOf("getAddress", "component1").forEach { method ->
             val address = runCatching { callMethod(info, method) as? String }.getOrNull()
-            if (address != null && isOppoAddress(address)) return true
+            if (address != null && isManagedAddress(address)) return true
         }
         return false
     }
 
     private fun miLinkAncState(): Int {
         loadState()
+        // 水月雨按自己的家族口径回答。共用字段那套 1/2/3/4 编码里没有「抗风噪」，
+        // 直接套会把抗风噪显示成通透、把自适应显示成关闭 —— 小窗上就是「降噪不见了」。
+        if (currentBrand == PodBrand.MOONDROP) {
+            return miLinkAncOfMoondrop(currentAncIds.getOrNull(currentAncIndex))
+        }
         return when (currentAnc) {
             2, 5, 6, 7, 8 -> 1
             3 -> 2
             else -> 0
         }
+    }
+
+    /** 水月雨档位 id → 共用字段那套编码（1 关 / 2 降噪 / 3 通透 / 4 自适应）。 */
+    private fun oppoAncOfMoondrop(id: String?): Int = when (id) {
+        AncMode.NOISE_CANCELLATION.id, AncMode.ANTI_WIND.id -> 2
+        AncMode.TRANSPARENCY.id, AncMode.LIVE.id -> 3
+        AncMode.ADAPTIVE.id -> 4
+        else -> 1
+    }
+
+    /** 水月雨档位 id → 融合设备中心那套三档语义（0 关 / 1 降噪 / 2 通透）。 */
+    private fun miLinkAncOfMoondrop(id: String?): Int = when (id) {
+        AncMode.NOISE_CANCELLATION.id, AncMode.ANTI_WIND.id, AncMode.ADAPTIVE.id -> 1
+        AncMode.TRANSPARENCY.id, AncMode.LIVE.id -> 2
+        else -> 0
     }
 
     private fun oppoAncFromMiLink(mode: Int): Int {
@@ -359,6 +411,110 @@ object MiLinkServiceHook : HookContext() {
 
     private fun chargingValue(params: com.chenyc.hyperpods.utils.miuiStrongToast.data.PodParams?): Int {
         return if (params?.isConnected == true && params.isCharging) 1 else 0
+    }
+
+    /**
+     * 这台设备归本模块管吗 —— 融合设备中心侧的判据。
+     *
+     * 不能只判 OPPO：水月雨设备名里没有 oppo，而内存里的 currentAddress 在 milink
+     * 进程刚起来时还是空的（偏好只在结果回调里才读），于是第一台水月雨会被判成
+     * 「不认识」→ 系统的 checkIsMiTWS 回落到真实值 0 → 控制中心的小窗里电量/降噪全空。
+     * 因此判据是「已知地址 ∪ 品牌判定」，且判定规则集中在 pods/。
+     */
+    internal fun isManagedPod(device: BluetoothDevice): Boolean {
+        val address = runCatching { device.address }.getOrNull()
+        if (address != null && isManagedAddress(address)) return true
+        val brand = resolveBrand(device) ?: return false
+        if (address != null) {
+            knownAddresses.add(address.uppercase())
+            if (currentAddress.isNullOrBlank()) {
+                currentAddress = address
+                currentName = runCatching { device.name ?: device.alias }.getOrNull()
+                currentBrand = brand
+            }
+        }
+        return true
+    }
+
+    /** 是否为已接管地址（会先把偏好里的状态读回内存，冷启动也认得出）。 */
+    internal fun isManagedAddress(address: String): Boolean {
+        ensureStateLoaded()
+        val normalized = address.uppercase()
+        return normalized == currentAddress?.uppercase() || normalized in knownAddresses
+    }
+
+    /** 厂牌判定：当前设备用广播记下的品牌，认不出时交给 `pods/PodCatalog`。 */
+    private fun brandOf(device: BluetoothDevice): PodBrand? {
+        val address = runCatching { device.address }.getOrNull()
+        if (address != null && address.equals(currentAddress, ignoreCase = true)) {
+            currentBrand?.let { return it }
+        }
+        return resolveBrand(device)
+    }
+
+    private fun resolveBrand(device: BluetoothDevice): PodBrand? {
+        val address = runCatching { device.address }.getOrNull()
+        val name = runCatching { device.name ?: device.alias }.getOrNull()
+        context?.let { ctx ->
+            runCatching { PodCatalog.brandOf(ctx, name, address) }.getOrNull()?.let { return it }
+        }
+        return when {
+            PodCatalog.isMoondropName(name) -> PodBrand.MOONDROP
+            PodCatalog.isOppoName(name) -> PodBrand.OPPO
+            else -> null
+        }
+    }
+
+    private fun ensureStateLoaded() {
+        if (stateLoaded) return
+        loadState()
+        stateLoaded = true
+    }
+
+    /** 融合设备中心只有「关 / 降噪 / 通透」三档，水月雨那边的家族还要更细。 */
+    private enum class AncFamily { OFF, NOISE_CANCELLATION, TRANSPARENCY }
+
+    /** 共用字段那套编码（1 关 / 2 降噪 / 3 通透）→ 三档家族。 */
+    private fun familyOfOppoAnc(oppoAnc: Int): AncFamily = when (oppoAnc) {
+        2 -> AncFamily.NOISE_CANCELLATION
+        3 -> AncFamily.TRANSPARENCY
+        else -> AncFamily.OFF
+    }
+
+    /**
+     * 把「关/降噪/通透」翻成水月雨的具体档位下标，回传给蓝牙进程里的 MoondropController。
+     *
+     * 与模块耳机页走同一条 `ANC_SELECT` 通道（线上传下标，不是 OPPO 的 1/2/3/4 语义）。
+     * 家族归属以 `pods/moondrop` 的 [AncMode] 为准：抗风噪/自适应属降噪系，通透系含 live。
+     */
+    private fun selectMoondropAnc(family: AncFamily) {
+        val ids = currentAncIds
+        if (ids.isEmpty()) {
+            Log.w(TAG, "selectMoondropAnc skipped: 档位表还没到（等 ANC_CHANGED）family=$family")
+            return
+        }
+        val candidates = when (family) {
+            AncFamily.NOISE_CANCELLATION ->
+                listOf(AncMode.NOISE_CANCELLATION.id, AncMode.ANTI_WIND.id, AncMode.ADAPTIVE.id)
+            AncFamily.TRANSPARENCY -> listOf(AncMode.TRANSPARENCY.id, AncMode.LIVE.id)
+            AncFamily.OFF -> listOf(AncMode.OFF.id)
+        }
+        val index = candidates.firstNotNullOfOrNull { id -> ids.indexOf(id).takeIf { it >= 0 } }
+        if (index == null) {
+            Log.w(TAG, "selectMoondropAnc skipped: 档位表里没有 $family（ids=$ids）")
+            return
+        }
+        val ctx = context ?: run {
+            Log.w(TAG, "selectMoondropAnc skipped: context is null")
+            return
+        }
+        runCatching {
+            ctx.sendBroadcast(Intent(HyperPodsAction.ANC_SELECT).apply {
+                setPackage("com.android.bluetooth")
+                putExtra(HyperPodsAction.EXTRA_STATUS, index)
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            })
+        }.onFailure { Log.w(TAG, "selectMoondropAnc broadcast failed", it) }
     }
 
     private fun sendOppoAnc(mode: Int, fallbackContext: Context? = null) {
@@ -681,6 +837,9 @@ object MiLinkServiceHook : HookContext() {
             .putInt("anc", currentAnc)
             .putBoolean("game_mode", currentGameMode)
             .putInt("spatial_audio_mode", currentSpatialAudioMode)
+            .putString("brand", currentBrand?.name)
+            .putString("anc_ids", currentAncIds.joinToString(","))
+            .putInt("anc_index", currentAncIndex)
             .putInt("left_battery", currentBattery.left?.battery ?: 0)
             .putBoolean("left_charging", currentBattery.left?.isCharging == true)
             .putBoolean("left_connected", currentBattery.left?.isConnected == true)
@@ -701,7 +860,16 @@ object MiLinkServiceHook : HookContext() {
         currentGameMode = prefs.getBoolean("game_mode", currentGameMode)
         currentSpatialAudioMode = prefs.getInt("spatial_audio_mode", currentSpatialAudioMode)
             .coerceIn(ConfigManager.SPATIAL_AUDIO_OFF, ConfigManager.SPATIAL_AUDIO_HEAD_TRACKING)
-        currentAddress?.let { knownOppoAddresses.add(it.uppercase()) }
+        prefs.getString("brand", null)?.let { name ->
+            currentBrand = runCatching { PodBrand.valueOf(name) }.getOrNull()
+        }
+        prefs.getString("anc_ids", null)
+            ?.split(",")
+            ?.filter { it.isNotBlank() }
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { currentAncIds = it }
+        currentAncIndex = prefs.getInt("anc_index", currentAncIndex)
+        currentAddress?.let { knownAddresses.add(it.uppercase()) }
         currentBattery = BatteryParams(
             left = PodParams(
                 prefs.getInt("left_battery", currentBattery.left?.battery ?: 0),

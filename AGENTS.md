@@ -28,6 +28,14 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 
 **上游是 `1812z/OppoPods`（remote 名 `upstream`）：两边的 git 历史没有共同祖先，同步只能「比对增量 + 手工移植」，不能 merge。基线与操作步骤见 [docs/UPSTREAM.md](docs/UPSTREAM.md)。**
 
+**厂牌归属要分清，别把 OPPO 私有项摆到水月雨面前**：
+- 「**游戏模式**」（低延迟音频）是 **OPPO/欢律私有**协议的设备侧命令（`Packets.kt`，`GameModeFeature.LOW_LATENCY = 0x06`），
+  水月雨侧没有对应实现 —— 所以水月雨设备的通知栏弹窗里**不显示**它（`PopupActivity` 的 `showGameMode`），
+  只对 OPPO 生效的设置项统一收进 **OPPO 专属设置**二级页。
+- **水月雨不做「低延迟」设置项**：这一项由**系统蓝牙设置**里那个原生「低延迟」开关负责（HyperOS 原生设备页自带，
+  描述「在游戏音视频同步上提供低延迟体验」）。模块**不接管、也不另做**开关 —— 因此 `HyperPodsAction` 里
+  不再保留无人引用的 `LOW_LATENCY_*` 常量。
+
 **`module.prop` 的 `version` / `versionCode` 必须与 `app/build.gradle.kts` 的 `versionName` / `versionCode` 一致 —— `:app:verifyModuleProp`（挂在 `preBuild` 上）会断言，不一致直接构建失败。**
 架构与融合说明见 `docs/FUSION_ARCHITECTURE.md`。
 

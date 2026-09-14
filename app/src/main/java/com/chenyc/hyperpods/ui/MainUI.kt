@@ -1,5 +1,12 @@
 package com.chenyc.hyperpods.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.Headset
+import androidx.compose.material.icons.rounded.Settings
+import top.yukonga.miuix.kmp.basic.NavigationBar
+import top.yukonga.miuix.kmp.basic.NavigationBarItem
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity

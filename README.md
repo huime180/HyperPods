@@ -42,7 +42,8 @@ Both descend from [Art-Chen/HyperPods](https://github.com/Art-Chen/HyperPods) by
 
 - Xiaomi device running **HyperOS** (Android 15+)
 - **LSPosed** or a compatible Xposed framework
-- Module scope: `com.android.bluetooth`, `com.milink.service`, `com.xiaomi.bluetooth`, `com.android.systemui`, `com.android.settings`
+- Module scope: `com.android.bluetooth`, `com.milink.service`, `com.xiaomi.bluetooth`, `com.android.settings`
+(`com.android.systemui` will be added together with the device-card takeover)
 
 ### How It Works
 
@@ -56,7 +57,6 @@ commands back the same way.
 | `com.milink.service` | Mirror ANC / battery / multipoint state into the HyperOS device center |
 | `com.xiaomi.bluetooth` | Focus Island battery popup and the persistent notification |
 | `com.android.settings` | Impersonate the native headset page and route its controls back to the module |
-| `com.android.systemui` | Take over the headset card in the device center |
 
 Brand routing happens once, at connection time, through a single entry point
 (`pods/PodCatalog.brandOf`): MOONDROP models are matched by an explicit name/MAC whitelist
@@ -149,7 +149,8 @@ HyperPods 由两个项目融合而成：
 
 - 小米设备，运行 **HyperOS**（Android 15+）
 - **LSPosed** 或兼容的 Xposed 框架
-- 模块作用域：`com.android.bluetooth`、`com.milink.service`、`com.xiaomi.bluetooth`、`com.android.systemui`、`com.android.settings`
+- 模块作用域：`com.android.bluetooth`、`com.milink.service`、`com.xiaomi.bluetooth`、`com.android.settings`
+  （`com.android.systemui` 等设备卡接管做完再一并加入）
 
 ### 工作原理
 
@@ -162,7 +163,6 @@ HyperPods 由两个项目融合而成：
 | `com.milink.service` | 把降噪 / 电量 / 多设备连接状态同步进 HyperOS 融合设备中心 |
 | `com.xiaomi.bluetooth` | 焦点岛电量弹窗与常驻通知 |
 | `com.android.settings` | 伪装成小米原生耳机页，把页面上的操作路由回本模块 |
-| `com.android.systemui` | 接管融合设备中心的耳机卡 |
 
 品牌分流只在连接时做一次，入口唯一（`pods/PodCatalog.brandOf`）：水月雨按型号白名单
 （名称 / MAC）精确匹配，匹配不上才去试 OPPO 侧的宽匹配 —— 这样水月雨设备不会被

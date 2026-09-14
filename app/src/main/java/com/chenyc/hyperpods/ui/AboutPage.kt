@@ -368,7 +368,28 @@ fun MoreSettingsPage(
     onDualDeviceChange: (Boolean) -> Unit = {},
     connectedDevicesVisible: Boolean = false,
     connectedDevices: List<com.chenyc.hyperpods.pods.ConnectedDevice> = emptyList(),
-    connectedDevicesReceived: Boolean = false
+    connectedDevicesReceived: Boolean = false,
+    // 水月雨（GAIA）专属项：由能力位决定是否显示，值由蓝牙进程广播过来
+    gainVisible: Boolean = false,
+    gainLabels: List<String> = emptyList(),
+    gainIndex: Int = 0,
+    onGainChange: (Int) -> Unit = {},
+    ledVisible: Boolean = false,
+    ledOn: Boolean = false,
+    onLedChange: (Boolean) -> Unit = {},
+    promptToneVisible: Boolean = false,
+    promptToneOn: Boolean = false,
+    onPromptToneChange: (Boolean) -> Unit = {},
+    promptVolumeVisible: Boolean = false,
+    promptVolumeLabels: List<String> = emptyList(),
+    promptVolumeIndex: Int = 0,
+    onPromptVolumeChange: (Int) -> Unit = {},
+    lhdcVisible: Boolean = false,
+    lhdcOn: Boolean = false,
+    onLhdcChange: (Boolean) -> Unit = {},
+    lowLatencyVisible: Boolean = false,
+    lowLatencyOn: Boolean = false,
+    onLowLatencyChange: (Boolean) -> Unit = {}
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize().scrollEndHaptic(),
@@ -396,6 +417,51 @@ fun MoreSettingsPage(
                         summary = stringResource(R.string.dual_device_summary),
                         checked = dualDevice,
                         onCheckedChange = onDualDeviceChange
+                    )
+                }
+                if (promptToneVisible) {
+                    SwitchPreference(
+                        title = stringResource(R.string.moondrop_prompt_tone),
+                        checked = promptToneOn,
+                        onCheckedChange = onPromptToneChange
+                    )
+                }
+                if (promptVolumeVisible && promptVolumeLabels.isNotEmpty()) {
+                    OverlayDropdownPreference(
+                        title = stringResource(R.string.moondrop_prompt_volume),
+                        items = promptVolumeLabels,
+                        selectedIndex = promptVolumeIndex.coerceIn(0, promptVolumeLabels.size - 1),
+                        onSelectedIndexChange = onPromptVolumeChange
+                    )
+                }
+                if (gainVisible && gainLabels.isNotEmpty()) {
+                    // 档位名来自型号档案（低/中/高），不同机型可能是反向映射，所以只按索引走
+                    OverlayDropdownPreference(
+                        title = stringResource(R.string.moondrop_gain),
+                        items = gainLabels,
+                        selectedIndex = gainIndex.coerceIn(0, gainLabels.size - 1),
+                        onSelectedIndexChange = onGainChange
+                    )
+                }
+                if (ledVisible) {
+                    SwitchPreference(
+                        title = stringResource(R.string.moondrop_led),
+                        checked = ledOn,
+                        onCheckedChange = onLedChange
+                    )
+                }
+                if (lhdcVisible) {
+                    SwitchPreference(
+                        title = stringResource(R.string.moondrop_lhdc),
+                        checked = lhdcOn,
+                        onCheckedChange = onLhdcChange
+                    )
+                }
+                if (lowLatencyVisible) {
+                    SwitchPreference(
+                        title = stringResource(R.string.moondrop_low_latency),
+                        checked = lowLatencyOn,
+                        onCheckedChange = onLowLatencyChange
                     )
                 }
                 if (connectedDevicesVisible) {

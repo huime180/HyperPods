@@ -160,4 +160,10 @@
     <string name="debug_log_send">Send</string>
     <string name="debug_log_recv">Receive</string>
     <string name="debug_no_log">No logs yet</string>
+    <string name="moondrop_gain">DAC Gain</string>
+    <string name="moondrop_led">Indicator Light</string>
+    <string name="moondrop_prompt_tone">Prompt Tone</string>
+    <string name="moondrop_prompt_volume">Prompt Tone Volume</string>
+    <string name="moondrop_lhdc">LHDC High-Res Audio</string>
+    <string name="moondrop_low_latency">Low Latency</string>
 </resources>

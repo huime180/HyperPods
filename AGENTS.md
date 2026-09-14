@@ -20,7 +20,7 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 - `utils/`：Focus Island、媒体控制、系统 API、偏好保存及 `miuiStrongToast/` 的跨进程通知数据与工具。
 
 资源在 `app/src/main/res/`；Xposed 元数据在 `app/src/main/resources/META-INF/xposed/`。
-`scope.list` 当前包含五个 Hook 目标进程，新增 Hook 目标时必须同步更新它、`README.md` 与本文件。
+`scope.list` 当前包含四个 Hook 目标进程，新增 Hook 目标时必须同步更新它、`README.md` 与本文件。
 协议与逆向记录置于 `docs/`，融合架构总纲见 `docs/FUSION_ARCHITECTURE.md`。
 
 ## 融合原则（最重要的一条）

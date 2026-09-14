@@ -310,36 +310,46 @@ object MoondropController {
     }
 
     private fun publishGain() {
-        sendTo(PKG_SETTINGS, HyperPodsAction.GAIN_CHANGED) { i ->
-            i.withDevice().putExtra(HyperPodsAction.EXTRA_STATUS, gainIndex)
+        CONSUMERS.forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.GAIN_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_STATUS, gainIndex)
+            }
         }
     }
 
     private fun publishLed() {
         val on = ledOn ?: return
-        sendTo(PKG_SETTINGS, HyperPodsAction.LED_CHANGED) { i ->
-            i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+        CONSUMERS.forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.LED_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
         }
     }
 
     private fun publishPromptTone() {
         val on = promptToneOn ?: return
-        sendTo(PKG_SETTINGS, HyperPodsAction.PROMPT_TONE_CHANGED) { i ->
-            i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+        CONSUMERS.forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.PROMPT_TONE_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
         }
     }
 
     private fun publishPromptVolume() {
         if (promptVolumeRaw < 0) return
-        sendTo(PKG_SETTINGS, HyperPodsAction.PROMPT_VOLUME_CHANGED) { i ->
-            i.withDevice().putExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, promptVolumeRaw)
+        CONSUMERS.forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.PROMPT_VOLUME_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, promptVolumeRaw)
+            }
         }
     }
 
     private fun publishLhdc() {
         val on = lhdcOn ?: return
-        sendTo(PKG_SETTINGS, HyperPodsAction.LHDC_CHANGED) { i ->
-            i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+        CONSUMERS.forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.LHDC_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
         }
     }
 
@@ -351,6 +361,9 @@ object MoondropController {
             i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
         }
         sendTo(PKG_SETTINGS, HyperPodsAction.DUAL_CONNECTION_CHANGED) { i ->
+            i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+        }
+        sendTo(PKG_APP, HyperPodsAction.DUAL_CONNECTION_CHANGED) { i ->
             i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
         }
     }
@@ -367,8 +380,10 @@ object MoondropController {
 
     private fun publishLowLatency() {
         val on = lowLatencyOn ?: return
-        sendTo(PKG_SETTINGS, HyperPodsAction.LOW_LATENCY_CHANGED) { i ->
-            i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+        CONSUMERS.forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.LOW_LATENCY_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
         }
     }
 
@@ -387,6 +402,9 @@ object MoondropController {
             // 自适应档位看档位表，不看位图：有的机型位图里有 ANC 但只有开关两档
             putBoolean(CAP_ADAPTIVE, ancModes.contains(AncMode.ADAPTIVE))
             putBoolean(CAP_SPATIAL, caps.hasSpatial)
+            // 界面要显示档位名与音量上限，能力位本身不够
+            putStringArrayList(CAP_GAIN_LABELS, ArrayList(model.dc.gainLabels))
+            putInt(CAP_PROMPT_VOLUME_MAX, model.features.promptVolumeMax)
         }
         CONSUMERS.forEach { pkg ->
             sendTo(pkg, HyperPodsAction.CAPABILITIES_CHANGED) { i ->
@@ -419,6 +437,8 @@ object MoondropController {
     private const val CAP_LOW_LATENCY = "hasLowLatency"
     private const val CAP_ADAPTIVE = "hasAdaptive"
     private const val CAP_SPATIAL = "hasSpatial"
+    private const val CAP_GAIN_LABELS = "gainLabels"
+    private const val CAP_PROMPT_VOLUME_MAX = "promptVolumeMax"
 
     /** 本模块自己的包名（详情页要从这里取数）。 */
     private val PKG_APP = com.chenyc.hyperpods.BuildConfig.APPLICATION_ID

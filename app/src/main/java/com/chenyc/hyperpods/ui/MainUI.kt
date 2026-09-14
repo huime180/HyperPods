@@ -124,6 +124,17 @@ fun MainUI(
     val moondropAncIds = remember { mutableStateOf<List<String>>(emptyList()) }
     val moondropModelName = remember { mutableStateOf("") }
     val moondropHasAdaptive = remember { mutableStateOf(false) }
+    val moondropGainIndex = remember { mutableStateOf(0) }
+    val moondropGainLabels = remember { mutableStateOf<List<String>>(emptyList()) }
+    val moondropLedOn = remember { mutableStateOf(false) }
+    val moondropPromptToneOn = remember { mutableStateOf(false) }
+    val moondropPromptVolumeRaw = remember { mutableStateOf(0) }
+    val moondropLhdcOn = remember { mutableStateOf(false) }
+    val moondropDualConnectionOn = remember { mutableStateOf(false) }
+    val moondropLowLatencyOn = remember { mutableStateOf(false) }
+    // 能力包：决定「更多设置」里显示哪些水月雨项（显示项随耳机切换）
+    val moondropCaps = remember { mutableStateOf<Bundle?>(null) }
+    val moondropPromptVolumeLabels = remember { (0..10).map { "${it * 10}%" } }
     val gameMode = remember { mutableStateOf(false) }
     val hookEqPresetId = remember { mutableStateOf(-1) }
     val hookDeviceEqPresets = remember { mutableStateOf<List<EqDevicePreset>>(emptyList()) }
@@ -258,6 +269,9 @@ fun MainUI(
     val isConnecting = appConnState == AppRfcommController.ConnectionState.CONNECTING
     val isError = appConnState == AppRfcommController.ConnectionState.ERROR
     val canShowDetailPage = hookConnected.value || isStandaloneConnected || moondropConnected.value
+
+    /** 读能力包里的一个开关（没探测到就是关闭 → 对应控件不显示）。 */
+    fun moondropCap(key: String): Boolean = moondropCaps.value?.getBoolean(key) ?: false
 
     /** 水月雨档位标识 → 界面上的降噪模式（抗风噪/人声增强按通透处理，语义最接近）。 */
     fun moondropUiModeOf(ancId: String?): NoiseControlMode = when (ancId) {
@@ -486,11 +500,40 @@ fun MainUI(
                     }
 
                     // 能力到位就换档：首页与详情页的功能区随这台耳机实际具备的能力收窄/展开
+                    HyperPodsAction.GAIN_CHANGED -> {
+                        moondropGainIndex.value =
+                            p1.getIntExtra(HyperPodsAction.EXTRA_STATUS, 0).coerceAtLeast(0)
+                    }
+
+                    HyperPodsAction.LED_CHANGED ->
+                        moondropLedOn.value = p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.PROMPT_TONE_CHANGED ->
+                        moondropPromptToneOn.value =
+                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.PROMPT_VOLUME_CHANGED ->
+                        moondropPromptVolumeRaw.value =
+                            p1.getIntExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, 0).coerceAtLeast(0)
+
+                    HyperPodsAction.LHDC_CHANGED ->
+                        moondropLhdcOn.value = p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.DUAL_CONNECTION_CHANGED ->
+                        moondropDualConnectionOn.value =
+                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.LOW_LATENCY_CHANGED ->
+                        moondropLowLatencyOn.value =
+                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
                     HyperPodsAction.CAPABILITIES_CHANGED -> {
                         moondropModelName.value =
                             p1.getStringExtra(HyperPodsAction.EXTRA_MODEL_NAME).orEmpty()
                         val caps = p1.getBundleExtra(HyperPodsAction.EXTRA_CAPS_BUNDLE)
+                        moondropCaps.value = caps
                         moondropHasAdaptive.value = caps?.getBoolean("hasAdaptive") == true
+                        moondropGainLabels.value = caps?.getStringArrayList("gainLabels") ?: emptyList()
                         activeProfile.value = moondropProfileOf(caps)
                     }
 
@@ -528,6 +571,13 @@ fun MainUI(
             addAction(HyperPodsAction.BATTERY_CHANGED)
             addAction(HyperPodsAction.ANC_CHANGED)
             addAction(HyperPodsAction.CAPABILITIES_CHANGED)
+            addAction(HyperPodsAction.GAIN_CHANGED)
+            addAction(HyperPodsAction.LED_CHANGED)
+            addAction(HyperPodsAction.PROMPT_TONE_CHANGED)
+            addAction(HyperPodsAction.PROMPT_VOLUME_CHANGED)
+            addAction(HyperPodsAction.LHDC_CHANGED)
+            addAction(HyperPodsAction.DUAL_CONNECTION_CHANGED)
+            addAction(HyperPodsAction.LOW_LATENCY_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 
         context.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_UI_INIT).apply {
@@ -549,6 +599,39 @@ fun MainUI(
             appController.disconnect()
         }
     }
+
+    /** 水月雨的命令统一「广播回协议栈所在进程」（com.android.bluetooth）。 */
+    fun moondropSend(action: String, configure: (Intent) -> Unit = {}) {
+        context.sendBroadcast(Intent(action).apply {
+            setPackage("com.android.bluetooth")
+            configure(this)
+        })
+    }
+
+    fun setMoondropGain(index: Int) =
+        moondropSend(HyperPodsAction.GAIN_SELECT) { it.putExtra(HyperPodsAction.EXTRA_STATUS, index) }
+
+    fun setMoondropLed(on: Boolean) =
+        moondropSend(HyperPodsAction.LED_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
+
+    fun setMoondropPromptTone(on: Boolean) =
+        moondropSend(HyperPodsAction.PROMPT_TONE_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
+
+    fun setMoondropPromptVolumeStep(stepIndex: Int) {
+        // 界面按 10% 一档；协议侧收的是 0..100 原始百分比
+        moondropSend(HyperPodsAction.PROMPT_VOLUME_SELECT) {
+            it.putExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, (stepIndex * 10).coerceIn(0, 100))
+        }
+    }
+
+    fun setMoondropLhdc(on: Boolean) =
+        moondropSend(HyperPodsAction.LHDC_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
+
+    fun setMoondropDualConnection(on: Boolean) =
+        moondropSend(HyperPodsAction.DUAL_CONNECTION_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
+
+    fun setMoondropLowLatency(on: Boolean) =
+        moondropSend(HyperPodsAction.LOW_LATENCY_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
 
     fun setAncMode(mode: NoiseControlMode) {
         if (moondropConnected.value) {
@@ -1283,12 +1366,44 @@ fun MainUI(
                     autoPlayPauseVisible = activeProfile.value.autoPlayPauseVisible,
                     autoPlayPause = displayAutoPlayPause,
                     onAutoPlayPauseChange = { setAutoPlayPause(it) },
-                    dualDeviceVisible = activeProfile.value.dualDeviceVisible,
-                    dualDevice = displayDualDevice,
-                    onDualDeviceChange = { setDualDevice(it) },
+                    // 水月雨接上时，双设备连接走它自己的命令与状态；OPPO 侧保持原样
+                    dualDeviceVisible = if (moondropConnected.value) {
+                        moondropCap("hasDualConnection")
+                    } else {
+                        activeProfile.value.dualDeviceVisible
+                    },
+                    dualDevice = if (moondropConnected.value) {
+                        moondropDualConnectionOn.value
+                    } else {
+                        displayDualDevice
+                    },
+                    onDualDeviceChange = { on ->
+                        if (moondropConnected.value) setMoondropDualConnection(on) else setDualDevice(on)
+                    },
                     connectedDevicesVisible = activeProfile.value.connectedDevicesVisible,
                     connectedDevices = displayConnectedDevices,
-                    connectedDevicesReceived = displayConnectedDevicesReceived
+                    connectedDevicesReceived = displayConnectedDevicesReceived,
+                    // 以下 6 项只在识别到水月雨且探测出对应能力时出现
+                    gainVisible = moondropConnected.value && moondropCap("hasGain"),
+                    gainLabels = moondropGainLabels.value,
+                    gainIndex = moondropGainIndex.value,
+                    onGainChange = { setMoondropGain(it) },
+                    ledVisible = moondropConnected.value && moondropCap("hasLed"),
+                    ledOn = moondropLedOn.value,
+                    onLedChange = { setMoondropLed(it) },
+                    promptToneVisible = moondropConnected.value && moondropCap("hasPromptTone"),
+                    promptToneOn = moondropPromptToneOn.value,
+                    onPromptToneChange = { setMoondropPromptTone(it) },
+                    promptVolumeVisible = moondropConnected.value && moondropCap("hasPromptVolume"),
+                    promptVolumeLabels = moondropPromptVolumeLabels,
+                    promptVolumeIndex = (moondropPromptVolumeRaw.value / 10).coerceIn(0, 10),
+                    onPromptVolumeChange = { setMoondropPromptVolumeStep(it) },
+                    lhdcVisible = moondropConnected.value && moondropCap("hasLhdc"),
+                    lhdcOn = moondropLhdcOn.value,
+                    onLhdcChange = { setMoondropLhdc(it) },
+                    lowLatencyVisible = moondropConnected.value && moondropCap("hasLowLatency"),
+                    lowLatencyOn = moondropLowLatencyOn.value,
+                    onLowLatencyChange = { setMoondropLowLatency(it) }
                 )
             }
         }

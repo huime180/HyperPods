@@ -161,4 +161,10 @@
     <string name="debug_log_send">发送</string>
     <string name="debug_log_recv">接收</string>
     <string name="debug_no_log">暂无日志</string>
+    <string name="moondrop_gain">增益</string>
+    <string name="moondrop_led">指示灯</string>
+    <string name="moondrop_prompt_tone">提示音</string>
+    <string name="moondrop_prompt_volume">提示音音量</string>
+    <string name="moondrop_lhdc">LHDC 高清音频</string>
+    <string name="moondrop_low_latency">低延迟</string>
 </resources>

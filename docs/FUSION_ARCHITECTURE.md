@@ -35,7 +35,7 @@
 | Xposed 入口 | `com.chenyc.hyperpods.hook.HookEntry`（`java_init.list` 单入口） |
 | RemotePreferences 组 | `hyperpods_settings` |
 | 广播前缀 | OPPO 侧 `chen.action.hyperpods.*`；水月雨侧 `chen.action.hyperpods.moondrop.*` |
-| 作用域 | `com.android.bluetooth`、`com.milink.service`、`com.xiaomi.bluetooth`、`com.android.systemui`、`com.android.settings` |
+| 作用域 | `com.android.bluetooth`、`com.milink.service`、`com.xiaomi.bluetooth`、`com.android.settings` |
 
 ---
 

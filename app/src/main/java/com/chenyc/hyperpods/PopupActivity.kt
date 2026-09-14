@@ -183,7 +183,7 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
     // 「游戏模式」= 低延迟音频，但它走的是 **OPPO/欢律私有协议**的一条**设备侧**命令
     // （pods/Packets.kt：AA 09 ... 06 01，GameModeFeature.LOW_LATENCY=0x06），能力位来自
     // OPPO 的 assets/device_models.json。水月雨线上没有对应实现（pods/moondrop 里没有任何
-    // gameMode/lowLatency 代码，HyperPodsAction 的 LOW_LATENCY_* 两个常量无人引用），
+    // gameMode/lowLatency 代码，低延迟现已改为模块直控，见 LOW_LATENCY_SELECT / LOW_LATENCY_CHANGED），
     // 所以插水月雨时把这张卡藏掉 —— 否则按下去只会发一条没有接收方的 ACTION_GAME_MODE_SET。
     // 它**不是** HyperOS 蓝牙设置里的「低延迟模式」：那个是系统侧 A2DP 配置，与厂商协议无关。
     val isMoondrop = mdAncIds.value.isNotEmpty() ||

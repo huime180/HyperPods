@@ -138,6 +138,7 @@ fun MainUI(
     val moondropPromptToneOn = remember { mutableStateOf(false) }
     val moondropPromptVolumeRaw = remember { mutableStateOf(0) }
     val moondropLhdcOn = remember { mutableStateOf(false) }
+    val moondropLowLatencyOn = remember { mutableStateOf(false) }
     val moondropDualConnectionOn = remember { mutableStateOf(false) }
     // 手势配置：5 字节，每字节高 4 位左耳、低 4 位右耳；null = 还没读到
     val moondropGestureConf = remember { mutableStateOf<IntArray?>(null) }
@@ -253,6 +254,13 @@ fun MainUI(
         onLhdcChange = { on ->
             moondropSend(HyperPodsAction.LHDC_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
         },
+        lowLatencyOn = moondropLowLatencyOn.value,
+        onLowLatencyChange = { on ->
+            // 不乐观更新：拨完等蓝牙进程的 LOW_LATENCY_CHANGED 回灌，与同页其它开关一致
+            moondropSend(HyperPodsAction.LOW_LATENCY_SELECT) {
+                it.putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
+        },
         dualConnectionOn = moondropDualConnectionOn.value,
         onDualConnectionChange = { on ->
             moondropSend(HyperPodsAction.DUAL_CONNECTION_SELECT) {
@@ -345,6 +353,8 @@ fun MainUI(
                         moondropAncIds.value = emptyList()
                         moondropCaps.value = null
                         moondropActiveCodec.value = ""
+                        // 低延迟是系统侧状态，断开后没有可回读的源，先复位免得下次接上闪一个旧值
+                        moondropLowLatencyOn.value = false
                         mainTitle.value = ""
                     }
 
@@ -376,6 +386,10 @@ fun MainUI(
 
                     HyperPodsAction.LHDC_CHANGED ->
                         moondropLhdcOn.value = p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.LOW_LATENCY_CHANGED ->
+                        moondropLowLatencyOn.value =
+                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
 
                     HyperPodsAction.DUAL_CONNECTION_CHANGED ->
                         moondropDualConnectionOn.value =
@@ -561,6 +575,7 @@ fun MainUI(
             addAction(HyperPodsAction.PROMPT_TONE_CHANGED)
             addAction(HyperPodsAction.PROMPT_VOLUME_CHANGED)
             addAction(HyperPodsAction.LHDC_CHANGED)
+            addAction(HyperPodsAction.LOW_LATENCY_CHANGED)
             addAction(HyperPodsAction.DUAL_CONNECTION_CHANGED)
             addAction(HyperPodsAction.GESTURE_CHANGED)
             addAction(HyperPodsAction.CODEC_CHANGED)

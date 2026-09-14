@@ -57,6 +57,8 @@ object HyperPodsAction {
     const val PROMPT_VOLUME_CHANGED = "chen.action.hyperpods.moondrop.prompt_volume_changed"
     const val LHDC_CHANGED = "chen.action.hyperpods.moondrop.lhdc_changed"
     const val DUAL_CONNECTION_CHANGED = "chen.action.hyperpods.moondrop.dual_connection_changed"
+    // 低延迟是**系统侧 A2DP 特性**（不是耳机厂商协议命令），状态由蓝牙进程广播、界面只发选择
+    const val LOW_LATENCY_CHANGED = "chen.action.hyperpods.moondrop.low_latency_changed"
     const val GESTURE_CHANGED = "chen.action.hyperpods.moondrop.gesture_changed"
     const val CODEC_CHANGED = "chen.action.hyperpods.moondrop.codec_changed"
     const val CAPABILITIES_CHANGED = "chen.action.hyperpods.moondrop.capabilities_changed"
@@ -70,6 +72,7 @@ object HyperPodsAction {
     const val PROMPT_VOLUME_SELECT = "chen.action.hyperpods.moondrop.prompt_volume_select"
     const val LHDC_SELECT = "chen.action.hyperpods.moondrop.lhdc_select"
     const val DUAL_CONNECTION_SELECT = "chen.action.hyperpods.moondrop.dual_connection_select"
+    const val LOW_LATENCY_SELECT = "chen.action.hyperpods.moondrop.low_latency_select"
     const val REQUEST_CAPABILITIES = "chen.action.hyperpods.moondrop.request_capabilities"
     const val REQUEST_BATTERY = "chen.action.hyperpods.moondrop.request_battery"
     const val REQUEST_GESTURE = "chen.action.hyperpods.moondrop.request_gesture"

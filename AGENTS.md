@@ -32,9 +32,7 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 - 「**游戏模式**」（低延迟音频）是 **OPPO/欢律私有**协议的设备侧命令（`Packets.kt`，`GameModeFeature.LOW_LATENCY = 0x06`），
   水月雨侧没有对应实现 —— 所以水月雨设备的通知栏弹窗里**不显示**它（`PopupActivity` 的 `showGameMode`），
   只对 OPPO 生效的设置项统一收进 **OPPO 专属设置**二级页。
-- **水月雨不做「低延迟」设置项**：这一项由**系统蓝牙设置**里那个原生「低延迟」开关负责（HyperOS 原生设备页自带，
-  描述「在游戏音视频同步上提供低延迟体验」）。模块**不接管、也不另做**开关 —— 因此 `HyperPodsAction` 里
-  不再保留无人引用的 `LOW_LATENCY_*` 常量。
+- **水月雨的低延迟由本模块直接控制（系统侧 A2DP 特性）**：它不是厂商协议命令，所以模块页上是一个**真开关**（`LOW_LATENCY_SELECT` 下发 / `LOW_LATENCY_CHANGED` 回灌，能力位键 `hasLowLatency`），而不是跳去系统页面 —— 系统设备页本身还会被重定向到模块页，跳过去会成环。
 
 **`module.prop` 的 `version` / `versionCode` 必须与 `app/build.gradle.kts` 的 `versionName` / `versionCode` 一致 —— `:app:verifyModuleProp`（挂在 `preBuild` 上）会断言，不一致直接构建失败。**
 架构与融合说明见 `docs/FUSION_ARCHITECTURE.md`。

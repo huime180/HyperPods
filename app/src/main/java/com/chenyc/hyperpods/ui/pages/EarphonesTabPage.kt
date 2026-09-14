@@ -90,8 +90,6 @@ internal fun EarphonesTabPage(
                 spatialSoundSupported = spatialSoundSupported,
                 adaptiveModeEnabled = adaptiveModeEnabled,
                 boxImagePath = boxImagePath,
-                // 「低延迟」入口行要用这个地址跳系统原生设备页；地址已由 MainUI 透传到这里
-                connectedDeviceAddress = connectedDeviceAddress,
             )
         } else {
             DevicePickerPage(

@@ -1,13 +1,7 @@
 package com.chenyc.hyperpods.ui.pages
 
-import android.annotation.SuppressLint
-import android.app.Activity
-import android.bluetooth.BluetoothAdapter
-import android.content.Context
-import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,7 +26,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -93,7 +86,6 @@ fun PodDetailPage(
     dualDeviceSupported: Boolean = false,
     onOpenEqualizer: () -> Unit = {},
     boxImagePath: String? = null,
-    connectedDeviceAddress: String = "",
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -158,7 +150,6 @@ fun PodDetailPage(
                     dualDeviceSupported = dualDeviceSupported,
                     onOpenEqualizer = onOpenEqualizer,
                     bottomContentPadding = bottomContentPadding,
-                    connectedDeviceAddress = connectedDeviceAddress
                 )
             }
         }
@@ -204,7 +195,6 @@ fun PodDetailPage(
             dualDeviceSupported = dualDeviceSupported,
             onOpenEqualizer = onOpenEqualizer,
             bottomContentPadding = bottomContentPadding,
-            connectedDeviceAddress = connectedDeviceAddress
         )
     }
 }
@@ -242,7 +232,6 @@ private fun LazyListScope.podControlItems(
     dualDeviceSupported: Boolean,
     onOpenEqualizer: () -> Unit,
     bottomContentPadding: Dp,
-    connectedDeviceAddress: String
 ) {
     val spatialAudioValues = listOf(
         ConfigManager.SPATIAL_AUDIO_OFF,
@@ -288,8 +277,6 @@ private fun LazyListScope.podControlItems(
     }
 
     item {
-        // 下面那条「低延迟」入口要发起 Activity 跳转，这里取一次宿主 Context（模块页跑在 MainActivity 里）
-        val context = LocalContext.current
         Card(
             modifier = Modifier.padding(horizontal = 12.dp)
         ) {
@@ -418,19 +405,16 @@ private fun LazyListScope.podControlItems(
                 )
             }
 
-            // 「低延迟」是系统蓝牙设置里的原生开关：模块不自己实现、也不接管，只把入口委托过去。
-            // 显示条件与「有已知的耳机地址」严格一致 —— 没有地址就进不了那一页，宁可整行不显示。
-            if (connectedDeviceAddress.isNotBlank()) {
-                BasicComponent(
+            // 「低延迟」是**系统侧 A2DP 特性**（不是耳机厂商协议命令），模块直接驱动它：
+            // 发 LOW_LATENCY_SELECT，等蓝牙进程的 LOW_LATENCY_CHANGED 回灌（不乐观更新）。
+            // 可见性只看能力位 hasLowLatency —— 能力位没来就整行不显示，宁可没有，
+            // 也不摆一个拨不动的假开关。
+            if (moondrop.lowLatencyVisible) {
+                SwitchPreference(
                     title = stringResource(R.string.system_low_latency),
                     summary = stringResource(R.string.system_low_latency_summary),
-                    onClick = { context.openSystemHeadsetLowLatency(connectedDeviceAddress) },
-                    endActions = {
-                        Icon(
-                            imageVector = MiuixIcons.Basic.ArrowRight,
-                            contentDescription = null,
-                        )
-                    },
+                    checked = moondrop.lowLatencyOn,
+                    onCheckedChange = moondrop.onLowLatencyChange,
                 )
             }
         }
@@ -523,40 +507,4 @@ private fun ConfirmSwitchRow(
             )
         }
     }
-}
-
-/**
- * 打开系统原生的耳机设备页 —— 「低延迟」开关是系统的功能，模块只把入口委托过去。
- *
- * 必须带上 extra `hyperpods_from_module` = `"true"`：另一个 hook 用这个 extra 判断
- * 「这次是模块页自己发起的、要放行」，否则模块页 → 系统页 →（被重定向回模块页）会来回弹。
- * extra 名与取值是双方约定的契约，逐字不能改。
- *
- * 模块页跑在 MainActivity 里，[LocalContext] 就是 Activity，正常情况下不需要 NEW_TASK；
- * 只有托管到非 Activity 上下文（例如以后被放进对话框）时才补上，与 AboutPage 打开链接的写法一致。
- */
-@SuppressLint("MissingPermission")
-private fun Context.openSystemHeadsetLowLatency(address: String) {
-    // 系统页认的是 BluetoothDevice + 字符串地址两样；地址由连接广播带过来，这里只按地址构造一次，
-    // 不重新枚举已配对设备。地址非法时构造会抛，runCatching 掉即可（下面的跳转也兜了一层）。
-    val device = runCatching {
-        BluetoothAdapter.getDefaultAdapter()?.getRemoteDevice(address)
-    }.getOrNull()
-    val intent = Intent().apply {
-        setClassName("com.android.settings", "com.android.settings.bluetooth.MiuiHeadsetActivity")
-        if (device != null) {
-            putExtra("android.bluetooth.device.extra.DEVICE", device)
-        }
-        putExtra("bluetoothaddress", address)
-        putExtra("MIUI_HEADSET_SUPPORT", ConfigManager.fakeSupport())
-        putExtra("COME_FROM", "MIUI_BLUETOOTH_SETTINGS")
-        putExtra("DEVICE_ID", ConfigManager.fakeDeviceId())
-        // 契约：模块页自己发起的跳转必须带这个 extra，hook 侧据此放行（防重定向死循环）
-        putExtra("hyperpods_from_module", "true")
-        if (this@openSystemHeadsetLowLatency !is Activity) {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-    }
-    runCatching { startActivity(intent) }
-        .onFailure { Log.w("HyperPods", "open system headset page failed", it) }
 }

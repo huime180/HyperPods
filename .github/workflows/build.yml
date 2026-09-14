@@ -3,9 +3,9 @@ name: Build Release APK
 on:
   push:
     tags: [ "v*" ]
-    branches: [ "master", "main" ]
+    branches: [ "master", "main", "dev", "rebase-1812z" ]
   pull_request:
-    branches: [ "master", "main" ]
+    branches: [ "master", "main", "dev", "rebase-1812z" ]
   workflow_dispatch:
 
 jobs:

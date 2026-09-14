@@ -150,8 +150,9 @@
     <string name="moondrop_gesture">手势控制</string>
     <string name="moondrop_gesture_summary">设置单击 / 双击 / 三击与两档长按、左右耳各自的动作</string>
     <string name="moondrop_gesture_not_synced">尚未同步到手势配置</string>
-    <string name="anc_normal_title">普通</string>
-    <string name="anc_anti_wind_title">抗风</string>
+    <string name="moondrop_gesture_longpress_note">长按1秒与长按3秒互斥：设置其中一个后，另一个会自动置为「无」。</string>
+    <string name="anc_normal_title">基本</string>
+    <string name="anc_anti_wind_title">抗风噪</string>
     <string name="anc_live_title">直播</string>
     <string name="active_codec">当前编码</string>
 </resources>

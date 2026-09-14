@@ -149,8 +149,9 @@
     <string name="moondrop_gesture">Gesture Controls</string>
     <string name="moondrop_gesture_summary">Single / double / triple tap and two long-press slots, per ear</string>
     <string name="moondrop_gesture_not_synced">Gesture configuration not synced yet</string>
-    <string name="anc_normal_title">Normal</string>
-    <string name="anc_anti_wind_title">Anti-wind</string>
+    <string name="moondrop_gesture_longpress_note">Long press 1s and long press 3s are mutually exclusive: setting one clears the other to None.</string>
+    <string name="anc_normal_title">Basic</string>
+    <string name="anc_anti_wind_title">Wind noise reduction</string>
     <string name="anc_live_title">Live</string>
     <string name="active_codec">Current Codec</string>
 </resources>

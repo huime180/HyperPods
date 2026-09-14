@@ -137,7 +137,6 @@ fun MainUI(
     val moondropPromptVolumeRaw = remember { mutableStateOf(0) }
     val moondropLhdcOn = remember { mutableStateOf(false) }
     val moondropDualConnectionOn = remember { mutableStateOf(false) }
-    val moondropPromptVolumeLabels = remember { (0..10).map { "${it * 10}%" } }
     // 手势配置：5 字节，每字节高 4 位左耳、低 4 位右耳；null = 还没读到
     val moondropGestureConf = remember { mutableStateOf<IntArray?>(null) }
     // 系统实际协商到的 A2DP 编码（由蓝牙进程读出来广播过来）；空 = 未知，界面不显示这一行
@@ -241,12 +240,11 @@ fun MainUI(
                 it.putExtra(HyperPodsAction.EXTRA_ENABLED, on)
             }
         },
-        promptVolumeLabels = moondropPromptVolumeLabels,
-        promptVolumeIndex = (moondropPromptVolumeRaw.value / 10).coerceIn(0, 10),
-        onPromptVolumeChange = { step ->
-            // 界面按 10% 一档；协议侧收的是 0..100 原始百分比
+        promptVolumePercent = moondropPromptVolumeRaw.value.coerceIn(0, 100),
+        onPromptVolumeChange = { percent ->
+            // 设备侧直接收 0..100 的原始百分比，界面不再折算成「档」
             moondropSend(HyperPodsAction.PROMPT_VOLUME_SELECT) {
-                it.putExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, (step * 10).coerceIn(0, 100))
+                it.putExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, percent.coerceIn(0, 100))
             }
         },
         lhdcOn = moondropLhdcOn.value,

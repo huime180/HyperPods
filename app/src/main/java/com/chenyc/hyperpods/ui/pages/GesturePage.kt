@@ -1,6 +1,7 @@
 package com.chenyc.hyperpods.ui.pages
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -64,6 +65,12 @@ fun GesturePage(
                         }
                     }
                 }
+            }
+        }
+        item {
+            // 只解释「长按两档互斥」这一条：其余手势之间没有互斥关系，不需要写说明。
+            Card(modifier = Modifier.padding(top = 12.dp)) {
+                BasicComponent(title = stringResource(R.string.moondrop_gesture_longpress_note))
             }
         }
     }

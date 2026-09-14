@@ -15,7 +15,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -36,13 +40,19 @@ import com.chenyc.hyperpods.ui.components.AncSwitch
 import com.chenyc.hyperpods.ui.components.MoondropAncSwitch
 import com.chenyc.hyperpods.ui.components.PodStatus
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 import com.chenyc.hyperpods.ui.MoondropControls
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 
@@ -337,11 +347,9 @@ private fun LazyListScope.podControlItems(
                 )
             }
             if (moondrop.promptVolumeVisible) {
-                OverlayDropdownPreference(
-                    title = stringResource(R.string.moondrop_prompt_volume),
-                    items = moondrop.promptVolumeLabels,
-                    selectedIndex = moondrop.promptVolumeIndex.coerceIn(0, moondrop.promptVolumeLabels.size - 1),
-                    onSelectedIndexChange = moondrop.onPromptVolumeChange
+                PromptVolumeSlider(
+                    percent = moondrop.promptVolumePercent,
+                    onPercentChange = moondrop.onPromptVolumeChange,
                 )
             }
             if (moondrop.gainVisible) {
@@ -361,20 +369,20 @@ private fun LazyListScope.podControlItems(
                 )
             }
             if (moondrop.lhdcVisible) {
-                // LHDC 与双设备连接在芯片侧互斥，提示写在副标题里
-                SwitchPreference(
+                // LHDC 与双设备连接在芯片侧互斥：切换前弹窗讲清楚，确认后再下发
+                ConfirmSwitchRow(
                     title = stringResource(R.string.moondrop_lhdc),
                     summary = stringResource(R.string.moondrop_lhdc_summary),
                     checked = moondrop.lhdcOn,
-                    onCheckedChange = moondrop.onLhdcChange
+                    onCheckedChange = moondrop.onLhdcChange,
                 )
             }
             if (moondrop.dualConnectionVisible) {
-                SwitchPreference(
+                ConfirmSwitchRow(
                     title = stringResource(R.string.dual_device_connection),
                     summary = stringResource(R.string.moondrop_dual_summary),
                     checked = moondrop.dualConnectionOn,
-                    onCheckedChange = moondrop.onDualConnectionChange
+                    onCheckedChange = moondrop.onDualConnectionChange,
                 )
             }
             if (moondrop.gestureVisible) {
@@ -394,5 +402,89 @@ private fun LazyListScope.podControlItems(
     }
     item {
         androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(bottomContentPadding))
+    }
+}
+
+/**
+ * 提示音音量滑条。
+ *
+ * 设备侧这是一个 **0..100 的连续原始值**（协议里只有 raw，没有「档」），以前用 11 档下拉表达：
+ * 既不是设备的真实粒度，也很难正好停在想要的数值上。这里改成滑条 + 右侧实时百分比。
+ *
+ * 拖动过程中**不**下发：一次拖动会产生几十次回调，RFCOMM 上就是几十次写，
+ * 所以停下 250ms 再发一次（[LaunchedEffect] 的 key 是 local，每次变化都会重启协程，
+ * 天然起到防抖作用）。下发后设备回读会刷新 percent，local 与 percent 一致时不再发。
+ */
+@Composable
+private fun PromptVolumeSlider(percent: Int, onPercentChange: (Int) -> Unit) {
+    var local by remember(percent) { mutableStateOf(percent.coerceIn(0, 100)) }
+    LaunchedEffect(local) {
+        if (local != percent) {
+            delay(250)
+            onPercentChange(local)
+        }
+    }
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = stringResource(R.string.moondrop_prompt_volume), fontSize = 16.sp)
+            Text(text = "$local%", fontSize = 14.sp)
+        }
+        Slider(
+            value = local / 100f,
+            onValueChange = { local = (it.coerceIn(0f, 1f) * 100f).roundToInt().coerceIn(0, 100) },
+            valueRange = 0f..1f,
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        )
+    }
+}
+
+/**
+ * 「切换前先弹窗确认」的开关（LHDC / 双设备连接）。
+ *
+ * 这两个开关在设备侧互斥（开一个会关掉另一个）。以前只在副标题里写一行说明，
+ * 用户拨完才发现另一个被关掉了；现在改成先弹窗把后果讲清楚、确认后才下发。
+ * 取消时开关保持原状 —— 因为 checked 一直是外部状态，本地只暂存用户想改成的值。
+ */
+@Composable
+private fun ConfirmSwitchRow(
+    title: String,
+    summary: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    var pending by remember { mutableStateOf<Boolean?>(null) }
+    SwitchPreference(
+        title = title,
+        summary = summary,
+        checked = checked,
+        onCheckedChange = { pending = it },
+    )
+    OverlayDialog(
+        title = title,
+        summary = summary,
+        show = pending != null,
+        onDismissRequest = { pending = null },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(
+                text = stringResource(R.string.cancel),
+                onClick = { pending = null },
+            )
+            TextButton(
+                text = stringResource(R.string.confirm),
+                onClick = {
+                    pending?.let(onCheckedChange)
+                    pending = null
+                },
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
+        }
     }
 }

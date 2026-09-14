@@ -28,8 +28,8 @@ class MoondropControls(
     val onLedChange: (Boolean) -> Unit = {},
     val promptToneOn: Boolean = false,
     val onPromptToneChange: (Boolean) -> Unit = {},
-    val promptVolumeLabels: List<String> = emptyList(),
-    val promptVolumeIndex: Int = 0,
+    /** 提示音音量：设备侧就是 0..100 的连续原始值（协议里没有「档」），UI 用滑条。 */
+    val promptVolumePercent: Int = 0,
     val onPromptVolumeChange: (Int) -> Unit = {},
     val lhdcOn: Boolean = false,
     val onLhdcChange: (Boolean) -> Unit = {},
@@ -49,7 +49,7 @@ class MoondropControls(
     val gainVisible get() = connected && supports(KEY_GAIN) && gainLabels.isNotEmpty()
     val ledVisible get() = connected && supports(KEY_LED)
     val promptToneVisible get() = connected && supports(KEY_PROMPT_TONE)
-    val promptVolumeVisible get() = connected && supports(KEY_PROMPT_VOLUME) && promptVolumeLabels.isNotEmpty()
+    val promptVolumeVisible get() = connected && supports(KEY_PROMPT_VOLUME)
     val lhdcVisible get() = connected && supports(KEY_LHDC)
     val dualConnectionVisible get() = connected && supports(KEY_DUAL_CONNECTION)
     val gestureVisible get() = connected && supports(KEY_GESTURES)

@@ -1148,7 +1148,21 @@ object MoondropController {
                 Log.w(TAG, "setGesture($slot/$ear) skipped: gesture config unknown")
                 return@launch
             }
-            val next = MoondropGaia.GestureConf(current.copyOf()).with(slot, ear, actionId)
+            var next = MoondropGaia.GestureConf(current.copyOf()).with(slot, ear, actionId)
+            // 长按两档在设备侧**互斥**（真机确认）：同时配两条长按，设备行为不确定。
+            // 把其中一个设成非「无」的动作时，另一个的**两只耳**一并清成「无」。
+            // 只有长按这一对有互斥关系 —— 单击/双击/三击之间没有，别顺手扩大。
+            val counterpart = when (slot) {
+                MoondropGaia.GestureSlot.LONG_PRESS_1S -> MoondropGaia.GestureSlot.LONG_PRESS_3S
+                MoondropGaia.GestureSlot.LONG_PRESS_3S -> MoondropGaia.GestureSlot.LONG_PRESS_1S
+                else -> null
+            }
+            if (counterpart != null && actionId != MoondropGaia.TouchActions.NONE) {
+                MoondropGaia.Ear.entries.forEach { otherEar ->
+                    next = next.with(counterpart, otherEar, MoondropGaia.TouchActions.NONE)
+                }
+                Log.i(TAG, "setGesture: ${slot.labelZh} 与 ${counterpart.labelZh} 互斥，已清空 ${counterpart.labelZh}")
+            }
             Log.i(
                 TAG,
                 "setGesture ${slot.index}/${slot.labelZh}/${ear.labelZh} -> " +

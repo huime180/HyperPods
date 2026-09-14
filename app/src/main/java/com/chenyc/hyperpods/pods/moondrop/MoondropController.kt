@@ -170,8 +170,16 @@ object MoondropController {
     fun handleUIEvent(intent: Intent, receiverContext: Context? = null) {
         (receiverContext ?: appContext)?.let { init(it) }
         when (intent.action) {
-            HyperPodsAction.UI_INIT, HyperPodsAction.REQUEST_CAPABILITIES -> refreshAll()
-            HyperPodsAction.REQUEST_BATTERY -> requestBatteryRefresh()
+            // 先无条件重放缓存（后打开的消费者缺的就是这一步），再去刷新一次真实状态
+            HyperPodsAction.UI_INIT -> {
+                republishCachedState()
+                refreshAll()
+            }
+            HyperPodsAction.REQUEST_CAPABILITIES -> refreshAll()
+            HyperPodsAction.REQUEST_BATTERY -> {
+                republishCachedState()
+                requestBatteryRefresh()
+            }
             HyperPodsAction.ANC_SELECT -> setAnc(intent.getIntExtra(HyperPodsAction.EXTRA_STATUS, -1))
             HyperPodsAction.GAIN_SELECT -> setGain(intent.getIntExtra(HyperPodsAction.EXTRA_STATUS, -1))
             HyperPodsAction.LED_SELECT ->
@@ -215,6 +223,30 @@ object MoondropController {
 
             else -> Unit
         }
+    }
+
+    /**
+     * 把当前**已缓存**的状态整体重放一遍。
+     *
+     * 为什么需要它：状态发布是「变化触发」的，于是**后打开的消费者拿不到当前值**。
+     * 典型症状就是通知栏弹窗（新起的 Activity）里电量三格全是「-」而 ANC 有值 ——
+     * publishAnc 每次都发，publishBattery 在缓存为空时还会直接 return。
+     * 所以 UI_INIT / REQUEST_BATTERY 这类「我来了 / 我要」的请求进来时，无条件重放一次，
+     * 不依赖有没有变化。手势那条以前踩过同一个坑，当时是用 REQUEST_GESTURE 单独补的；
+     * 这里统一补，免得别的项以后又各踩一遍。
+     */
+    private fun republishCachedState() {
+        Log.i(TAG, "republish cached state: battery=" + batteryState + " gesture=" + (gestureConf != null))
+        publishBattery()
+        publishAnc()
+        publishCapabilities()
+        publishGain()
+        publishLed()
+        publishPromptTone()
+        publishPromptVolume()
+        publishLhdc()
+        publishDualConnection()
+        publishGesture()
     }
 
     fun sniffModel(deviceName: String?): MoondropModel? = MoondropModelRegistry.match(deviceName)
@@ -279,6 +311,8 @@ object MoondropController {
         if (!batteryState.currentLeft.known && !batteryState.currentRight.known &&
             !batteryState.currentCase.known
         ) {
+            // 不静默：下次有人问「电量为什么不显示」时，一眼能看出是「还没读到」而不是「没发」
+            Log.d(TAG, "publishBattery: 当前无任何电量读数，先不发（等读到后再发）")
             return
         }
         val params = currentBatteryParams()

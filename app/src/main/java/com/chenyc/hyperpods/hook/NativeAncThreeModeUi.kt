@@ -235,7 +235,10 @@ object NativeAncThreeModeUi {
             return
         }
         slider.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
-            override fun onLayoutChange(v: View, left: Int, top: Int, right: Int, bottom: Int) {
+            override fun onLayoutChange(
+                v: View, left: Int, top: Int, right: Int, bottom: Int,
+                oldLeft: Int, oldTop: Int, oldRight: Int, oldBottom: Int,
+            ) {
                 runCatching {
                     v.removeOnLayoutChangeListener(this)
                     if (control.parent !== parent) return@runCatching
@@ -576,11 +579,11 @@ object NativeAncThreeModeUi {
             val baseline = h / 2f - (metrics.ascent + metrics.descent) / 2f
             for (index in 0 until count) {
                 val id = segmentIds[index]
-                textPaint.color = when {
+                textPaint.color = (when {
                     !controlEnabled || !knownIds.contains(id) -> disabledTextColor
                     index == selected -> accentColor
                     else -> textColor
-                }
+                }).toInt()
                 canvas.drawText(segmentLabels.getOrElse(index) { id }, (index + 0.5f) * segmentWidth, baseline, textPaint)
             }
         }

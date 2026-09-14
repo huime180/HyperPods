@@ -567,6 +567,10 @@ fun MainUI(
 
         sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_PODS_UI_INIT)
 
+        // 水月雨线也要问一次（见 MoondropController.handleUIEvent 的 UI_INIT 分支）：
+        // 只发 OPPO 那条 ACTION_PODS_UI_INIT 时，水月雨这边的 refreshAll() 从来没被触发过。
+        sendBluetoothModuleBroadcast(context, HyperPodsAction.UI_INIT)
+
         onDispose {
             sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_PODS_UI_CLOSED)
             try {
@@ -579,6 +583,9 @@ fun MainUI(
     LaunchedEffect(Unit) {
         while (true) {
             sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_PODS_UI_INIT)
+
+            // 水月雨线也要问一次（同上）。
+            sendBluetoothModuleBroadcast(context, HyperPodsAction.UI_INIT)
             sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_REFRESH_STATUS)
             delay(30_000L)
         }
@@ -586,6 +593,10 @@ fun MainUI(
 
     LaunchedEffect(selectedTab, hookConnected.value) {
         sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_PODS_UI_INIT)
+
+        // 水月雨线也要问一次（见 MoondropController.handleUIEvent 的 UI_INIT 分支）：
+        // 只发 OPPO 那条 ACTION_PODS_UI_INIT 时，水月雨这边的 refreshAll() 从来没被触发过。
+        sendBluetoothModuleBroadcast(context, HyperPodsAction.UI_INIT)
         if (selectedTab == MainTab.Module || hookConnected.value) {
             sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_REFRESH_STATUS)
         }

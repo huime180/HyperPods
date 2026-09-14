@@ -199,6 +199,16 @@ object MoondropController {
                 }
             }
 
+            // 打开手势页时问一次：有缓存就直接重放，还没有配置就去读一次
+            // （refreshGestures 内部自己判 hasGestures）。
+            HyperPodsAction.REQUEST_GESTURE -> {
+                if (gestureConf != null) {
+                    publishGesture()
+                } else {
+                    scope.launch { runCatching { refreshGestures() } }
+                }
+            }
+
             // 系统实际协商出来的编码由本进程的蓝牙栈回调汇报
             HyperPodsAction.CODEC_CHANGED ->
                 intent.getStringExtra(HyperPodsAction.EXTRA_CODEC)?.let(::onSystemCodecChanged)
@@ -370,8 +380,14 @@ object MoondropController {
         // 所以这里包一层再取 toPayload()，而不是把内部数组直接当载荷发出去。
         val slots = gestureConf ?: return
         val payload = MoondropGaia.GestureConf(slots.copyOf()).toPayload()
-        sendTo(PKG_SETTINGS, HyperPodsAction.GESTURE_CHANGED) { i ->
-            i.withDevice().putExtra(HyperPodsAction.EXTRA_GESTURE_PAYLOAD, payload)
+        // 两个消费方都要发：原生设置页（PKG_SETTINGS）与应用进程（PKG_APP —— 模块自己的
+        // 手势页在那边渲染）。**之前只发了 PKG_SETTINGS**，应用进程永远收不到这条广播，
+        // 于是 App 的手势页一直停在「尚未同步到手势配置」（UI 侧其实一直在等它，见 MainUI 的
+        // GESTURE_CHANGED 分支与 GesturePage 的 conf==null 分支）。
+        listOf(PKG_SETTINGS, PKG_APP).forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.GESTURE_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_GESTURE_PAYLOAD, payload)
+            }
         }
     }
 

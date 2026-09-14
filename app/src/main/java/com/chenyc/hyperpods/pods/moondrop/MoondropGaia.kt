@@ -1,6 +1,5 @@
 /*
- * HyperPods for Moondrop — GAIA 协议核心
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * GAIA 协议核心
  *
  * 水月雨（Moondrop）耳机使用高通 GAIA（QTiL）业务协议。本文件是该协议的权威定义，
  * 命令号 / 枚举逆向自水月雨官方 App 内嵌的 com.qualcomm.qti.gaiaclient 库。
@@ -446,7 +445,7 @@ object MoondropGaia {
     //        = FF 04 00 03 | 00 1D 1C 02 01 14 01   （GAIA 帧 7 字节 = 4 + 3）
     //
     // 另一方面 FxxkMoondrop 对布丁是**直接发裸 PDU** 且可工作，设备对响应还会"裸 PDU + FF 帧"双发。
-    // 因此这里两种都支持，由 MoondropLink 在连接时探测并记忆（见 probeRfcommFraming）。
+    // 因此这里两种都支持，由 MoondropController 在连接时探测并记忆（见 probeRfcommFraming）。
     // ============================================================
     const val RFCOMM_SOF = 0xFF
     const val RFCOMM_VERSION = 0x04
@@ -664,7 +663,7 @@ object MoondropGaia {
      *
      * 长度不符时直接抛 [IllegalArgumentException]，而不是补齐/截断：静默补 0
      * 会把用户没动过的手势/另一只耳朵写成「无」，属于破坏性写入。调用方在不确定
-     * 其余字节时应当先 [touchV2GetConf] 读回来（见 MoondropLink.setGesture）。
+     * 其余字节时应当先 [touchV2GetConf] 读回来（见 MoondropController.setGesture）。
      */
     fun touchV2SetConf(bytes: ByteArray): ByteArray {
         require(bytes.size == TOUCHV2_CONF_SIZE) {

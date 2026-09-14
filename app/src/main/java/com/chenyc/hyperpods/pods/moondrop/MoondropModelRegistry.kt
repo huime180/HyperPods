@@ -1,6 +1,5 @@
 /*
- * HyperPods for Moondrop — 水月雨耳机型号档案库
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * 水月雨耳机型号档案库
  *
  * 目标：一套代码适配水月雨（MOONDROP）全系 TWS / 颈挂。
  *
@@ -166,9 +165,7 @@ data class MoondropModel(
 )
 
 object MoondropModelRegistry {
-
-    // ── 常用映射表 ─────────────────────────────────────────────────────────
-
+    // ---- 常用映射表
     /** FxxkMoondrop 真机实测：设备码 1=关 2=降噪 3=抗风 4=透传（SET 方向）。 */
     private val GA2_SET = intArrayOf(1, 2, 4, 3)
     /** 同型号 GET 方向：固件读回 0-based 直传 0=关 1=降噪 2=透传 3=抗风。 */
@@ -228,14 +225,12 @@ object MoondropModelRegistry {
     private val GAIN_IDENTITY = DcProfile(hasGain = true, gainMap = intArrayOf(0, 1, 2))
     private val GAIN_REVERSED = DcProfile(hasGain = true, gainMap = intArrayOf(2, 1, 0))
     private val NONE = DcProfile()
-
-    // ── 型号表 ─────────────────────────────────────────────────────────────
+    // ---- 型号表
     //
     // 顺序无关；匹配时按「别名长度降序」优先，避免 "EDGE" 抢在 "EDGE2" 前面。
 
     val MODELS: List<MoondropModel> = listOf(
-
-        // ── 已实测 ────────────────────────────────────────────────────────
+    // ---- 已实测
         MoondropModel(
             id = "edge",
             nameZh = "羽翼 EDGE",
@@ -314,8 +309,7 @@ object MoondropModelRegistry {
             note = "FxxkMoondrop 真机实测：ANC 走 AudioCuration，映射同 GA2；" +
                 "增益设备码 0=高/1=中/2=低（与恒等相反，故 gainMap=[2,1,0]）。",
         ),
-
-        // ── 芯片级推断（待实测） ───────────────────────────────────────────
+    // ---- 芯片级推断（待实测）
         MoondropModel(
             id = "golden_ages",
             nameZh = "梦回1979 / 梦回",

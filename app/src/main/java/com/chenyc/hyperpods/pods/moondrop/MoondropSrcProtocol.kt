@@ -1,6 +1,5 @@
 /*
- * HyperPods for Moondrop — 中科蓝讯私有协议（BleSourceSwitch / 9ECA0000）
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * 中科蓝讯私有协议（BleSourceSwitch / 9ECA0000）
  *
  * 部分水月雨耳机（猫饼 NEKOCAKE / 太空漫游2 / 音乐胶囊 等）主控为中科蓝讯
  * （Bluetrum），在提供高通 GAIA 服务的同时还暴露一条 Moondrop 私有服务
@@ -13,8 +12,7 @@
 package com.chenyc.hyperpods.pods.moondrop
 
 object MoondropSrcProtocol {
-
-    // ── GATT ────────────────────────────────────────────────────────────────
+    // ---- GATT
     const val SERVICE = "9eca0000-7f3a-4f32-9a38-a91b2c6e0100"
     const val CH_COMMAND = "9eca0001-7f3a-4f32-9a38-a91b2c6e0100"
     const val CH_RESPONSE = "9eca0002-7f3a-4f32-9a38-a91b2c6e0100"
@@ -22,16 +20,14 @@ object MoondropSrcProtocol {
     const val CH_CAPABILITY = "9eca0004-7f3a-4f32-9a38-a91b2c6e0100"
     const val CH_FW_INFO = "9eca0005-7f3a-4f32-9a38-a91b2c6e0100"
     const val CCCD = "00002902-0000-1000-8000-00805f9b34fb"
-
-    // ── 帧 ──────────────────────────────────────────────────────────────────
+    // ---- 帧
     const val MAGIC = 0xA5
     const val VERSION = 0x01
     const val FRAME_COMMAND = 1
     const val FRAME_RESPONSE = 2
     const val FRAME_NOTIFICATION = 3
     const val MAX_PAYLOAD = 14
-
-    // ── 命令 ────────────────────────────────────────────────────────────────
+    // ---- 命令
     const val CMD_GET_AUDIO_SOURCE = 1
     const val CMD_SET_AUDIO_SOURCE = 2
     const val CMD_GET_CAPABILITY = 3
@@ -48,8 +44,7 @@ object MoondropSrcProtocol {
     const val CMD_GET_MIC_GAIN = 14
     const val CMD_SET_MIC_GAIN = 15
     const val CMD_PING = 127
-
-    // ── 通知 ────────────────────────────────────────────────────────────────
+    // ---- 通知
     const val NOTIF_AUDIO_SOURCE_CHANGED = 129
     const val NOTIF_SWITCH_STATE_CHANGED = 130
     const val NOTIF_CAPABILITY_CHANGED = 131
@@ -57,8 +52,7 @@ object MoondropSrcProtocol {
     const val NOTIF_PRESET_EQ_CHANGED = 134
     const val NOTIF_PEQ_COMMITTED = 135
     const val NOTIF_MIC_GAIN_CHANGED = 136
-
-    // ── 音源 ────────────────────────────────────────────────────────────────
+    // ---- 音源
     const val SRC_BLUETOOTH = 0
     const val SRC_USB_AUDIO = 1
     const val SRC_WIRELESS_2_4G = 2
@@ -119,8 +113,7 @@ object MoondropSrcProtocol {
             payload = if (avail > 0) d.copyOfRange(6, 6 + avail) else MoondropGaia.EMPTY,
         )
     }
-
-    // ── 高层构造 ────────────────────────────────────────────────────────────
+    // ---- 高层构造
     fun getAudioSource(seq: Int) = command(CMD_GET_AUDIO_SOURCE, seq)
     fun setAudioSource(seq: Int, sourceId: Int, options: Int = 0, fadeSec: Int = 5) =
         command(CMD_SET_AUDIO_SOURCE, seq, byteArrayOf(

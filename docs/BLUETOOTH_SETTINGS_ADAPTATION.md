@@ -52,3 +52,31 @@
 模块通知上那个「循环切换降噪」按钮对两条线共用，但处理时用 **OPPO 的档位表**算出 1/2/3 再发
 `ACTION_ANC_SELECT`，而 `MoondropController` 也接同一个 action 并把 status 当**水月雨 UI 档位下标**解释 ——
 插水月雨时语义错位；该 hook 的过滤器也只订阅 OPPO 的 `ANC_CHANGED`。
+
+## 用户澄清（第 2 轮，逐条原话 + 由此确定的做法）
+
+1. **「通透置灰即可，最好是显示相关的自适应 抗风噪 基本这个滑块」**
+   → 通透档：把档位控件**置灰**（和关闭一致）。
+   → 降噪档：那个档位控件要显示/可选的就是 **自适应 / 抗风噪 / 基本** 这三个（即原生那条档位滑杆）。
+2. **「原生滑块是 4 个选项，改改」**
+   → 真机上这个原生滑杆当前是 **4 档**，要把它改成上面那 3 档（自适应 / 抗风噪 / 基本）。
+   对应模块侧语义：`ANC_SUB_ORDER = [adaptive, anti_wind, anc]`（`ui/components/AncSwitch.kt`）。
+   待核实：这台机器上原生滑杆 max 到底是 4（`MiuiHeadsetAncAdjustView` 的 seekBar max），
+   以及 4 档里多的那一档是什么（小米自家的档位命名，还是「自适应」被拆开）。
+3. **「通知栏显示是蓝牙设置中的一项开关，与模块同步控制通知栏显示」**
+   → 原生设备页里**有一项叫「通知栏显示」的开关**；要让它与**模块自己的「通知栏显示」设置双向同步**
+   （模块侧已有对应键，见 `ui/ModuleSettings`/`HyperPodsPrefsKey` 一族；hook 侧读的是同一组远程偏好）。
+   待核实：该 preference 的 key 与它当前的读写路径（`MiuiHeadsetFragment` 里哪一条）。
+4. **「AAC/LHDC 开关仅是系统的高品质控制……未 hook 前是正常的，正常开启耳机的 LHDC 功能后会变成
+   LHDC 开关，但 hook 后开启耳机的 LHDC 功能始终显示的是 AAC 开关」**
+   → **这是模块 hook 引入的回归**，不是要做新功能：系统那一行本来会随实际编码在
+   「AAC 开关 ↔ LHDC 开关」之间切换，hook 之后**一直显示 AAC**（即系统认为当前走的是基础编码）。
+   → 排查方向（按可能性，未验证）：① 模块是否在某处把编码**默认写成了 AAC**（关 LHDC 的帧是
+   `00 1D 20 06 00`，若连接时下发过就会一直是 AAC）；② `SettingsHeadsetHook` 对
+   `HeadsetIDConstants.checkSupport` / `isTWS01Headset` 的改写让系统走了「只支持 AAC」的机型号分支；
+   ③ `MoondropController.onSystemCodecChanged` / `reprobeSystemCodec` 回灌给系统的编码名不对；
+   ④ `BluetoothUpstreamHeadsetHook` 对 A2DP 编解码状态的改写。**先在真机上抓「未 hook vs hook」两种状态的
+   `dumpsys bluetooth_manager` 编解码段与模块日志，再动代码** —— 这条最怕乱改。
+5. **「更多设置也是系统蓝牙设置中的一项」**
+   → 确认原生设备页上有「更多设置」这一项；把它 hook 成打开**模块自己的耳机控制页**（`SHOW_UI` 那条路已存在）。
+   待核实：该 preference 的 key / 它当前的 onClick（真机 dump 认一次）。

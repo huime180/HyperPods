@@ -239,7 +239,6 @@ internal fun MainTabsScaffold(
                         spatialAudioMode = spatialAudioMode,
                         onSpatialAudioModeChange = onSpatialAudioModeChange,
                         moondrop = moondrop,
-                        moondrop = moondrop,
             equalizerVisible = equalizerVisible,
                         dualDeviceSupported = dualDeviceSupported,
                         onOpenEqualizer = onOpenEqualizer,

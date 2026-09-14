@@ -115,6 +115,8 @@ fun PodDetailPage(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 podControlItems(
+                    moondrop = moondrop,
+                    moondrop = moondrop,
                     batteryParams = batteryParams,
                     wearStatus = wearStatus,
                     ancMode = ancMode,
@@ -194,6 +196,7 @@ private fun rememberPodImagePainter(path: String?) = remember(path) {
 } ?: painterResource(R.drawable.img_box)
 
 private fun LazyListScope.podControlItems(
+    moondrop: MoondropControls,
     batteryParams: BatteryParams,
     wearStatus: WearStatus,
     ancMode: NoiseControlMode,

@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.chenyc.hyperpods.R
 import com.chenyc.hyperpods.pods.moondrop.MoondropGaia
 import top.yukonga.miuix.kmp.basic.BasicComponent

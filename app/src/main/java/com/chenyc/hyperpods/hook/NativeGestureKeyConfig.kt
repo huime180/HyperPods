@@ -271,6 +271,8 @@ object NativeGestureKeyConfig {
      */
     private fun matchLongPressRow(args: List<Any?>): Pair<Any?, Row>? {
         for (arg in args) {
+            // args 是 List<Any?>，callOn 的形参是非空 Any：null 直接跳过（不跳过就是编译期类型不匹配）
+            if (arg == null) continue
             val key = callOn(arg, "getKey") as? String ?: continue
             if (key != KEY_LONG_LEFT && key != KEY_LONG_RIGHT) continue
             ROW_BY_KEY[key]?.let { row -> return arg to row }

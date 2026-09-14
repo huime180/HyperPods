@@ -38,6 +38,7 @@ internal fun EarphonesTabPage(
     equalizerVisible: Boolean,
     dualDeviceSupported: Boolean,
     onOpenEqualizer: () -> Unit,
+    onOpenSystemHeadsetSettings: () -> Unit,
     displayDualDeviceConnection: Boolean,
     onDualDeviceConnectionChange: (Boolean) -> Unit,
     spatialAudioSupported: Boolean,
@@ -90,6 +91,7 @@ internal fun EarphonesTabPage(
                 spatialSoundSupported = spatialSoundSupported,
                 adaptiveModeEnabled = adaptiveModeEnabled,
                 boxImagePath = boxImagePath,
+                onOpenSystemHeadsetSettings = onOpenSystemHeadsetSettings,
             )
         } else {
             DevicePickerPage(

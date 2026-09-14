@@ -471,6 +471,7 @@ private fun EarphonesTabShell(
             spatialSoundSupported = spatialSoundSupported,
             adaptiveModeEnabled = adaptiveModeEnabled,
             boxImagePath = boxImagePath,
+            onOpenSystemHeadsetSettings = onOpenSystemHeadsetSettings,
             connectedDeviceAddress = connectedDeviceAddress,
             connectingDeviceAddress = connectingDeviceAddress,
             showConnectErrorDialog = showConnectErrorDialog,

@@ -85,6 +85,7 @@ fun PodDetailPage(
     equalizerVisible: Boolean = false,
     dualDeviceSupported: Boolean = false,
     onOpenEqualizer: () -> Unit = {},
+    onOpenSystemHeadsetSettings: () -> Unit = {},
     boxImagePath: String? = null,
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -149,6 +150,7 @@ fun PodDetailPage(
                     equalizerVisible = equalizerVisible,
                     dualDeviceSupported = dualDeviceSupported,
                     onOpenEqualizer = onOpenEqualizer,
+                    onOpenSystemHeadsetSettings = onOpenSystemHeadsetSettings,
                     bottomContentPadding = bottomContentPadding,
                 )
             }
@@ -194,6 +196,7 @@ fun PodDetailPage(
             equalizerVisible = equalizerVisible,
             dualDeviceSupported = dualDeviceSupported,
             onOpenEqualizer = onOpenEqualizer,
+            onOpenSystemHeadsetSettings = onOpenSystemHeadsetSettings,
             bottomContentPadding = bottomContentPadding,
         )
     }
@@ -231,6 +234,7 @@ private fun LazyListScope.podControlItems(
     equalizerVisible: Boolean,
     dualDeviceSupported: Boolean,
     onOpenEqualizer: () -> Unit,
+    onOpenSystemHeadsetSettings: () -> Unit,
     bottomContentPadding: Dp,
 ) {
     val spatialAudioValues = listOf(
@@ -417,6 +421,21 @@ private fun LazyListScope.podControlItems(
                     onCheckedChange = moondrop.onLowLatencyChange,
                 )
             }
+
+            // 系统蓝牙设置入口：直接复用顶栏图标那一个实现（MainUI.openSystemHeadsetSettings），
+            // 设备地址由它自己从当前已连接设备取，本页不另存一份、也不硬编码。
+            // 这里不再加可见性条件：本页只在已连接时才渲染（MainUI 的 showEarphoneDetail）。
+            BasicComponent(
+                title = stringResource(R.string.system_bluetooth_settings),
+                summary = stringResource(R.string.system_bluetooth_settings_summary),
+                onClick = onOpenSystemHeadsetSettings,
+                endActions = {
+                    Icon(
+                        imageVector = MiuixIcons.Basic.ArrowRight,
+                        contentDescription = null,
+                    )
+                },
+            )
         }
     }
     item {

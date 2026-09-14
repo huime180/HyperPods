@@ -269,7 +269,7 @@ object NativeGestureKeyConfig {
      * 但上层 settingslib 只保证「把被点的 preference 传下来」，位置不值得当契约。
      * PreferenceScreen 也有 getKey()，只是它的 key 不是我们这两行，会自然被跳过。
      */
-    private fun matchLongPressRow(args: List<Any?>): Pair<Any, Row>? {
+    private fun matchLongPressRow(args: List<Any?>): Pair<Any?, Row>? {
         for (arg in args) {
             val key = callOn(arg, "getKey") as? String ?: continue
             if (key != KEY_LONG_LEFT && key != KEY_LONG_RIGHT) continue

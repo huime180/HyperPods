@@ -9,6 +9,7 @@ import android.content.IntentFilter
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import com.chenyc.hyperpods.pods.PodCatalog
 import com.chenyc.hyperpods.BuildConfig
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
@@ -486,12 +487,20 @@ object SettingsHeadsetHook : HookContext() {
         return isOppoPod(device) || deviceId == fakeDeviceId || support?.startsWith(fakeDeviceId) == true
     }
 
+    /**
+     * 本模块是否接管这台设备。
+     *
+     * 名字沿用 isOppoPod 是因为有二十来处闸门都在用它，语义已扩到两个品牌：
+     * 水月雨按型号白名单精确匹配，OPPO 按名称宽匹配，判定规则统一放在 [PodCatalog]。
+     * 这里不需要 Context —— 用得到 Context 的只有型号注册表兜底那条路，
+     * 而地址缓存（[knownOppoAddresses]）已经覆盖了「重连后名称认不出」的情况。
+     */
     private fun isOppoPod(device: BluetoothDevice?): Boolean {
         if (device == null) return false
         val address = runCatching { device.address }.getOrNull()
         if (address != null && isOppoAddress(address)) return true
         val name = runCatching { device.name ?: device.alias }.getOrNull().orEmpty()
-        val result = name.contains("oppo", ignoreCase = true)
+        val result = PodCatalog.moondropModelOf(name, address) != null || PodCatalog.isOppoName(name)
         if (result && address != null) {
             knownOppoAddresses.add(address.uppercase())
             currentAddress = address

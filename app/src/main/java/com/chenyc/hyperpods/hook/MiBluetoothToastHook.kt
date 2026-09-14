@@ -22,6 +22,7 @@ import com.chenyc.hyperpods.utils.SystemApisUtils.cancelAsUser
 import com.chenyc.hyperpods.utils.SystemApisUtils.notifyAsUser
 import com.chenyc.hyperpods.config.ConfigManager
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
+import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
 import com.chenyc.hyperpods.R
 import com.chenyc.hyperpods.pods.RfcommController
@@ -277,6 +278,33 @@ object MiBluetoothToastHook : HookContext() {
                                 cancelNotification(device, context)
                                 MiuiStrongToastUtil.hideOfficialToast(context)
                                 lastOfficialIslandShape = null
+                            } else if (p1?.action == HyperPodsAction.UPDATE_PODS_NOTIFICATION) {
+                                // 水月雨线：电量由蓝牙进程里的控制器发来，extra 走同一个
+                                // BatteryStatusIntent helper，所以渲染路径与 OPPO 完全共用
+                                val batteryParams = p1.batteryStatusCompat() ?: return
+                                val device = p1.getParcelableExtra(
+                                    HyperPodsAction.EXTRA_DEVICE, BluetoothDevice::class.java
+                                )
+                                createPodsNotification(device, context, batteryParams)
+                            } else if (p1?.action == HyperPodsAction.SEND_STRONG_TOAST) {
+                                val batteryParams = p1.batteryStatusCompat() ?: return
+                                val address = p1.getStringExtra(HyperPodsAction.EXTRA_MAC).orEmpty()
+                                when (ConfigManager.islandMode()) {
+                                    ConfigManager.ISLAND_MODE_MODULE ->
+                                        FocusIslandUtil.showBatteryIsland(context, prefs, batteryParams, address)
+
+                                    ConfigManager.ISLAND_MODE_OFFICIAL -> {
+                                        MiuiStrongToastUtil.showOfficialConnectToast(context, batteryParams)
+                                        lastOfficialIslandShape = batteryShape(batteryParams)
+                                    }
+                                }
+                            } else if (p1?.action == HyperPodsAction.CANCEL_PODS_NOTIFICATION) {
+                                val device = p1.getParcelableExtra(
+                                    HyperPodsAction.EXTRA_DEVICE, BluetoothDevice::class.java
+                                )
+                                if (device != null) cancelNotification(device, context)
+                                MiuiStrongToastUtil.hideOfficialToast(context)
+                                lastOfficialIslandShape = null
                             } else if (p1?.action == HyperPodsAction.ACTION_PODS_ANC_CHANGED) {
                                 // 同步耳机实际 ANC 状态到本地缓存，确保下次循环切换时状态准确
                                 localAncMode = p1.getIntExtra("status", 1)
@@ -311,6 +339,10 @@ object MiBluetoothToastHook : HookContext() {
             intentFilter.addAction(HyperPodsAction.ACTION_PODS_CONNECTED)
             intentFilter.addAction(HyperPodsAction.ACTION_PODS_DISCONNECTED)
             intentFilter.addAction(HyperPodsAction.ACTION_PODS_ANC_CHANGED)
+            // 水月雨线（协议栈在蓝牙进程，通知侧在这里渲染）
+            intentFilter.addAction(HyperPodsAction.UPDATE_PODS_NOTIFICATION)
+            intentFilter.addAction(HyperPodsAction.SEND_STRONG_TOAST)
+            intentFilter.addAction(HyperPodsAction.CANCEL_PODS_NOTIFICATION)
             context.registerReceiver(broadcastReceiver, intentFilter, Context.RECEIVER_EXPORTED)
             notificationReceiverRegistered = true
             context.sendBroadcast(Intent(HyperPodsAction.ACTION_REFRESH_STATUS).apply {

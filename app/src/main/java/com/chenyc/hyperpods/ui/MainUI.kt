@@ -8,6 +8,7 @@ import android.os.Bundle
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
@@ -87,6 +88,11 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
+
+/** 与「设置 → 蓝牙 → 点设备」同一张设备详情页（Settings 内部 action）。 */
+private const val ACTION_BLUETOOTH_DEVICE_DETAIL_SETTINGS = "android.settings.BLUETOOTH_DEVICE_DETAIL_SETTINGS"
+private const val EXTRA_BLUETOOTH_DEVICE = "android.bluetooth.device.extra.DEVICE"
+private const val EXTRA_BLUETOOTH_ADDRESS = "bluetoothaddress"
 
 sealed interface Screen : NavKey {
     data object Main : Screen
@@ -813,23 +819,32 @@ fun MainUI(
             Toast.makeText(context, R.string.connect_failed, Toast.LENGTH_SHORT).show()
             return
         }
+        // 与「设置 → 蓝牙 → 点设备」落到同一页：直接用 Settings 内部那张设备详情页的 action。
+        // 旧实现是硬编码 HyperOS 的高级耳机 Activity 并塞入模块伪造的设备 id，
+        // 和系统蓝牙列表点进去的页面不是同一张 —— 已按 HyperPods for Moondrop 里验证过的写法改回。
         val device = runCatching {
-            BluetoothAdapter.getDefaultAdapter()?.getRemoteDevice(address)
+            if (context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                BluetoothAdapter.getDefaultAdapter()?.getRemoteDevice(address)
+            } else {
+                null
+            }
         }.getOrNull()
-        if (device == null) {
+        val opened = runCatching {
+            context.startActivity(Intent(ACTION_BLUETOOTH_DEVICE_DETAIL_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (device != null) putExtra(EXTRA_BLUETOOTH_DEVICE, device)
+                putExtra(EXTRA_BLUETOOTH_ADDRESS, address)
+            })
+        }.isSuccess
+        if (opened) return
+        // 兜底：普通蓝牙设置列表页
+        val fallback = runCatching {
+            context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        }.isSuccess
+        if (!fallback) {
             Toast.makeText(context, R.string.connect_failed, Toast.LENGTH_SHORT).show()
-            return
-        }
-        Intent().apply {
-            setClassName("com.android.settings", "com.android.settings.bluetooth.MiuiHeadsetActivity")
-            putExtra("android.bluetooth.device.extra.DEVICE", device)
-            putExtra("bluetoothaddress", device.address)
-            putExtra("MIUI_HEADSET_SUPPORT", ConfigManager.fakeSupport())
-            putExtra("COME_FROM", "MIUI_BLUETOOTH_SETTINGS")
-            putExtra("DEVICE_ID", ConfigManager.fakeDeviceId())
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            runCatching { context.startActivity(this) }
-                .onFailure { Toast.makeText(context, R.string.connect_failed, Toast.LENGTH_SHORT).show() }
         }
     }
 

@@ -3,6 +3,12 @@
 
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!--
+        「从水月雨官方 App 导入图片」要访问 MOONDROP 的公开产品目录与图床
+        （cdn-service.moondroplab.tech / cdn.moondroplab.tech）。仅此一处用网，
+        不涉及任何账号或私有接口。
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <queries>
         <package android:name="com.heytap.headset" />

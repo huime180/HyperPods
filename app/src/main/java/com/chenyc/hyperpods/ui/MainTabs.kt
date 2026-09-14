@@ -38,7 +38,9 @@ import com.chenyc.hyperpods.pods.NoiseControlMode
 import com.chenyc.hyperpods.pods.WearStatus
 import com.chenyc.hyperpods.ui.dialogs.RestartScope
 import com.chenyc.hyperpods.ui.dialogs.RestartScopeDialog
+import com.chenyc.hyperpods.ui.dialogs.ImageImportSourceDialog
 import com.chenyc.hyperpods.ui.dialogs.MelodyImageImportDialog
+import com.chenyc.hyperpods.ui.dialogs.MoondropOfficialImageImportDialog
 import com.chenyc.hyperpods.ui.dialogs.PodImageConfigDialog
 import com.chenyc.hyperpods.ui.pages.EarphonesTabPage
 import com.chenyc.hyperpods.ui.pages.HomePage
@@ -156,6 +158,9 @@ internal fun MainTabsScaffold(
     }
     var showPodImageDialog by remember { mutableStateOf(false) }
     var showMelodyImportDialog by remember { mutableStateOf(false) }
+    // 右上角 Import 图标先问来源（欢律 / 水月雨官方），两条来源的前置条件完全不同
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var showOfficialImportDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedTab) {
         val targetPage = selectedTab.ordinal
@@ -254,7 +259,7 @@ internal fun MainTabsScaffold(
                         onDeviceDisconnect = onDeviceDisconnect,
                         onDismissConnectError = onDismissConnectError,
                         onBackToDevicePicker = onBackToDevicePicker,
-                        onOpenMelodyImport = { showMelodyImportDialog = true },
+                        onOpenMelodyImport = { showImageSourceDialog = true },
                         onOpenPodImageConfig = { showPodImageDialog = true },
                         onOpenSystemHeadsetSettings = onOpenSystemHeadsetSettings,
                     )
@@ -287,7 +292,7 @@ internal fun MainTabsScaffold(
             if (isLandscapeDetail) {
                 LandscapeDetailActions(
                     onBackToDevicePicker = onBackToDevicePicker,
-                    onOpenMelodyImport = { showMelodyImportDialog = true },
+                    onOpenMelodyImport = { showImageSourceDialog = true },
                     onOpenPodImageConfig = { showPodImageDialog = true },
                     onOpenSystemHeadsetSettings = onOpenSystemHeadsetSettings,
                 )
@@ -321,6 +326,30 @@ internal fun MainTabsScaffold(
             onImport = { address, name, images ->
                 onSavePodImageBytes(address, name, images)
                 showMelodyImportDialog = false
+            },
+        )
+
+        ImageImportSourceDialog(
+            show = showImageSourceDialog,
+            onDismissRequest = { showImageSourceDialog = false },
+            onOpenMelodyImport = {
+                showImageSourceDialog = false
+                showMelodyImportDialog = true
+            },
+            onOpenMoondropImport = {
+                showImageSourceDialog = false
+                showOfficialImportDialog = true
+            },
+        )
+
+        MoondropOfficialImageImportDialog(
+            show = showOfficialImportDialog,
+            currentAddress = connectedDeviceAddress,
+            currentName = displayTitle,
+            onDismissRequest = { showOfficialImportDialog = false },
+            onImport = { address, name, images ->
+                onSavePodImageBytes(address, name, images)
+                showOfficialImportDialog = false
             },
         )
     }

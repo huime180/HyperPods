@@ -1174,6 +1174,12 @@ object MoondropController {
         }
         activeCodec = codecName
         Log.i(TAG, "system codec -> $codecName")
+        // 广播给应用侧：详情页的「当前编码」要显示它，LHDC 切换后也靠它判断是否已生效
+        CONSUMERS.forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.CODEC_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_CODEC, codecName)
+            }
+        }
     }
 
     /** 由系统侧（低延迟开关）回调进来。 */

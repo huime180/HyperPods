@@ -20,6 +20,7 @@ class MoondropControls(
     val ancIds: List<String> = emptyList(),
     val ancIndex: Int = -1,
     val onAncChange: (Int) -> Unit = {},
+    val activeCodec: String = "",
     val gainLabels: List<String> = emptyList(),
     val gainIndex: Int = 0,
     val onGainChange: (Int) -> Unit = {},
@@ -41,6 +42,9 @@ class MoondropControls(
 
     /** 降噪档位表来自设备探测结果；空表说明还没探到，此时沿用 OPPO 那套控件。 */
     val ancVisible get() = connected && ancIds.isNotEmpty()
+
+    /** 系统实际协商到的编码；拿不到就整行不显示，宁可没有也不摆一行空的。 */
+    val codecVisible get() = connected && activeCodec.isNotBlank()
 
     val gainVisible get() = connected && supports(KEY_GAIN) && gainLabels.isNotEmpty()
     val ledVisible get() = connected && supports(KEY_LED)

@@ -322,6 +322,12 @@ private fun LazyListScope.podControlItems(
             }
 
             // ---- 水月雨（GAIA）功能项：直接摆在耳机页上，不做二级页 ----
+            if (moondrop.codecVisible) {
+                BasicComponent(
+                    title = stringResource(R.string.active_codec),
+                    summary = moondrop.activeCodec
+                )
+            }
             // 每一项都由能力位决定是否出现；值由蓝牙进程广播而来，命令广播回去。
             if (moondrop.promptToneVisible) {
                 SwitchPreference(

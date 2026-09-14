@@ -20,7 +20,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -371,6 +374,9 @@ private fun themedPainterResource(@androidx.annotation.DrawableRes id: Int): Pai
 /** 降噪族的档位 id：主排点「降噪」时，这些档位都算命中。 */
 private val ANC_NC_FAMILY = listOf("anc", "anti_wind", "adaptive")
 
+/** 降噪子档的**展示顺序**（与参照实现一致：自适应 / 抗风 / 普通）。 */
+private val ANC_SUB_ORDER = listOf("adaptive", "anti_wind", "anc")
+
 /** 通透族的档位 id（人声通透也属于通透）。 */
 private val ANC_TRANSPARENCY_FAMILY = listOf("transparent", "live")
 
@@ -378,7 +384,7 @@ private val ANC_TRANSPARENCY_FAMILY = listOf("transparent", "live")
 @Composable
 private fun ancIdLabel(id: String): String = when (id) {
     "off" -> stringResource(R.string.off)
-    "anc" -> stringResource(R.string.anc_basic_title)
+    "anc" -> stringResource(R.string.anc_normal_title)
     "anti_wind" -> stringResource(R.string.anc_anti_wind_title)
     "adaptive" -> stringResource(R.string.adaptive_title)
     "transparent" -> stringResource(R.string.transparency_title)
@@ -409,6 +415,16 @@ fun MoondropAncSwitch(
     val ncId = ANC_NC_FAMILY.firstOrNull { it in ancIds }
     val transparencyId = ANC_TRANSPARENCY_FAMILY.firstOrNull { it in ancIds }
 
+    // 记住上次选中的降噪子档：点「降噪」回到它，而不是每次都掉回普通
+    // （与参照实现同行为，默认普通）
+    var lastSubMode by remember(ancIds) {
+        mutableStateOf(ANC_SUB_ORDER.firstOrNull { it in ancIds } ?: "anc")
+    }
+    LaunchedEffect(current) {
+        val mode = current
+        if (mode != null && mode in ANC_SUB_ORDER) lastSubMode = mode
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -424,7 +440,7 @@ fun MoondropAncSwitch(
                     onIconRes = R.drawable.ic_openanc_on,
                     label = stringResource(R.string.noise_cancellation_title),
                     isSelected = current in ANC_NC_FAMILY,
-                    onClick = { onSelect(ancIds.indexOf(ncId)) },
+                    onClick = { onSelect(ancIds.indexOf(lastSubMode)) },
                     modifier = Modifier.weight(1f),
                     compact = compact
                 )
@@ -454,7 +470,7 @@ fun MoondropAncSwitch(
         }
 
         // 降噪族子档：只在当前处于降噪族、且设备确实提供多于一种降噪时出现
-        val ncVariants = ANC_NC_FAMILY.filter { it in ancIds }
+        val ncVariants = ANC_SUB_ORDER.filter { it in ancIds }
         if (current in ANC_NC_FAMILY && ncVariants.size > 1) {
             Row(
                 modifier = Modifier

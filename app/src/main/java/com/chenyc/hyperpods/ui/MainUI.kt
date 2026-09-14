@@ -140,6 +140,8 @@ fun MainUI(
     val moondropPromptVolumeLabels = remember { (0..10).map { "${it * 10}%" } }
     // 手势配置：5 字节，每字节高 4 位左耳、低 4 位右耳；null = 还没读到
     val moondropGestureConf = remember { mutableStateOf<IntArray?>(null) }
+    // 系统实际协商到的 A2DP 编码（由蓝牙进程读出来广播过来）；空 = 未知，界面不显示这一行
+    val moondropActiveCodec = remember { mutableStateOf("") }
     val gameMode = remember { mutableStateOf(false) }
     val transparencyVocalEnhancement = remember { mutableStateOf(false) }
     val dualDeviceConnection = remember { mutableStateOf(false) }
@@ -212,6 +214,7 @@ fun MainUI(
     val moondropControls = MoondropControls(
         connected = moondropConnected.value,
         caps = moondropCaps.value,
+        activeCodec = moondropActiveCodec.value,
         ancIds = moondropAncIds.value,
         ancIndex = moondropAncIndex.value,
         onAncChange = { index ->
@@ -341,6 +344,7 @@ fun MainUI(
                         moondropAncIndex.value = -1
                         moondropAncIds.value = emptyList()
                         moondropCaps.value = null
+                        moondropActiveCodec.value = ""
                         mainTitle.value = ""
                     }
 
@@ -385,6 +389,10 @@ fun MainUI(
                             }
                         }
                     }
+
+                    HyperPodsAction.CODEC_CHANGED ->
+                        moondropActiveCodec.value =
+                            p1.getStringExtra(HyperPodsAction.EXTRA_CODEC).orEmpty()
 
                     HyperPodsAction.CAPABILITIES_CHANGED -> {
                         moondropModelName.value =
@@ -555,6 +563,7 @@ fun MainUI(
             addAction(HyperPodsAction.LHDC_CHANGED)
             addAction(HyperPodsAction.DUAL_CONNECTION_CHANGED)
             addAction(HyperPodsAction.GESTURE_CHANGED)
+            addAction(HyperPodsAction.CODEC_CHANGED)
             addAction(HyperPodsAction.CAPABILITIES_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 

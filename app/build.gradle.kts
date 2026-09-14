@@ -75,6 +75,38 @@ android {
     }
 }
 
+/**
+ * module.prop 与 Gradle 版本号的一致性守卫。
+ *
+ * module.prop 的 version / versionCode 是 LSPosed 与系统「应用信息」显示给用户的版本，
+ * Gradle 的 versionName / versionCode 则决定 APK 文件名与包信息 —— 两处是各自独立的字面量，
+ * 之前漂移过（app 已经是 2.1.0 / 16，模块里还写着 1.0.0 / 1，LSPosed 里看到的版本是错的）。
+ * 这里在每次构建前断言一致，不一致直接失败，免得再出现「装的到底是哪个版本」。
+ */
+val modulePropFile = layout.projectDirectory.file("src/main/resources/META-INF/xposed/module.prop")
+val expectedVersionName = android.defaultConfig.versionName
+val expectedVersionCode = android.defaultConfig.versionCode
+tasks.register("verifyModuleProp") {
+    group = "verification"
+    description = "断言 Xposed module.prop 的 version / versionCode 与 Gradle 配置一致"
+    inputs.file(modulePropFile)
+    doLast {
+        val text = modulePropFile.asFile.readText()
+        fun value(key: String): String? =
+            Regex("(?m)^" + key + "=(.*)$").find(text)?.groupValues?.get(1)?.trim()
+        val actualName = value("version")
+        val actualCode = value("versionCode")
+        check(actualName == expectedVersionName) {
+            "module.prop version=$actualName 与 versionName=$expectedVersionName 不一致，请同步后再构建"
+        }
+        check(actualCode == expectedVersionCode?.toString()) {
+            "module.prop versionCode=$actualCode 与 versionCode=$expectedVersionCode 不一致，请同步后再构建"
+        }
+        logger.lifecycle("verifyModuleProp: module.prop $actualName ($actualCode) 与 Gradle 一致")
+    }
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn("verifyModuleProp") }
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(JavaVersion.VERSION_22.majorVersion)

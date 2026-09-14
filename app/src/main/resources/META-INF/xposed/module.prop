@@ -1,7 +1,7 @@
 id=com.chenyc.hyperpods
 name=HyperPods
-version=1.0.0
-versionCode=1
+version=2.1.0
+versionCode=16
 author=huime180
 description=为 HyperOS 设备提供系统级 OPPO / 水月雨（MOONDROP）耳机控制（多机型适配）
 minApiVersion=101

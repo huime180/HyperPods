@@ -42,6 +42,15 @@
  *     布丁回包 `[01 62][02 64][03 FF]` 的第三对是充电盒 0xFF。若解析器把 0xFF 当成
  *     "数据到此为止"而 `break`，在"充电盒排在左右耳之前"的固件上右耳会被一起丢掉。
  *     → 修复：非法电量或非法 type 只 `continue` 跳过该对，**绝不 break**。
+ *
+ *  ⑥ **把 0x00 当成「0%」显示。**
+ *     真机实测（MOONDROP Pudding，FW 3.5.6）：未连接/未佩戴的那一侧**固定**上报 0x00，
+ *     而且长时间不变 —— 连续多次 `01 00 02 5B 03 FF`（左 0x00、右 0x5B=91%）。
+ *     若把 0x00 当合法电量，通知与焦点岛就会显示「左耳0%」，用户会以为耳机没电了
+ *     （这正是「某只耳朵电量看着不对」那一类问题的反面：不是不显示，而是显示了一个假值）。
+ *     → 修复：合法电量收窄为 **1..100**，0x00 与 0xFF 一样按「无读数」处理 ——
+ *             该侧不显示（isConnected=false），而不是显示 0%。真正的 0% 与无读数在协议上
+ *             无法区分，宁可少显示也不显示假值。
  * ────────────────────────────────────────────────────────────────────────────
  */
 package com.chenyc.hyperpods.pods.moondrop
@@ -123,7 +132,7 @@ class BatteryState {
             if (p.size < 2) continue
             val type = p[0]
             val raw = p[1]
-            if (raw < 0 || raw == MoondropGaia.BATTERY_LEVEL_UNKNOWN) continue
+            if (!MoondropBatteryCodec.isPlausibleLevel(raw)) continue
             val level = raw.coerceIn(0, 100)
             when (type) {
                 MoondropGaia.BATTERY_SINGLE -> {
@@ -186,7 +195,7 @@ class BatteryState {
      * 注意：**必须左右耳都兜底**，只兜左耳就是「右耳不显示」的成因之一。
      */
     fun fallbackFromSystem(level: Int, charging: Boolean = false) {
-        if (level < 0) return
+        if (!MoondropBatteryCodec.isPlausibleLevel(level)) return
         val v = level.coerceIn(0, 100)
         if (!single.known) single = BatterySlot(v, charging, true)
         if (!rawLeft.known) rawLeft = BatterySlot(v, charging, true)
@@ -281,8 +290,13 @@ object MoondropBatteryCodec {
     /** 合法电池 type：0=单设备 1=左 2=右 3=盒 */
     fun isKnownBatteryId(id: Int): Boolean = id in MoondropGaia.BATTERY_SINGLE..MoondropGaia.BATTERY_CASE
 
-    /** 合法电量：0..100。255（无数据）等标记被排除。 */
-    fun isPlausibleLevel(level: Int): Boolean = level in 0..100
+    /**
+     * 合法电量：**1..100**。
+     *
+     * 0x00 与 0xFF(255) 都不是读数：真机实测未连接/未佩戴的一侧固定上报 0x00
+     * （见文件头 ⑥）。把 0 判成「0%」会让通知/焦点岛显示假电量，所以这里一并排除。
+     */
+    fun isPlausibleLevel(level: Int): Boolean = level in 1..100
 
     /**
      * 充电位解析。不同固件把充电位放在：

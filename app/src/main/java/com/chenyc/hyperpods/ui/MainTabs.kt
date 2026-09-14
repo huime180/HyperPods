@@ -638,9 +638,7 @@ private val restartScopeOptions = listOf(
     RestartScope("com.milink.service", "MiLink Service"),
     RestartScope("com.xiaomi.bluetooth", "Mi Bluetooth"),
     RestartScope("com.android.settings", "Settings"),
-    // SystemUI 暂不放进「重启作用域」：现有重启机制是 `am force-stop <pkg>`，它在 HyperOS 上
-    // 会把状态栏/通知栏一起干掉且不一定自动拉起（force-stop 会把包置为 stopped），
-    // 而候选即默认勾选 → 用户一点「重启」就默认强停 SystemUI。等改用 kill/pkill
-    // 或改成「默认不勾选」之后再放开这一行。
-    // RestartScope("com.android.systemui", "System UI"),
+    // SystemUI 的重启走 kill 而不是 force-stop（见 RootManager 的 killInsteadOfForceStop）：
+    // force-stop 会把包置为 stopped，SystemUI 被这样停掉后不一定自动拉起。
+    RestartScope("com.android.systemui", "System UI"),
 )

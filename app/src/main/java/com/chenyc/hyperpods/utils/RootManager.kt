@@ -29,12 +29,29 @@ object RootManager {
         "/data/user_de/0/com.heytap.headset/files/melody-model-download",
     )
 
+    /**
+     * 这些包「重启」时用 kill 而不是 `am force-stop`。
+     *
+     * 为什么：`am force-stop` 会把包置为 **stopped**，而被置 stopped 的 SystemUI 在 HyperOS 上
+     * 很可能不会自动拉起 —— 用户看到的是状态栏/通知栏直接消失。kill 只杀进程，包状态不变，
+     * 系统会自行把它重新拉起来（这也是各家「重启 SystemUI」脚本的常规做法）。
+     * 用 `pidof` 而不用 `pkill -f`：后者按整条命令行匹配，容易误杀别的进程；
+     * `pidof <包名>` 在 toybox 里有，且进程名就是包名，精确。
+     */
+    private val killInsteadOfForceStop = setOf("com.android.systemui")
+
     fun restartPackages(packages: Collection<String>): Boolean {
         val targets = packages.distinct().filter { it.matches(packageNameRegex) }
         if (targets.isEmpty()) return false
 
         return runCatching {
-            val command = targets.joinToString("; ") { "am force-stop $it" }
+            val command = targets.joinToString("; ") { pkg ->
+                if (pkg in killInsteadOfForceStop) {
+                    "for p in \$(pidof $pkg); do kill -9 \"\$p\"; done"
+                } else {
+                    "am force-stop $pkg"
+                }
+            }
             val process = ProcessBuilder("su", "-c", command)
                 .redirectErrorStream(true)
                 .start()

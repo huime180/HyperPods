@@ -36,6 +36,8 @@ import com.chenyc.hyperpods.R
 import com.chenyc.hyperpods.config.ConfigManager
 import com.chenyc.hyperpods.pods.NoiseControlMode
 import com.chenyc.hyperpods.pods.WearStatus
+import com.chenyc.hyperpods.ui.PodImagePart
+import com.chenyc.hyperpods.ui.moondropDeviceImage
 import com.chenyc.hyperpods.ui.components.AncSwitch
 import com.chenyc.hyperpods.ui.components.MoondropAncSwitch
 import com.chenyc.hyperpods.ui.components.PodStatus
@@ -102,7 +104,7 @@ fun PodDetailPage(
                 verticalArrangement = Arrangement.Center
             ) {
                 Image(
-                    painter = rememberPodImagePainter(boxImagePath),
+                    painter = rememberPodImagePainter(boxImagePath, podName),
                     contentDescription = "Earphones",
                     modifier = Modifier
                         .fillMaxWidth(0.82f)
@@ -161,7 +163,7 @@ fun PodDetailPage(
     ) {
         item {
             Image(
-                painter = rememberPodImagePainter(boxImagePath),
+                painter = rememberPodImagePainter(boxImagePath, podName),
                 contentDescription = "Earphones",
                 modifier = Modifier
                     .fillMaxWidth(0.7f)
@@ -198,13 +200,14 @@ fun PodDetailPage(
 }
 
 @Composable
-private fun rememberPodImagePainter(path: String?) = remember(path) {
+private fun rememberPodImagePainter(path: String?, deviceName: String?) = remember(path, deviceName) {
     path?.let {
         runCatching { BitmapFactory.decodeFile(it) }
             .getOrNull()
             ?.let { bitmap -> BitmapPainter(bitmap.asImageBitmap()) }
     }
-} ?: painterResource(R.drawable.img_box)
+    // 用户自定义图（相册导入）优先；没有就按机型取专属图；再没有才回落通用图
+} ?: painterResource(moondropDeviceImage(deviceName, PodImagePart.BOX) ?: R.drawable.img_box)
 
 private fun LazyListScope.podControlItems(
     moondrop: MoondropControls,

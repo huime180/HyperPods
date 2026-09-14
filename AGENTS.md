@@ -25,6 +25,10 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 
 资源在 `app/src/main/res/`；Xposed 元数据在 `app/src/main/resources/META-INF/xposed/`。
 **`scope.list` 变更时必须同步更新 `README.md` 与本文件。**
+
+**上游是 `1812z/OppoPods`（remote 名 `upstream`）：两边的 git 历史没有共同祖先，同步只能「比对增量 + 手工移植」，不能 merge。基线与操作步骤见 [docs/UPSTREAM.md](docs/UPSTREAM.md)。**
+
+**`module.prop` 的 `version` / `versionCode` 必须与 `app/build.gradle.kts` 的 `versionName` / `versionCode` 一致 —— `:app:verifyModuleProp`（挂在 `preBuild` 上）会断言，不一致直接构建失败。**
 架构与融合说明见 `docs/FUSION_ARCHITECTURE.md`。
 
 ## 融合原则（最重要的一条）

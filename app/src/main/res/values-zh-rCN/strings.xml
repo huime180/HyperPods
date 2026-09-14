@@ -4,6 +4,9 @@
     <string name="app_subtitle">OPPO / 水月雨耳机适配 HyperOS</string>
     <string name="pod_info">耳机信息</string>
     <string name="about">关于 HyperPods</string>
+    <string name="about_project_home">项目主页</string>
+    <string name="about_version">版本</string>
+    <string name="about_license">许可</string>
     <string name="settings">设置</string>
     <string name="module">模块</string>
     <string name="earphones">耳机</string>

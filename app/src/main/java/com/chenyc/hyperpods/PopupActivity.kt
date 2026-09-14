@@ -1,13 +1,17 @@
 package com.chenyc.hyperpods
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -130,16 +134,40 @@ class PopupActivity : ComponentActivity() {
             openModule()
             return
         }
-        val intent = Intent().apply {
-            setClassName("com.android.settings", "com.android.settings.bluetooth.MiuiHeadsetActivity")
-            putExtra("android.bluetooth.device.extra.DEVICE", bluetoothDevice)
-            putExtra("bluetoothaddress", bluetoothDevice.address)
-            putExtra("MIUI_HEADSET_SUPPORT", ConfigManager.fakeSupport())
-            putExtra("COME_FROM", "MIUI_BLUETOOTH_SETTINGS")
-            putExtra("DEVICE_ID", ConfigManager.fakeDeviceId())
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        runCatching { startActivity(intent) }.onFailure { openModule() }
+        // 与「设置 → 蓝牙 → 点设备」落到同一页：用 Settings 内部那张设备详情页的 action。
+        // 旧实现是硬编码 HyperOS 的高级耳机 Activity 并塞入模块伪造的设备 id，
+        // 和从系统蓝牙列表点进去的不是同一张页面 —— 与 ui/MainUI.kt 的
+        // openSystemHeadsetSettings() 保持同一套写法。
+        val device = runCatching {
+            if (checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                BluetoothAdapter.getDefaultAdapter()?.getRemoteDevice(bluetoothDevice.address)
+            } else {
+                null
+            }
+        }.getOrNull()
+        val opened = runCatching {
+            startActivity(Intent(ACTION_BLUETOOTH_DEVICE_DETAIL_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (device != null) putExtra(EXTRA_BLUETOOTH_DEVICE, device)
+                putExtra(EXTRA_BLUETOOTH_ADDRESS, bluetoothDevice.address)
+            })
+        }.isSuccess
+        if (opened) return
+        // 兜底一：普通蓝牙设置列表页；都打不开才回模块页（不让用户卡住）
+        val fallback = runCatching {
+            startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        }.isSuccess
+        if (!fallback) openModule()
+    }
+
+    private companion object {
+        /** 与 ui/MainUI.kt 的 openSystemHeadsetSettings() 用同一套 Settings 内部 action / extra。 */
+        const val ACTION_BLUETOOTH_DEVICE_DETAIL_SETTINGS =
+            "android.settings.BLUETOOTH_DEVICE_DETAIL_SETTINGS"
+        const val EXTRA_BLUETOOTH_DEVICE = "android.bluetooth.device.extra.DEVICE"
+        const val EXTRA_BLUETOOTH_ADDRESS = "bluetoothaddress"
     }
 
     private fun Intent.parcelableDevice(key: String): BluetoothDevice? {

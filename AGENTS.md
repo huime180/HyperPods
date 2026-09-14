@@ -8,13 +8,15 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 
 主要源码在 `app/src/main/java/com/chenyc/hyperpods/`：
 
-- 根包：`MainActivity`、`HyperPodsApp`、`PopupActivity`、`ConnectionPopupActivity`。
-- `config/`：运行配置（含设置页伪装用的设备 ID）。
+- 根包：`MainActivity`、`HyperPodsApp`、`PopupActivity`。
+- `config/`：运行配置（`ConfigManager`）与耳机图片偏好 / 图片提供者（`PodImagePrefs`、`PodImageProvider`）。
 - `hook/`：Xposed 入口 `HookEntry`、`HookContext` 基类，以及面向 `com.android.bluetooth`、
-  `com.xiaomi.bluetooth`、`com.android.settings` 的 Hook 适配；`hook/milink/` 是
-  `com.milink.service`（融合设备中心、空间音频）的适配。
-- `pods/`：**双品牌共享**的连接与配置层 —— `PodCatalog`/`PodBrand`（品牌与型号判定的唯一入口）
-  与 OPPO 侧的 `Packets`/`RfcommController`。
+  `com.xiaomi.bluetooth` 的 Hook 适配；`hook/milink/` 是 `com.milink.service`
+  （融合设备中心、空间音频）的适配。**设置进程不在作用域里**：
+  `hook/SettingsHeadsetHook.kt` 与它安装的 `hook/NativeGestureKeyConfig.kt` 仍在树里，
+  但 `HookEntry` 已不再分发设置 hook，二者当前没有调用方（死代码），不要按「设置页被接管」写文档。
+- `pods/`：**双品牌共享**的连接与配置层 —— `PodBrand.kt`（`PodBrand` 枚举 + `PodCatalog`，
+  品牌与型号判定的唯一入口）与 OPPO 侧的 `Packets`/`RfcommController`。
 - `pods/moondrop/`：水月雨协议族 —— `MoondropGaia`（帧格式、特性/命令号表、手势动作表）、
   `MoondropFramer`、`MoondropBatteryCodec`、`MoondropSrcProtocol`、`MoondropModelRegistry`、
   `MoondropCapabilities`、`MoondropController`。**协议常量逐字节保留**：重构只改结构与写法，
@@ -24,6 +26,9 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 - `utils/`：Focus Island、媒体控制、系统 API，以及 `miuiStrongToast/` 的跨进程通知数据与 helper。
 
 资源在 `app/src/main/res/`；Xposed 元数据在 `app/src/main/resources/META-INF/xposed/`。
+作用域只有 3 条（`scope.list`）：`com.android.bluetooth`、`com.milink.service`、`com.xiaomi.bluetooth`。
+同一份清单还在 `app/src/main/res/values/arrays.xml` 的 `xposedscope` 数组里
+（由 `AndroidManifest.xml` 的 `xposedscope` meta-data 引用），改作用域时两处一起改。
 **`scope.list` 变更时必须同步更新 `README.md` 与本文件。**
 
 **上游是 `1812z/OppoPods`（remote 名 `upstream`）：两边的 git 历史没有共同祖先，同步只能「比对增量 + 手工移植」，不能 merge。基线与操作步骤见 [docs/UPSTREAM.md](docs/UPSTREAM.md)。**
@@ -32,7 +37,16 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 - 「**游戏模式**」（低延迟音频）是 **OPPO/欢律私有**协议的设备侧命令（`Packets.kt`，`GameModeFeature.LOW_LATENCY = 0x06`），
   水月雨侧没有对应实现 —— 所以水月雨设备的通知栏弹窗里**不显示**它（`PopupActivity` 的 `showGameMode`），
   只对 OPPO 生效的设置项统一收进 **OPPO 专属设置**二级页。
-- **水月雨的低延迟由本模块直接控制（系统侧 A2DP 特性）**：它不是厂商协议命令，所以模块页上是一个**真开关**（`LOW_LATENCY_SELECT` 下发 / `LOW_LATENCY_CHANGED` 回灌，能力位键 `hasLowLatency`），而不是跳去系统页面 —— 系统设备页本身还会被重定向到模块页，跳过去会成环。
+- **水月雨的低延迟只有「界面侧」写好了，链路没接通**：它不是厂商协议命令，而是系统侧 A2DP 特性，
+  代码里确实朝「模块真开关」的方向写 —— `PodDetailPage` 渲染 `SwitchPreference`（文案
+  `system_low_latency`），可见性看能力位 `hasLowLatency`（`MoondropControls.KEY_LOW_LATENCY`），
+  拨动发 `LOW_LATENCY_SELECT`、状态等 `LOW_LATENCY_CHANGED` 回灌。但蓝牙进程侧没有接线：
+  `MoondropCapabilities` 没有 `hasLowLatency` 字段，`MoondropController.publishCapabilities()`
+  不发这个键，`HeadsetStateDispatcher.MOONDROP_CONTROL_ACTIONS` 不含 `LOW_LATENCY_SELECT`
+  （该 action 无接收方），`MoondropModelRegistry` 的 `FeatureProfile.lowLatency` 也无人读取。
+  能力位因此恒为 false，耳机页那一行**目前不会显示** —— 不要把它当作可用功能写进 README；
+  系统侧低延迟当前只能走系统蓝牙设置页（模块入口是 `ui/MainUI.kt` 的 `openSystemHeadsetSettings()`）。
+  完整核对见 [docs/BLUETOOTH_SETTINGS_ADAPTATION.md](docs/BLUETOOTH_SETTINGS_ADAPTATION.md) 第 11 节。
 
 **`module.prop` 的 `version` / `versionCode` 必须与 `app/build.gradle.kts` 的 `versionName` / `versionCode` 一致 —— `:app:verifyModuleProp`（挂在 `preBuild` 上）会断言，不一致直接构建失败。**
 架构与融合说明见 `docs/FUSION_ARCHITECTURE.md`。
@@ -71,7 +85,9 @@ Miuix 是默认 UI 工具包，页面放在 `ui/`，以主题包裹。**协议�
 `utils/miuiStrongToast/data/BatteryStatusIntent.kt`，不要自建 extra 格式。
 跨进程广播一律 `setPackage(...)`（Android 14+ 丢弃未指定包名的隐式广播）。
 
-界面约定：**耳机相关功能直接铺在耳机页上，不藏二级页**；二级页目前有三处：手势控制、OPPO 专属设置，以及各入口自己的子页（主题 / RFCOMM 调试 / 关于）。
+界面约定：**耳机相关功能直接铺在耳机页上，不藏二级页**；二级页就是 `MainUI.kt` 里 `Screen`
+主屏之外的 6 个路由：手势控制（`Gesture`）、OPPO 专属设置（`OppoOnly`），以及各入口的子页
+均衡器（`Equalizer`）/ 主题（`Theme`）/ RFCOMM 调试（`RfcommDebug`）/ 关于（`About`）。
 新增控件优先走 `MoondropControls` 这类载体，避免在五层参数链上逐个加参数。
 
 LibXposed 入口只保留 `HookEntry` 一个 entry。所有 Hook 必须经 `HookContext` 注册以获得稳定

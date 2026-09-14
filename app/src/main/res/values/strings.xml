@@ -3,6 +3,9 @@
     <string name="app_subtitle">OPPO / MOONDROP Earphones for HyperOS</string>
     <string name="pod_info">Pod Info</string>
     <string name="about">About HyperPods</string>
+    <string name="about_project_home">Project Home</string>
+    <string name="about_version">Version</string>
+    <string name="about_license">License</string>
     <string name="settings">Settings</string>
     <string name="module">Module</string>
     <string name="earphones">Earphones</string>

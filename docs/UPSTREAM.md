@@ -20,9 +20,14 @@ git remote add upstream https://github.com/1812z/OppoPods.git
 git fetch upstream master
 ```
 
-> ⚠ 不要执行 `git branch --set-upstream-to=upstream/master dev`。那会把 `dev` 的推送目标
+> 注意：不要执行 `git branch --set-upstream-to=upstream/master dev`。那会把 `dev` 的推送目标
 > 指向上游仓库（我们没有写权限，`git push` 会失败）。同步只用 `fetch` + 手工移植，
 > 分支的跟踪关系保持指向 `origin`。
+
+**仓库命名要对**：上游与同源项目的仓库名都带 `OppoPods`（上游是 `1812z/OppoPods`，
+配置档体系来自 `Leaf-lsgtky/OppoPods`）。旧文档与旧界面里出现过的 `1812z/HyperPods`、
+`Leaf-lsgtky/HyperPods` 均已不存在（HTTP 404），引用时不要再用；本模块自己的主页是
+https://github.com/huime180/HyperPods 。
 
 ## 为什么不能直接 merge
 
@@ -51,4 +56,7 @@ git show <sha>
 
 | 日期 | 上游 HEAD | 结论 |
 | --- | --- | --- |
-| 2026-09-14 | `0d9e8a6` | 基线（`2c5bda4`）之后上游只有 1 个提交 `0d9e8a6`，内容是「关于页 GitHub 链接点击崩溃」的修复：给非 Activity 上下文加 `FLAG_ACTIVITY_NEW_TASK`，并抽出 `Context.openUrl()`。该修复**本仓库已经有**（`ui/pages/AboutPage.kt:20-26` 同款 Activity 判断），因此本次无需移植，无改动。 |
+| 2026-09-14 | `0d9e8a6` | 基线（`2c5bda4`）之后上游只有 1 个提交 `0d9e8a6`，内容是「关于页 GitHub 链接点击崩溃」的修复：给非 Activity 上下文加 `FLAG_ACTIVITY_NEW_TASK`，并抽出 `Context.openUrl()`。该修复**本仓库已经有**（`ui/pages/AboutPage.kt` 里的 `Context.openUrl()` 同款 Activity 判断），因此本次无需移植，无改动。 |
+
+上游基线与同步步骤本次文档核对后**不变**：远程名 `upstream`、默认分支 `master`、
+融合基线 `2c5bda4`、不能 `merge` / 不能 `--set-upstream-to` 这些约定都仍然有效。

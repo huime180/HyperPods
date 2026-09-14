@@ -1,5 +1,7 @@
 package com.chenyc.hyperpods.ui
 
+import android.os.Bundle
+
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
@@ -59,6 +61,7 @@ import com.chenyc.hyperpods.ui.pages.RfcommDebugPage
 import com.chenyc.hyperpods.ui.pages.ThemeSettingsPage
 import com.chenyc.hyperpods.utils.RootManager
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
+import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -113,6 +116,15 @@ fun MainUI(
     /** Smart-mode current auto-applied NC level (LIGHT/MEDIUM/DEEP), or null. */
     val smartAncLevel = remember { mutableStateOf<NoiseControlMode?>(null) }
     val hookConnected = remember { mutableStateOf(false) }
+    // 水月雨线：协议栈跑在被 hook 的蓝牙进程里，应用侧只收广播做镜像
+    // （与 hookConnected 那一路同一形态，只是 action 与状态项不同）。
+    val moondropConnected = remember { mutableStateOf(false) }
+    val moondropBattery = remember { mutableStateOf(BatteryParams()) }
+    val moondropAncIndex = remember { mutableStateOf(-1) }
+    val moondropAncIds = remember { mutableStateOf<List<String>>(emptyList()) }
+    val moondropModelName = remember { mutableStateOf("") }
+    // 能力包：决定耳机页上显示哪些水月雨功能项（显示项随耳机切换）
+    val moondropCaps = remember { mutableStateOf<Bundle?>(null) }
     val gameMode = remember { mutableStateOf(false) }
     val transparencyVocalEnhancement = remember { mutableStateOf(false) }
     val dualDeviceConnection = remember { mutableStateOf(false) }
@@ -162,11 +174,30 @@ fun MainUI(
     val earphonePrefs = remember { mutableStateOf(PodImagePrefs.load(prefs)) }
     val productId = remember { mutableStateOf<String?>(null) }
 
-    val canShowDetailPage = hookConnected.value
+    /** 读水月雨能力包里的一个开关（没探测到就不显示对应控件）。 */
+    fun moondropCap(key: String): Boolean = moondropCaps.value?.getBoolean(key) ?: false
+
+    /** 水月雨档位标识 → 界面降噪模式（抗风噪/人声增强按通透处理，语义最接近）。 */
+    fun moondropUiModeOf(ancId: String?): NoiseControlMode = when (ancId) {
+        "anc" -> NoiseControlMode.NOISE_CANCELLATION
+        "transparent", "live", "anti_wind" -> NoiseControlMode.TRANSPARENCY
+        "adaptive" -> NoiseControlMode.ADAPTIVE
+        else -> NoiseControlMode.OFF
+    }
+
+    /** 反向：界面模式 → 档位下标（找不到返回 -1，调用方不发命令）。 */
+    fun moondropAncIndexOf(mode: NoiseControlMode): Int =
+        moondropAncIds.value.indexOfFirst { moondropUiModeOf(it) == mode }
+
+    val canShowDetailPage = hookConnected.value || moondropConnected.value
     val showEarphoneDetail = canShowDetailPage && !showDevicePicker
-    val displayBattery = batteryParams.value
+    val displayBattery = if (moondropConnected.value) moondropBattery.value else batteryParams.value
     val displayWearStatus = wearStatus.value
-    val displayAnc = ancMode.value
+    val displayAnc = if (moondropConnected.value) {
+        moondropUiModeOf(moondropAncIds.value.getOrNull(moondropAncIndex.value))
+    } else {
+        ancMode.value
+    }
     val displayGameMode = gameMode.value
     val displayTransparencyVocalEnhancement = transparencyVocalEnhancement.value
     val displayDualDeviceConnection = dualDeviceConnection.value
@@ -218,6 +249,44 @@ fun MainUI(
         object : BroadcastReceiver() {
             override fun onReceive(p0: Context?, p1: Intent?) {
                 when (p1?.action) {
+                    // ---- 水月雨线（协议栈在被 hook 的蓝牙进程里，应用侧只做镜像）----
+
+                    HyperPodsAction.PODS_CONNECTED -> {
+                        moondropConnected.value = true
+                        val name = p1.getStringExtra(HyperPodsAction.EXTRA_DEVICE_NAME)
+                        moondropModelName.value = name.orEmpty()
+                        mainTitle.value = name ?: ""
+                        connectedDeviceAddress = p1.getStringExtra(HyperPodsAction.EXTRA_MAC)
+                            ?: connectedDeviceAddress
+                        Log.i("HyperPods", "moondrop pod connected: $name")
+                    }
+
+                    HyperPodsAction.PODS_DISCONNECTED -> {
+                        moondropConnected.value = false
+                        moondropBattery.value = BatteryParams()
+                        moondropAncIndex.value = -1
+                        moondropAncIds.value = emptyList()
+                        moondropCaps.value = null
+                        mainTitle.value = ""
+                    }
+
+                    HyperPodsAction.BATTERY_CHANGED -> {
+                        p1.batteryStatusCompat()?.let { moondropBattery.value = it }
+                    }
+
+                    HyperPodsAction.ANC_CHANGED -> {
+                        moondropAncIndex.value = p1.getIntExtra(HyperPodsAction.EXTRA_STATUS, -1)
+                        p1.getStringArrayListExtra(HyperPodsAction.EXTRA_ANC_IDS)?.let {
+                            moondropAncIds.value = it
+                        }
+                    }
+
+                    HyperPodsAction.CAPABILITIES_CHANGED -> {
+                        moondropModelName.value =
+                            p1.getStringExtra(HyperPodsAction.EXTRA_MODEL_NAME).orEmpty()
+                        moondropCaps.value = p1.getBundleExtra(HyperPodsAction.EXTRA_CAPS_BUNDLE)
+                    }
+
                     HyperPodsAction.ACTION_PODS_ANC_CHANGED -> {
                         connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
                         val status = p1.getIntExtra("status", 1)
@@ -367,6 +436,12 @@ fun MainUI(
             addAction(HyperPodsAction.ACTION_MODULE_BLUETOOTH_SERVICE_ALIVE)
             addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
             addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        
+            addAction(HyperPodsAction.PODS_CONNECTED)
+            addAction(HyperPodsAction.PODS_DISCONNECTED)
+            addAction(HyperPodsAction.BATTERY_CHANGED)
+            addAction(HyperPodsAction.ANC_CHANGED)
+            addAction(HyperPodsAction.CAPABILITIES_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 
         sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_PODS_UI_INIT)

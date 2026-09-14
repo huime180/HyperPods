@@ -35,6 +35,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import com.chenyc.hyperpods.pods.NoiseControlMode
+import com.chenyc.hyperpods.ui.components.MoondropAncSwitch
+import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
 import com.chenyc.hyperpods.pods.detectDeviceCapabilities
 import com.chenyc.hyperpods.config.ConfigManager
 import com.chenyc.hyperpods.ui.AppLocale
@@ -169,6 +171,14 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
     val transparencyVocalEnhancement = remember { mutableStateOf(false) }
     val deviceName = remember { mutableStateOf("") }
     val productId = remember { mutableStateOf<String?>(null) }
+
+    // ── 水月雨（MOONDROP）线 ──────────────────────────────────────────────────
+    // 弹窗原来是照 OPPO 那条线写的：档位是 NoiseControlMode 的 1..8 数字档、
+    // 只订阅 ACTION_PODS_*。水月雨走的是另一套 action（…moondrop.anc_changed +
+    // EXTRA_ANC_IDS），档位是**设备探测出来的字符串 id 列表**，两边对不上，
+    // 所以插着水月雨时这一块以前是空的。这里另开一组状态，两条线互不干扰。
+    val mdAncIds = remember { mutableStateOf<List<String>>(emptyList()) }
+    val mdAncIndex = remember { mutableStateOf(0) }
     remember { ConfigManager.refreshFromPrefs(prefs) }
     val capabilities = detectDeviceCapabilities(
         context = context,
@@ -193,6 +203,24 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                             8 -> NoiseControlMode.NOISE_CANCELLATION_DEEP
                             else -> NoiseControlMode.OFF
                         }
+                    }
+                    HyperPodsAction.ANC_CHANGED -> {
+                        mdAncIds.value =
+                            p1.getStringArrayListExtra(HyperPodsAction.EXTRA_ANC_IDS).orEmpty()
+                        mdAncIndex.value = p1.getIntExtra(HyperPodsAction.EXTRA_STATUS, 0)
+                        if (!showDialog.value) showDialog.value = true
+                    }
+                    HyperPodsAction.BATTERY_CHANGED -> {
+                        p1.batteryStatusCompat()?.let { batteryParams.value = it }
+                    }
+                    HyperPodsAction.PODS_CONNECTED -> {
+                        p1.getStringExtra("device_name")?.takeIf { it.isNotEmpty() }
+                            ?.let { deviceName.value = it }
+                        if (!showDialog.value) showDialog.value = true
+                    }
+                    HyperPodsAction.PODS_DISCONNECTED -> {
+                        mdAncIds.value = emptyList()
+                        mdAncIndex.value = 0
                     }
                     HyperPodsAction.ACTION_PODS_BATTERY_CHANGED -> {
                         batteryParams.value =
@@ -226,6 +254,11 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
             addAction(HyperPodsAction.ACTION_PODS_DISCONNECTED)
             addAction(HyperPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
             addAction(HyperPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
+            // 水月雨线（与上面那组 OPPO action 并存，两边互不影响）
+            addAction(HyperPodsAction.ANC_CHANGED)
+            addAction(HyperPodsAction.BATTERY_CHANGED)
+            addAction(HyperPodsAction.PODS_CONNECTED)
+            addAction(HyperPodsAction.PODS_DISCONNECTED)
         }, Context.RECEIVER_EXPORTED)
 
         context.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_UI_INIT).apply {
@@ -233,6 +266,12 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
         })
         context.sendBroadcast(Intent(HyperPodsAction.ACTION_REFRESH_STATUS).apply {
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        })
+        // 水月雨同样是「先问一次」：控制器收到 UI_INIT 会 refreshAll()，然后把
+        // ANC / 电量按 CONSUMERS 推回来 —— 应用进程就在 CONSUMERS 里。
+        context.sendBroadcast(Intent(HyperPodsAction.UI_INIT).apply {
             setPackage("com.android.bluetooth")
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
         })
@@ -255,6 +294,16 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                 addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             })
         }
+    }
+
+    /** 水月雨：把选中的**档位下标**发回蓝牙进程（控制器按型号档案换算成设备码）。 */
+    fun setMoondropAnc(index: Int) {
+        mdAncIndex.value = index
+        context.sendBroadcast(Intent(HyperPodsAction.ANC_SELECT).apply {
+            putExtra(HyperPodsAction.EXTRA_STATUS, index)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        })
     }
 
     fun setAncMode(mode: NoiseControlMode) {
@@ -314,6 +363,9 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
         ) {
             if (isLandscape) {
                 LandscapePopupBody(
+                    moondropAncIds = mdAncIds.value,
+                    moondropAncIndex = mdAncIndex.value,
+                    onMoondropAncSelect = ::setMoondropAnc,
                     batteryParams = batteryParams.value,
                     ancMode = ancMode.value,
                     gameMode = gameMode.value,
@@ -327,6 +379,9 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                 )
             } else {
                 PortraitPopupBody(
+                    moondropAncIds = mdAncIds.value,
+                    moondropAncIndex = mdAncIndex.value,
+                    onMoondropAncSelect = ::setMoondropAnc,
                     batteryParams = batteryParams.value,
                     ancMode = ancMode.value,
                     gameMode = gameMode.value,
@@ -354,7 +409,11 @@ private fun PortraitPopupBody(
     onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     onMore: () -> Unit,
     onDone: () -> Unit,
-    adaptiveModeEnabled: Boolean = true
+    adaptiveModeEnabled: Boolean = true,
+    /** 水月雨探测出来的档位 id 列表（空 = 当前不是水月雨，走 OPPO 那套固定档）。 */
+    moondropAncIds: List<String> = emptyList(),
+    moondropAncIndex: Int = 0,
+    onMoondropAncSelect: (Int) -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -365,13 +424,23 @@ private fun PortraitPopupBody(
         }
         Spacer(modifier = Modifier.height(12.dp))
         Card(modifier = Modifier.fillMaxWidth()) {
-            AncSwitch(
-                ancStatus = ancMode,
-                onAncModeChange = onAncModeChange,
-                adaptiveModeEnabled = adaptiveModeEnabled,
-                transparencyVocalEnhancement = transparencyVocalEnhancement,
-                onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
-            )
+            if (moondropAncIds.isNotEmpty()) {
+                // 水月雨：档位由设备能力探测得出（关 / 基本 / 通透 / 抗风噪 / 自适应 …），
+                // 用 MoondropAncSwitch，而不是 OPPO 那套固定八档的 AncSwitch。
+                MoondropAncSwitch(
+                    ancIds = moondropAncIds,
+                    selectedIndex = moondropAncIndex,
+                    onSelect = onMoondropAncSelect,
+                )
+            } else {
+                AncSwitch(
+                    ancStatus = ancMode,
+                    onAncModeChange = onAncModeChange,
+                    adaptiveModeEnabled = adaptiveModeEnabled,
+                    transparencyVocalEnhancement = transparencyVocalEnhancement,
+                    onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
+                )
+            }
         }
         Spacer(modifier = Modifier.height(12.dp))
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -412,7 +481,11 @@ private fun LandscapePopupBody(
     onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     onMore: () -> Unit,
     onDone: () -> Unit,
-    adaptiveModeEnabled: Boolean = true
+    adaptiveModeEnabled: Boolean = true,
+    /** 水月雨探测出来的档位 id 列表（空 = 当前不是水月雨，走 OPPO 那套固定档）。 */
+    moondropAncIds: List<String> = emptyList(),
+    moondropAncIndex: Int = 0,
+    onMoondropAncSelect: (Int) -> Unit = {},
 ) {
     Row(
         modifier = Modifier
@@ -436,14 +509,23 @@ private fun LandscapePopupBody(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Card(modifier = Modifier.fillMaxWidth()) {
-                AncSwitch(
-                    ancMode,
-                    onAncModeChange = onAncModeChange,
-                    compact = true,
-                    adaptiveModeEnabled = adaptiveModeEnabled,
-                    transparencyVocalEnhancement = transparencyVocalEnhancement,
-                    onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
-                )
+                if (moondropAncIds.isNotEmpty()) {
+                    MoondropAncSwitch(
+                        ancIds = moondropAncIds,
+                        selectedIndex = moondropAncIndex,
+                        onSelect = onMoondropAncSelect,
+                        compact = true,
+                    )
+                } else {
+                    AncSwitch(
+                        ancMode,
+                        onAncModeChange = onAncModeChange,
+                        compact = true,
+                        adaptiveModeEnabled = adaptiveModeEnabled,
+                        transparencyVocalEnhancement = transparencyVocalEnhancement,
+                        onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
+                    )
+                }
             }
         }
         Column(

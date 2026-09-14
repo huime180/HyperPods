@@ -434,17 +434,7 @@ fun MoondropAncSwitch(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (ncId != null) {
-                AncButton(
-                    offIconRes = R.drawable.ic_openanc_off,
-                    onIconRes = R.drawable.ic_openanc_on,
-                    label = stringResource(R.string.noise_cancellation_title),
-                    isSelected = current in ANC_NC_FAMILY,
-                    onClick = { onSelect(ancIds.indexOf(lastSubMode)) },
-                    modifier = Modifier.weight(1f),
-                    compact = compact
-                )
-            }
+            // 一排三格，顺序按用户习惯固定为：通透 → 降噪 → 关闭。
             if (transparencyId != null) {
                 AncButton(
                     offIconRes = R.drawable.ic_transparent_off,
@@ -452,6 +442,17 @@ fun MoondropAncSwitch(
                     label = stringResource(R.string.transparency_title),
                     isSelected = current in ANC_TRANSPARENCY_FAMILY,
                     onClick = { onSelect(ancIds.indexOf(transparencyId)) },
+                    modifier = Modifier.weight(1f),
+                    compact = compact
+                )
+            }
+            if (ncId != null) {
+                AncButton(
+                    offIconRes = R.drawable.ic_openanc_off,
+                    onIconRes = R.drawable.ic_openanc_on,
+                    label = stringResource(R.string.noise_cancellation_title),
+                    isSelected = current in ANC_NC_FAMILY,
+                    onClick = { onSelect(ancIds.indexOf(lastSubMode)) },
                     modifier = Modifier.weight(1f),
                     compact = compact
                 )

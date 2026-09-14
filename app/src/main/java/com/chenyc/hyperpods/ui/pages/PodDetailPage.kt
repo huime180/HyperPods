@@ -376,6 +376,8 @@ private fun LazyListScope.podControlItems(
                 ConfirmSwitchRow(
                     title = stringResource(R.string.moondrop_lhdc),
                     summary = stringResource(R.string.moondrop_lhdc_summary),
+                    // 开关行只写「提供高品质音频体验」，互斥后果放在弹窗里讲
+                    dialogSummary = stringResource(R.string.moondrop_lhdc_dialog_summary),
                     checked = moondrop.lhdcOn,
                     onCheckedChange = moondrop.onLhdcChange,
                 )
@@ -384,6 +386,7 @@ private fun LazyListScope.podControlItems(
                 ConfirmSwitchRow(
                     title = stringResource(R.string.dual_device_connection),
                     summary = stringResource(R.string.moondrop_dual_summary),
+                    dialogSummary = stringResource(R.string.moondrop_dual_dialog_summary),
                     checked = moondrop.dualConnectionOn,
                     onCheckedChange = moondrop.onDualConnectionChange,
                 )
@@ -458,6 +461,7 @@ private fun ConfirmSwitchRow(
     summary: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    dialogSummary: String = summary,
 ) {
     var pending by remember { mutableStateOf<Boolean?>(null) }
     SwitchPreference(
@@ -468,7 +472,7 @@ private fun ConfirmSwitchRow(
     )
     OverlayDialog(
         title = title,
-        summary = summary,
+        summary = dialogSummary,
         show = pending != null,
         onDismissRequest = { pending = null },
     ) {

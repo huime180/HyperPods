@@ -1149,19 +1149,23 @@ object MoondropController {
                 return@launch
             }
             var next = MoondropGaia.GestureConf(current.copyOf()).with(slot, ear, actionId)
-            // 长按两档在设备侧**互斥**（真机确认）：同时配两条长按，设备行为不确定。
-            // 把其中一个设成非「无」的动作时，另一个的**两只耳**一并清成「无」。
-            // 只有长按这一对有互斥关系 —— 单击/双击/三击之间没有，别顺手扩大。
+            // 长按两档互斥，而且是**同侧**互斥：同侧长按1秒和长按3秒不能共存
+            // （真机上两条长按同时配，设备行为不确定）。所以把某一个设成非「无」的动作时，
+            // 只把**这只耳**的另一档清成「无」—— 另一只耳朵的长按配置不受影响。
+            // 只有长按这一对有互斥关系；单击/双击/三击之间没有，别顺手扩大。
             val counterpart = when (slot) {
                 MoondropGaia.GestureSlot.LONG_PRESS_1S -> MoondropGaia.GestureSlot.LONG_PRESS_3S
                 MoondropGaia.GestureSlot.LONG_PRESS_3S -> MoondropGaia.GestureSlot.LONG_PRESS_1S
                 else -> null
             }
-            if (counterpart != null && actionId != MoondropGaia.TouchActions.NONE) {
-                MoondropGaia.Ear.entries.forEach { otherEar ->
-                    next = next.with(counterpart, otherEar, MoondropGaia.TouchActions.NONE)
-                }
-                Log.i(TAG, "setGesture: ${slot.labelZh} 与 ${counterpart.labelZh} 互斥，已清空 ${counterpart.labelZh}")
+            if (counterpart != null && actionId != MoondropGaia.TouchActions.NONE &&
+                next.action(counterpart, ear) != MoondropGaia.TouchActions.NONE
+            ) {
+                next = next.with(counterpart, ear, MoondropGaia.TouchActions.NONE)
+                Log.i(
+                    TAG,
+                    "setGesture: 同侧互斥 -> ${ear.labelZh} 的 ${counterpart.labelZh} 自动置空",
+                )
             }
             Log.i(
                 TAG,

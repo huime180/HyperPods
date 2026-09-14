@@ -257,7 +257,9 @@ object NativeGestureKeyConfig {
                 // 先吃掉这次点击再弹窗：本模块的目的就是这一页不再出现厂商二级页，
                 // 所以弹窗失败也只让「这一行点不动」并留下日志，不退回厂商那条路。
                 result = true
-                showActionDialog(fragment, pref, row)
+                // fragment/pref 来自 args（List<Any?>），用 let 收窄成非空：拿不到就只是点了没反应，
+                // result=true 已经在上面设过，所以这一行仍然不会退回厂商二级页。
+                fragment?.let { f -> pref?.let { pr -> showActionDialog(f, pr, row) } }
             }.onFailure { Log.w(TAG, "接管长按行点击失败", it) }
         }
     }

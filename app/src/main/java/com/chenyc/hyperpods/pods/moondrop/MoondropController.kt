@@ -237,6 +237,10 @@ object MoondropController {
      */
     private fun republishCachedState() {
         Log.i(TAG, "republish cached state: battery=" + batteryState + " gesture=" + (gestureConf != null))
+        // 「连接/设备身份」也必须重放：应用进程被强停后重新打开时，它错过的是 PODS_CONNECTED 那一次，
+        // 而设备身份（名字/MAC）就在那条广播里 —— 少了它，重启后的 App 永远停在设备选择页，
+        // 进不去耳机控制页（耳机其实一直连着）。这正是用户报的那个现象。
+        if (connected) publishConnected()
         publishBattery()
         publishAnc()
         publishCapabilities()

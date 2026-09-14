@@ -1,6 +1,7 @@
 package com.chenyc.hyperpods.hook
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -29,6 +30,11 @@ import java.util.WeakHashMap
  *   · 「长按3秒」左 / 右（新 key long_press3_left / long_press3_right）
  * 厂商原有的 long_press_left_headset / long_press_right_headset 原地改名为「长按1秒」，
  * key 不变，厂商自己的字段绑定（mDropdownPrefLeft / pref_left）依旧认得它们。
+ *
+ * 这两行原本点进去是厂商的二级页（MiuiHeadsetPressKeyFragment，只有「语音助手 / 降噪切换」两项），
+ * 现在这一次点击由我们接管：弹本模块动作表的单选弹窗，选中即下发 GESTURE_SELECT，不再进二级页。
+ * 类没有换（initResource 里有 `as ValuePreference` 强转，换类会崩设置进程），
+ * 变的只是「点下去之后发生什么」。
  *
  * 读写都走本模块的广播契约，不去猜厂商那条 106/105 配置串里其余下标的语义：
  *   · 读：改写 getRadioButtonConfig() 的返回值，把我们自己拼的 12 字符串交给厂商解析；
@@ -130,7 +136,8 @@ object NativeGestureKeyConfig {
     /**
      * 由 [SettingsHeadsetHook] 在 onHook() 里调用安装。
      *
-     * 只挂四个点：读回串的构造、页面初始化完成、从二级页返回、页面销毁清理。
+     * 只挂几个点：读回串的构造、页面初始化完成、长按两行的点击接管、从别处返回、
+     * 设备连接状态变化、页面销毁清理。
      * 每个钩子内部都 runCatching，装不上就只留下一条日志。
      */
     fun install(host: HookContext) {
@@ -139,6 +146,8 @@ object NativeGestureKeyConfig {
             .onFailure { Log.w(TAG, "hook getRadioButtonConfig skipped", it) }
         runCatching { hookInitResource() }
             .onFailure { Log.w(TAG, "hook initResource skipped", it) }
+        runCatching { hookPreferenceTreeClick() }
+            .onFailure { Log.w(TAG, "hook onPreferenceTreeClick skipped", it) }
         runCatching { hookHiddenChanged() }
             .onFailure { Log.w(TAG, "hook onHiddenChanged skipped", it) }
         runCatching { hookPreferenceEnable() }
@@ -148,8 +157,11 @@ object NativeGestureKeyConfig {
     }
 
     /**
-     * 从厂商的长按二级页返回时（onHiddenChanged(false)）厂商会按它自己那套两种语义
-     * （语音助手 / 降噪切换）把长按行的显示值重刷一遍，这里紧跟其后覆盖成真实动作。
+     * 这一页重新可见时（onHiddenChanged(false)）把长按行的显示值刷成真实动作。
+     *
+     * 原先的触发场景是「从厂商的长按二级页返回」—— 那个二级页现在已经被我们接管掉了，
+     * 但 onHiddenChanged 依旧是「页面又可见了」的统一信号（从别的设置页返回也算），
+     * 所以照旧挂在它后面：万一还有没发现的入口改过厂商那套语义，这里也会把它盖回来。
      */
     private fun hookHiddenChanged() {
         host.hookAfter(
@@ -219,6 +231,98 @@ object NativeGestureKeyConfig {
                 Log.d(TAG, "KeyConfig 页面销毁，手势行引用已释放")
             }.onFailure { Log.w(TAG, "fragment cleanup failed", it) }
         }
+    }
+
+    /**
+     * 吃掉「长按」那两行的点击，改成我们自己的动作选择器。
+     *
+     * 为什么挂 onPreferenceTreeClick：这是厂商进二级页的**唯一**入口。反汇编确认
+     * `gotoPressKeyFragment` 在整个 settings APK 里只有两个 invoke-direct，都在
+     * MiuiHeadsetKeyConfigFragment.onPreferenceTreeClick(PreferenceScreen, Preference)
+     * 里（分别传 "left" / "right"）；MiuiHeadsetPressKeyFragment 的 new-instance 也只有
+     * 这一处。厂商声明的是 PreferenceFragmentCompat 那个已废弃的两参重载，settingslib 的
+     * PreferenceFragment.onPreferenceTreeClick(Preference) 用 invoke-virtual 调它：
+     * 我们返回 true 就不再落到厂商的左 / 右分支。
+     *
+     * HookContext.hookBefore 支持在回调里写 `result`，写了就不再执行原方法（见 HookContext.kt），
+     * 所以不用换 click listener，也不用反射去动 Preference 的私有监听器。
+     * 实参按「谁的 key 是我们的长按行」来认，不按位置认：位置不是契约。
+     */
+    private fun hookPreferenceTreeClick() {
+        host.hookBefore(host.findMethodByParamCount(FRAGMENT_CLASS, "onPreferenceTreeClick", 2)) {
+            val fragment = instance
+            runCatching {
+                val (pref, row) = matchLongPressRow(args) ?: return@runCatching
+                if (!isManagedMoondrop(fragment)) return@runCatching
+                // 先吃掉这次点击再弹窗：本模块的目的就是这一页不再出现厂商二级页，
+                // 所以弹窗失败也只让「这一行点不动」并留下日志，不退回厂商那条路。
+                result = true
+                showActionDialog(fragment, pref, row)
+            }.onFailure { Log.w(TAG, "接管长按行点击失败", it) }
+        }
+    }
+
+    /**
+     * 从 onPreferenceTreeClick 的实参里认出「长按」两行。
+     *
+     * 按 key 认而不是按位置认：厂商签名是 (PreferenceScreen, Preference)，
+     * 但上层 settingslib 只保证「把被点的 preference 传下来」，位置不值得当契约。
+     * PreferenceScreen 也有 getKey()，只是它的 key 不是我们这两行，会自然被跳过。
+     */
+    private fun matchLongPressRow(args: List<Any?>): Pair<Any, Row>? {
+        for (arg in args) {
+            val key = callOn(arg, "getKey") as? String ?: continue
+            if (key != KEY_LONG_LEFT && key != KEY_LONG_RIGHT) continue
+            ROW_BY_KEY[key]?.let { row -> return arg to row }
+        }
+        return null
+    }
+
+    /**
+     * 我们自己的动作选择器（单选）。
+     *
+     * 厂商二级页只有「语音助手 / 降噪切换」两项，而本模块的动作表有 8 项 —— 用户要的是
+     * 10 行统一用同一张表，所以这里直接列 [MoondropGaia.TouchActions.ALL]，文案走
+     * [actionLabel]（中文 labelZh / 英文 labelEn）；推断项「（推断）」/「(inferred)」
+     * 的标注本来就写在数据层的标签里，不在这里二次拼接。
+     *
+     * 用 android.app.AlertDialog 而不是 miuix 的对话框：不依赖目标进程的内部类，
+     * 万一本 ROM 的主题不认这个弹窗，也只是这一路失效并打日志。
+     * 对话框不缓存引用，页面销毁后不会留下泄漏的窗口。
+     */
+    private fun showActionDialog(fragment: Any?, pref: Any, row: Row) {
+        // 只用 Fragment 自己的 Context（Activity 主题包装过的那个）：
+        // 应用级 Context 弹 Dialog 拿不到窗口令牌，会直接抛异常。
+        val ctx = callOn(fragment, "getContext") as? Context
+        if (ctx == null) {
+            Log.w(TAG, "拿不到 Fragment Context，动作选择器弹不出来")
+            return
+        }
+        val currentId = currentConf()?.action(row.slot, row.ear) ?: MoondropGaia.TouchActions.NONE
+        val checked = MoondropGaia.TouchActions.ALL
+            .indexOfFirst { it.id == (currentId and MoondropGaia.TOUCH_ACTION_MASK) }
+        if (checked < 0) {
+            // 表外的取值（例如厂商写进去的 8..15）：照实不预选，用户仍能看到新的选项。
+            Log.d(TAG, "长按行当前值 $currentId 不在动作表里，选择器不预选")
+        }
+        AlertDialog.Builder(ctx)
+            .setTitle(rowTitle(row))
+            .setSingleChoiceItems(actionEntries(), checked) { dialog, which ->
+                runCatching {
+                    val actionId = MoondropGaia.TouchActions.ALL.getOrNull(which)?.id
+                    if (actionId == null) {
+                        Log.w(TAG, "选择器下标 $which 越界，忽略")
+                    } else if (sendGestureSelect(row, actionId)) {
+                        // 立刻把这一行右侧的值刷成刚下发的动作；GESTURE_CHANGED 回来后会再整体刷一遍。
+                        setRowText(pref, actionId)
+                    }
+                }.onFailure { Log.w(TAG, "动作选择失败", it) }
+                // 单选弹窗不会自己关，选完（成功或失败）都收起来。
+                runCatching { dialog.dismiss() }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+        Log.d(TAG, "动作选择器已弹出 key=${row.key} 当前值=$currentId 预选下标=$checked")
     }
 
     /**
@@ -345,7 +449,8 @@ object NativeGestureKeyConfig {
             // 所以必须 setEntries 在前、setEntryValues 在后。
             callOn(pref, "setEntries", actionEntries())
             callOn(pref, "setEntryValues", actionEntryValues())
-            // 只在下拉上换监听：非下拉那两行的点击是厂商自己的二级页导航，不该被我们截走。
+            // 只在下拉上换监听：非下拉那两行没有下拉可选，它们的点击由上面的
+            // onPreferenceTreeClick 接管（弹我们自己的选择器），不走这条写回路径。
             ensureChangeListener()?.let { callOn(pref, "setOnPreferenceChangeListener", it) }
         }
     }
@@ -428,12 +533,20 @@ object NativeGestureKeyConfig {
     }
 
     /**
-     * 非下拉的那两行（厂商在非 K77s 布局里把长按做成 ValuePreference：右侧显示当前动作、
-     * 点进去是二级单选页）。它的类换不掉 —— initResource 会 `as ValuePreference`，
-     * 换成下拉会直接 ClassCastException 崩设置进程 —— 所以只把显示值改成真实动作。
+     * 非下拉的那两行（厂商在非 K77s 布局里把长按做成 ValuePreference：右侧显示当前动作）。
+     * 它的类换不掉 —— initResource 会 `as ValuePreference`，换成下拉会直接 ClassCastException
+     * 崩设置进程 —— 所以只把显示值改成真实动作。
+     *
+     * 文案跟着 Locale 走：已观测动作取 [actionLabel]（中文 labelZh / 英文 labelEn），
+     * 只有动作表外的 id 才回落到数据层那句中文的 [MoondropGaia.TouchActions.matchOrUnknown]。
      */
     private fun setRowText(pref: Any, actionId: Int) {
-        val label = MoondropGaia.TouchActions.matchOrUnknown(actionId)
+        val action = MoondropGaia.TouchActions.byId(actionId)
+        val label = if (action != null) {
+            actionLabel(action)
+        } else {
+            MoondropGaia.TouchActions.matchOrUnknown(actionId)
+        }
         callOn(pref, "setValue", label)
     }
 
@@ -549,11 +662,28 @@ object NativeGestureKeyConfig {
                 Log.w(TAG, "$key 的新值无法解析成动作 id: $newValue")
                 return@runCatching
             }
-            val ctx = context
-            if (ctx == null) {
-                Log.w(TAG, "手势写回跳过：还没有拿到 Context")
-                return@runCatching
-            }
+            sendGestureSelect(row, actionId)
+        }.onFailure { Log.w(TAG, "gesture write failed", it) }
+        // 无论如何都返回 true：让下拉把选中项显示出来；写回失败只会「没生效」并已打日志。
+        return true
+    }
+
+    /**
+     * 把「手势槽位 + 耳朵 + 动作 id」下发给蓝牙进程的 MoondropController。
+     *
+     * setPackage 必须有：Android 14+ 会丢弃没指定包名的隐式广播（AGENTS.md 的约定）。
+     * 同侧「长按1秒 / 长按3秒」的互斥由收件方做，这里只发这一条，不重复判断。
+     *
+     * @return true = 广播确实发出去了。调用方据此决定要不要把界面刷成新值：
+     *   没发出去还刷，就成了「显示改了、其实没生效」。
+     */
+    private fun sendGestureSelect(row: Row, actionId: Int): Boolean {
+        val ctx = context
+        if (ctx == null) {
+            Log.w(TAG, "手势写回跳过：还没有拿到 Context")
+            return false
+        }
+        val sent = runCatching {
             ctx.sendBroadcast(Intent(HyperPodsAction.GESTURE_SELECT).apply {
                 putExtra(HyperPodsAction.EXTRA_GESTURE_SLOT, row.slot.index)
                 putExtra(HyperPodsAction.EXTRA_GESTURE_EAR, row.ear.ordinal)
@@ -561,10 +691,11 @@ object NativeGestureKeyConfig {
                 setPackage(BLUETOOTH_PACKAGE)
                 addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             })
+        }.onFailure { Log.w(TAG, "gesture write failed", it) }.isSuccess
+        if (sent) {
             Log.d(TAG, "GESTURE_SELECT slot=${row.slot.index} ear=${row.ear.ordinal} action=$actionId")
-        }.onFailure { Log.w(TAG, "gesture write failed", it) }
-        // 无论如何都返回 true：让下拉把选中项显示出来；写回失败只会「没生效」并已打日志。
-        return true
+        }
+        return sent
     }
 
     /**
@@ -586,11 +717,18 @@ object NativeGestureKeyConfig {
         return true
     }
 
-    private fun rowTitle(row: Row): String {
-        val zh = useChinese()
-        val slot = if (zh) row.slot.labelZh else row.slot.labelEn
-        val ear = if (zh) row.ear.labelZh else row.ear.labelEn
-        return if (zh) "$slot（$ear）" else "$slot ($ear)"
+    /**
+     * 行的标题：跟厂商原有行同一形态 —— 中文「双击左耳机」、英文「Triple tap left earphone」。
+     *
+     * 数据层只给到「左耳 / Left」（[MoondropGaia.Ear]），厂商把「耳机 / earphone」写进了同一串
+     * 文案里（rom 里 双击左耳机 / Triple tap left earphone 就是这个写法），
+     * 所以这里按厂商写法补后缀：不改数据层的标签，也不新增字段。
+     * 厂商原有的双击 / 三击行不由我们改名，形态与这里一致。
+     */
+    private fun rowTitle(row: Row): String = if (useChinese()) {
+        "${row.slot.labelZh}${row.ear.labelZh}机"
+    } else {
+        "${row.slot.labelEn} ${row.ear.labelEn.lowercase(Locale.ROOT)} earphone"
     }
 
     private fun useChinese(): Boolean =

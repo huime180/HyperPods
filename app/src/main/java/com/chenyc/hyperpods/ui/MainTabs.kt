@@ -120,10 +120,6 @@ internal fun MainTabsScaffold(
     onIslandShowTimingsChange: (Set<Int>) -> Unit,
     appLanguage: MutableState<Int>,
     onAppLanguageChange: (Int) -> Unit,
-    autoGameMode: MutableState<Boolean>,
-    onAutoGameModeChange: (Boolean) -> Unit,
-    milinkCardFeatures: MutableState<Set<Int>>,
-    onMilinkCardFeaturesChange: (Set<Int>) -> Unit,
     notificationClickAction: MutableState<Int>,
     onNotificationClickActionChange: (Int) -> Unit,
     moreClickAction: MutableState<Int>,
@@ -133,6 +129,7 @@ internal fun MainTabsScaffold(
     onFakeDeviceIdChange: (String) -> Unit,
     onOpenTheme: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenOppoOnly: () -> Unit,
     showRestartScopeDialog: Boolean,
     restartingScopes: Boolean,
     onShowRestartScopeDialog: () -> Unit,
@@ -274,10 +271,6 @@ internal fun MainTabsScaffold(
                         onIslandShowTimingsChange = onIslandShowTimingsChange,
                         appLanguage = appLanguage,
                         onAppLanguageChange = onAppLanguageChange,
-                        autoGameMode = autoGameMode,
-                        onAutoGameModeChange = onAutoGameModeChange,
-                        milinkCardFeatures = milinkCardFeatures,
-                        onMilinkCardFeaturesChange = onMilinkCardFeaturesChange,
                         notificationClickAction = notificationClickAction,
                         onNotificationClickActionChange = onNotificationClickActionChange,
                         moreClickAction = moreClickAction,
@@ -286,6 +279,7 @@ internal fun MainTabsScaffold(
                         onFakeDeviceIdChange = onFakeDeviceIdChange,
                         onOpenTheme = onOpenTheme,
                         onOpenAbout = onOpenAbout,
+                        onOpenOppoOnly = onOpenOppoOnly,
                     )
                 }
             }
@@ -504,10 +498,6 @@ private fun SettingsTabPage(
     onIslandShowTimingsChange: (Set<Int>) -> Unit,
     appLanguage: MutableState<Int>,
     onAppLanguageChange: (Int) -> Unit,
-    autoGameMode: MutableState<Boolean>,
-    onAutoGameModeChange: (Boolean) -> Unit,
-    milinkCardFeatures: MutableState<Set<Int>>,
-    onMilinkCardFeaturesChange: (Set<Int>) -> Unit,
     notificationClickAction: MutableState<Int>,
     onNotificationClickActionChange: (Int) -> Unit,
     moreClickAction: MutableState<Int>,
@@ -516,6 +506,7 @@ private fun SettingsTabPage(
     onFakeDeviceIdChange: (String) -> Unit,
     onOpenTheme: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenOppoOnly: () -> Unit,
 ) {
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
     Scaffold(
@@ -545,10 +536,6 @@ private fun SettingsTabPage(
             onIslandShowTimingsChange = onIslandShowTimingsChange,
             appLanguage = appLanguage,
             onAppLanguageChange = onAppLanguageChange,
-            autoGameMode = autoGameMode,
-            onAutoGameModeChange = onAutoGameModeChange,
-            milinkCardFeatures = milinkCardFeatures,
-            onMilinkCardFeaturesChange = onMilinkCardFeaturesChange,
             notificationClickAction = notificationClickAction,
             onNotificationClickActionChange = onNotificationClickActionChange,
             moreClickAction = moreClickAction,
@@ -557,6 +544,7 @@ private fun SettingsTabPage(
             onFakeDeviceIdChange = onFakeDeviceIdChange,
             onOpenTheme = onOpenTheme,
             onOpenAbout = onOpenAbout,
+            onOpenOppoOnly = onOpenOppoOnly,
         )
     }
 }

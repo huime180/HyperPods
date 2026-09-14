@@ -73,7 +73,7 @@ Miuix 是默认 UI 工具包，页面放在 `ui/`，以主题包裹。**协议�
 `utils/miuiStrongToast/data/BatteryStatusIntent.kt`，不要自建 extra 格式。
 跨进程广播一律 `setPackage(...)`（Android 14+ 丢弃未指定包名的隐式广播）。
 
-界面约定：**耳机相关功能直接铺在耳机页上，不藏二级页**；唯一允许的二级页是手势控制。
+界面约定：**耳机相关功能直接铺在耳机页上，不藏二级页**；二级页目前有三处：手势控制、OPPO 专属设置，以及各入口自己的子页（主题 / RFCOMM 调试 / 关于）。
 新增控件优先走 `MoondropControls` 这类载体，避免在五层参数链上逐个加参数。
 
 LibXposed 入口只保留 `HookEntry` 一个 entry。所有 Hook 必须经 `HookContext` 注册以获得稳定

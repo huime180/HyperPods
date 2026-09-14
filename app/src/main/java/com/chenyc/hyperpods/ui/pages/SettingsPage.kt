@@ -40,10 +40,6 @@ fun SettingsPage(
     onIslandShowTimingsChange: (Set<Int>) -> Unit = {},
     appLanguage: MutableState<Int> = mutableStateOf(AppLocale.SYSTEM),
     onAppLanguageChange: (Int) -> Unit = {},
-    autoGameMode: MutableState<Boolean> = mutableStateOf(false),
-    onAutoGameModeChange: (Boolean) -> Unit = {},
-    milinkCardFeatures: MutableState<Set<Int>> = mutableStateOf(ConfigManager.DEFAULT_MILINK_CARD_FEATURES),
-    onMilinkCardFeaturesChange: (Set<Int>) -> Unit = {},
     notificationClickAction: MutableState<Int> = mutableStateOf(ConfigManager.NOTIFICATION_CLICK_MODULE_POPUP),
     onNotificationClickActionChange: (Int) -> Unit = {},
     moreClickAction: MutableState<Int> = mutableStateOf(ConfigManager.MORE_CLICK_MODULE),
@@ -51,7 +47,8 @@ fun SettingsPage(
     fakeDeviceId: MutableState<String> = mutableStateOf(ConfigManager.DEFAULT_FAKE_DEVICE_ID),
     onFakeDeviceIdChange: (String) -> Unit = {},
     onOpenTheme: () -> Unit = {},
-    onOpenAbout: () -> Unit = {}
+    onOpenAbout: () -> Unit = {},
+    onOpenOppoOnly: () -> Unit = {}
 ) {
     val languageOptions = listOf(
         stringResource(R.string.language_system),
@@ -114,26 +111,6 @@ fun SettingsPage(
         stringResource(R.string.click_action_system_settings),
         stringResource(R.string.click_action_module),
     )
-    val milinkCardFeatureOptions = listOf(
-        ConfigManager.MILINK_CARD_GAME_MODE to stringResource(R.string.game_mode),
-        ConfigManager.MILINK_CARD_SPATIAL_AUDIO to stringResource(R.string.spatial_audio),
-    )
-    val milinkCardFeatureEntries = remember(milinkCardFeatures.value, milinkCardFeatureOptions) {
-        listOf(
-            DropdownEntry(
-                items = milinkCardFeatureOptions.map { (value, text) ->
-                    DropdownItem(
-                        text = text,
-                        selected = value in milinkCardFeatures.value,
-                        onClick = {
-                            val selected = milinkCardFeatures.value
-                            onMilinkCardFeaturesChange(if (value in selected) selected - value else selected + value)
-                        },
-                    )
-                }
-            )
-        )
-    }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -149,6 +126,22 @@ fun SettingsPage(
                     title = stringResource(R.string.theme_title),
                     summary = stringResource(R.string.theme_color_summary),
                     onClick = onOpenTheme,
+                    endActions = {
+                        Icon(
+                            imageVector = MiuixIcons.Basic.ArrowRight,
+                            contentDescription = null,
+                        )
+                    },
+                )
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.padding(top = 12.dp)) {
+                BasicComponent(
+                    title = "OPPO 专属设置",
+                    summary = "仅对 OPPO / 一加耳机生效",
+                    onClick = onOpenOppoOnly,
                     endActions = {
                         Icon(
                             imageVector = MiuixIcons.Basic.ArrowRight,
@@ -201,17 +194,6 @@ fun SettingsPage(
                         collapseOnSelection = false,
                     )
                 }
-                SwitchPreference(
-                    title = stringResource(R.string.auto_game_mode),
-                    checked = autoGameMode.value,
-                    onCheckedChange = { onAutoGameModeChange(it) }
-                )
-                OverlayDropdownPreference(
-                    title = stringResource(R.string.milink_card_features),
-                    summary = stringResource(R.string.milink_card_features_summary),
-                    entries = milinkCardFeatureEntries,
-                    collapseOnSelection = false,
-                )
                 OverlayDropdownPreference(
                     title = stringResource(R.string.notification_click_action),
                     summary = stringResource(R.string.notification_click_action_summary),

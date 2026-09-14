@@ -61,6 +61,7 @@ import com.chenyc.hyperpods.pods.WearStatus
 import com.chenyc.hyperpods.pods.detectDeviceCapabilities
 import com.chenyc.hyperpods.ui.pages.AboutPage
 import com.chenyc.hyperpods.ui.pages.EqualizerPage
+import com.chenyc.hyperpods.ui.pages.OppoOnlySettingsPage
 import com.chenyc.hyperpods.ui.pages.RfcommDebugPage
 import com.chenyc.hyperpods.ui.pages.ThemeSettingsPage
 import com.chenyc.hyperpods.utils.RootManager
@@ -91,6 +92,7 @@ sealed interface Screen : NavKey {
     data object Main : Screen
     data object About : Screen
     data object Theme : Screen
+    data object OppoOnly : Screen
     data object Equalizer : Screen
     data object RfcommDebug : Screen
     data object Gesture : Screen
@@ -858,6 +860,24 @@ fun MainUI(
         }
     }
 
+    // OPPO 专属设置二级页的写入回调：写盘 + 跨进程通知。
+    // 提成局部 val 而不是内联进 entryProvider，是为了让「设置项怎么落盘」只有一处实现。
+    val handleAutoGameModeChange: (Boolean) -> Unit = { enabled ->
+        autoGameMode.value = enabled
+        ConfigManager.updateAutoGameMode(prefs, xposedService, enabled)
+        Intent(HyperPodsAction.ACTION_AUTO_GAME_MODE_CHANGED).apply {
+            setPackage("com.android.bluetooth")
+            putExtra("enabled", enabled)
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+    val handleMilinkCardFeaturesChange: (Set<Int>) -> Unit = { features ->
+        milinkCardFeatures.value = features
+        ConfigManager.updateMilinkCardFeatures(prefs, xposedService, features)
+        broadcastConfigChanged(context, "com.milink.service")
+    }
+
     val entryProvider = entryProvider<Screen> {
         entry<Screen.Main> {
             MainTabsScaffold(
@@ -940,23 +960,6 @@ fun MainUI(
                     appLanguage.value = it
                     onAppLanguageChange(it)
                 },
-                autoGameMode = autoGameMode,
-                onAutoGameModeChange = {
-                    autoGameMode.value = it
-                    ConfigManager.updateAutoGameMode(prefs, xposedService, it)
-                    Intent(HyperPodsAction.ACTION_AUTO_GAME_MODE_CHANGED).apply {
-                        setPackage("com.android.bluetooth")
-                        putExtra("enabled", it)
-                        addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-                        context.sendBroadcast(this)
-                    }
-                },
-                milinkCardFeatures = milinkCardFeatures,
-                onMilinkCardFeaturesChange = {
-                    milinkCardFeatures.value = it
-                    ConfigManager.updateMilinkCardFeatures(prefs, xposedService, it)
-                    broadcastConfigChanged(context, "com.milink.service")
-                },
                 notificationClickAction = notificationClickAction,
                 onNotificationClickActionChange = {
                     notificationClickAction.value = it
@@ -980,6 +983,7 @@ fun MainUI(
                 },
                 onOpenTheme = { backStack.add(Screen.Theme) },
                 onOpenAbout = { backStack.add(Screen.About) },
+                onOpenOppoOnly = { backStack.add(Screen.OppoOnly) },
                 showRestartScopeDialog = showRestartScopeDialog,
                 restartingScopes = restartingScopes,
                 onShowRestartScopeDialog = { showRestartScopeDialog = true },
@@ -1093,6 +1097,42 @@ fun MainUI(
                         onFloatingBottomBarChange = onFloatingBottomBarChange,
                         blurBottomBar = blurBottomBar,
                         onBlurBottomBarChange = onBlurBottomBarChange,
+                    )
+                }
+            }
+        }
+        entry<Screen.OppoOnly> {
+            val oppoOnlyScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
+
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = "OPPO 专属设置",
+                        largeTitle = "OPPO 专属设置",
+                        scrollBehavior = oppoOnlyScrollBehavior,
+                        navigationIcon = {
+                            IconButton(onClick = { backStack.removeLast() }) {
+                                Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
+                            }
+                        }
+                    )
+                }
+            ) { padding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundColor)
+                        .padding(padding),
+                ) {
+                    OppoOnlySettingsPage(
+                        modifier = Modifier
+                            .overScrollVertical()
+                            .nestedScroll(oppoOnlyScrollBehavior.nestedScrollConnection),
+                        contentPadding = PaddingValues(bottom = pageBottomContentPadding),
+                        autoGameMode = autoGameMode,
+                        onAutoGameModeChange = handleAutoGameModeChange,
+                        milinkCardFeatures = milinkCardFeatures,
+                        onMilinkCardFeaturesChange = handleMilinkCardFeaturesChange,
                     )
                 }
             }

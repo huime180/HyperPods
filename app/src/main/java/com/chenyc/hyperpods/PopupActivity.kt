@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import com.chenyc.hyperpods.pods.NoiseControlMode
+import com.chenyc.hyperpods.pods.moondrop.MoondropModelRegistry
 import com.chenyc.hyperpods.ui.components.MoondropAncSwitch
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
 import com.chenyc.hyperpods.pods.detectDeviceCapabilities
@@ -179,6 +180,14 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
     // 所以插着水月雨时这一块以前是空的。这里另开一组状态，两条线互不干扰。
     val mdAncIds = remember { mutableStateOf<List<String>>(emptyList()) }
     val mdAncIndex = remember { mutableStateOf(0) }
+    // 「游戏模式」= 低延迟音频，但它走的是 **OPPO/欢律私有协议**的一条**设备侧**命令
+    // （pods/Packets.kt：AA 09 ... 06 01，GameModeFeature.LOW_LATENCY=0x06），能力位来自
+    // OPPO 的 assets/device_models.json。水月雨线上没有对应实现（pods/moondrop 里没有任何
+    // gameMode/lowLatency 代码，HyperPodsAction 的 LOW_LATENCY_* 两个常量无人引用），
+    // 所以插水月雨时把这张卡藏掉 —— 否则按下去只会发一条没有接收方的 ACTION_GAME_MODE_SET。
+    // 它**不是** HyperOS 蓝牙设置里的「低延迟模式」：那个是系统侧 A2DP 配置，与厂商协议无关。
+    val isMoondrop = mdAncIds.value.isNotEmpty() ||
+        MoondropModelRegistry.match(deviceName.value) != null
     remember { ConfigManager.refreshFromPrefs(prefs) }
     val capabilities = detectDeviceCapabilities(
         context = context,
@@ -375,7 +384,8 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                     onTransparencyVocalEnhancementChange = ::setTransparencyVocalEnhancement,
                     onMore = onMore,
                     onDone = { showDialog.value = false },
-                    adaptiveModeEnabled = capabilities.adaptiveSupported
+                    adaptiveModeEnabled = capabilities.adaptiveSupported,
+                    showGameMode = !isMoondrop,
                 )
             } else {
                 PortraitPopupBody(
@@ -391,7 +401,8 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                     onTransparencyVocalEnhancementChange = ::setTransparencyVocalEnhancement,
                     onMore = onMore,
                     onDone = { showDialog.value = false },
-                    adaptiveModeEnabled = capabilities.adaptiveSupported
+                    adaptiveModeEnabled = capabilities.adaptiveSupported,
+                    showGameMode = !isMoondrop,
                 )
             }
         }
@@ -414,6 +425,8 @@ private fun PortraitPopupBody(
     moondropAncIds: List<String> = emptyList(),
     moondropAncIndex: Int = 0,
     onMoondropAncSelect: (Int) -> Unit = {},
+    /** 游戏模式只在 OPPO/欢律线上有意义；水月雨线没有对应实现，传 false 直接不显示这张卡。 */
+    showGameMode: Boolean = true,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -443,13 +456,15 @@ private fun PortraitPopupBody(
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Card(modifier = Modifier.fillMaxWidth()) {
-            SwitchPreference(
-                title = stringResource(R.string.game_mode),
-                summary = stringResource(R.string.game_mode_summary),
-                checked = gameMode,
-                onCheckedChange = onGameModeChange
-            )
+        if (showGameMode) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                SwitchPreference(
+                    title = stringResource(R.string.game_mode),
+                    summary = stringResource(R.string.game_mode_summary),
+                    checked = gameMode,
+                    onCheckedChange = onGameModeChange
+                )
+            }
         }
         Spacer(modifier = Modifier.height(16.dp))
         Row(
@@ -486,6 +501,8 @@ private fun LandscapePopupBody(
     moondropAncIds: List<String> = emptyList(),
     moondropAncIndex: Int = 0,
     onMoondropAncSelect: (Int) -> Unit = {},
+    /** 游戏模式只在 OPPO/欢律线上有意义；水月雨线没有对应实现，传 false 直接不显示这张卡。 */
+    showGameMode: Boolean = true,
 ) {
     Row(
         modifier = Modifier
@@ -534,28 +551,30 @@ private fun LandscapePopupBody(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.Center
         ) {
-            val gameModeCardColor = if (gameMode) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.surfaceContainer
-            val gameModeTextColor = if (gameMode) Color.White else MiuixTheme.colorScheme.onSurfaceContainer
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.defaultColors(
-                    color = gameModeCardColor,
-                    contentColor = gameModeTextColor
-                ),
-                pressFeedbackType = PressFeedbackType.Sink,
-                showIndication = true,
-                onClick = { onGameModeChange(!gameMode) },
-                onLongPress = {}
-            ) {
-                Text(
-                    text = stringResource(R.string.game_mode),
-                    color = if (gameMode) Color.White else MiuixTheme.colorScheme.onSurface,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    textAlign = TextAlign.Center
-                )
-            }
+        if (showGameMode) {
+                val gameModeCardColor = if (gameMode) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.surfaceContainer
+                val gameModeTextColor = if (gameMode) Color.White else MiuixTheme.colorScheme.onSurfaceContainer
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.defaultColors(
+                        color = gameModeCardColor,
+                        contentColor = gameModeTextColor
+                    ),
+                    pressFeedbackType = PressFeedbackType.Sink,
+                    showIndication = true,
+                    onClick = { onGameModeChange(!gameMode) },
+                    onLongPress = {}
+                ) {
+                    Text(
+                        text = stringResource(R.string.game_mode),
+                        color = if (gameMode) Color.White else MiuixTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+        }
             Spacer(modifier = Modifier.height(6.dp))
             TextButton(
                 text = stringResource(R.string.more),

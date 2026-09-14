@@ -631,14 +631,8 @@ private fun EarphoneDetailActions(
     }
 }
 
-// 重启作用域只是对这些包名做 force-stop，清单决定「能重启谁」，不决定「谁被注入」——
-// 注入与否由 META-INF/xposed/scope.list 与 LSPosed 作用域决定，所以这里可以放心列出未注入的进程。
 private val restartScopeOptions = listOf(
     RestartScope("com.android.bluetooth", "Bluetooth"),
     RestartScope("com.milink.service", "MiLink Service"),
     RestartScope("com.xiaomi.bluetooth", "Mi Bluetooth"),
-    RestartScope("com.android.settings", "Settings"),
-    // SystemUI 的重启走 kill 而不是 force-stop（见 RootManager 的 killInsteadOfForceStop）：
-    // force-stop 会把包置为 stopped，SystemUI 被这样停掉后不一定自动拉起。
-    RestartScope("com.android.systemui", "System UI"),
 )

@@ -105,6 +105,12 @@
 
 → 按用户的理由（品牌切换方便、少维护），**取 A**；B 只在 A 出现不可接受的副作用时才考虑。
 
+> **现状（已变更，2024 回退后）**：设置进程 hook 已整体回退（`d66eb86`：`HookEntry` 不再分发设置 hook，
+> `scope.list` 只留 bluetooth / milink.service / xiaomi.bluetooth），本节的「A 路线」待办随之作废，保留仅作背景。
+> 模块自己的「系统蓝牙设置」入口已统一为 Settings 的**设备详情页** action（见下），**不要**再改回
+> 硬编码 `com.android.settings.bluetooth.MiuiHeadsetActivity`（那是 HyperOS 高级耳机页，与系统蓝牙列表
+> 点设备不是同一张页面，用户实测过差异）。
+
 ### 待办（A 路线的拆解）
 
 1. 认准「原生设备页」的入口：`MiuiHeadsetActivity` 与从蓝牙设置点设备那一步（两者可能都要重定向）。
@@ -114,3 +120,18 @@
    系统设备页本身要被重定向到模块页，跳过去会成环。）
 4. 品牌判定放在模块页（已有），原生页不再需要按品牌分叉。
 5. 回归：OPPO/普通耳机进这一页的行为要明确 —— 是同样重定向到模块页，还是只有水月雨重定向。
+
+## 模块侧「系统蓝牙设置」入口（现行实现）
+
+`ui/MainUI.kt` → `openSystemHeadsetSettings()`（提交 `30b884b`）：
+
+```kotlin
+context.startActivity(Intent("android.settings.BLUETOOTH_DEVICE_DETAIL_SETTINGS").apply {
+    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    if (device != null) putExtra("android.bluetooth.device.extra.DEVICE", device)   // 需 BLUETOOTH_CONNECT
+    putExtra("bluetoothaddress", address)
+})
+// 失败兜底：Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+```
+
+落到与「设置 → 蓝牙 → 点设备」完全相同的设备详情页；无需注入任何 MIUI 私有 extra。

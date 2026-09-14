@@ -61,7 +61,7 @@ object PodCatalog {
      * 优先用 RFCOMM 握手拿到的 productId（精确，[RfcommController] 侧才会有），
      * 没有时退回设备名匹配（被注入进程只能拿到名字）。
      */
-    fun oppoCapabilitiesOf(context: Context, deviceName: String?, productId: String? = null): DeviceCapabilities? {
+    fun oppoCapabilitiesOf(context: Context, deviceName: String?, productId: String? = null): ModelCapabilities? {
         if (!deviceName.isNullOrBlank() || !productId.isNullOrBlank()) {
             runCatching { DeviceModelRegistry.ensureLoaded(context) }
                 .onFailure { Log.w(TAG, "DeviceModelRegistry.ensureLoaded failed", it) }
@@ -83,7 +83,7 @@ object PodCatalog {
         if (moondropModelOf(deviceName, mac) != null) return PodBrand.MOONDROP
         if (isOppoName(deviceName)) return PodBrand.OPPO
         // 名称认不出但注册表里有（例如用户自定义了耳机名），按注册表兜底。
-        if (oppoCapabilitiesOf(context, deviceName)?.isSupported == true) return PodBrand.OPPO
+        if (oppoCapabilitiesOf(context, deviceName) != null) return PodBrand.OPPO
         return null
     }
 

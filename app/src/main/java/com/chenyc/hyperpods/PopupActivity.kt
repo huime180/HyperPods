@@ -1,5 +1,7 @@
 package com.chenyc.hyperpods
 
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -16,8 +18,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -28,54 +31,120 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import com.chenyc.hyperpods.pods.DeviceProfile
-import com.chenyc.hyperpods.pods.DeviceProfileStore
 import com.chenyc.hyperpods.pods.NoiseControlMode
+import com.chenyc.hyperpods.pods.detectDeviceCapabilities
+import com.chenyc.hyperpods.config.ConfigManager
+import com.chenyc.hyperpods.ui.AppLocale
 import com.chenyc.hyperpods.ui.AppTheme
 import com.chenyc.hyperpods.ui.components.AncSwitch
 import com.chenyc.hyperpods.ui.components.PodStatus
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
-import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
 
 class PopupActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        AppLocale.rememberDeviceLocale(newBase)
+        AppLocale.apply(newBase, newBase.getSharedPreferences(ConfigManager.PREFS_NAME, Context.MODE_PRIVATE).getInt("app_language", AppLocale.SYSTEM))
+        super.attachBaseContext(newBase)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val prefs = getSharedPreferences(ConfigManager.PREFS_NAME, Context.MODE_PRIVATE)
+        val appConfig = ConfigManager.refreshFromPrefs(prefs)
+        val bluetoothDevice = intent.parcelableDevice("android.bluetooth.device.extra.DEVICE")
+        if (appConfig.notificationClickAction != ConfigManager.NOTIFICATION_CLICK_MODULE_POPUP) {
+            openNotificationTarget(appConfig.notificationClickAction, bluetoothDevice)
+            finish()
+            return
+        }
+
         setContent {
-            val prefs = getSharedPreferences("hyperpods_settings", Context.MODE_PRIVATE)
             val colorSchemeMode = when (prefs.getInt("theme_mode", 0)) {
                 1 -> ColorSchemeMode.Light
                 2 -> ColorSchemeMode.Dark
                 else -> ColorSchemeMode.System
             }
-            AppTheme(colorSchemeMode = colorSchemeMode) {
+            AppTheme(colorSchemeMode = colorSchemeMode, accentMode = prefs.getInt("accent_mode", 0)) {
                 PopupContent(
                     onMore = {
-                        val prefs = getSharedPreferences("hyperpods_settings", Context.MODE_PRIVATE)
-                        if (prefs.getBoolean("open_heytap", false)) {
-                            val intent = packageManager.getLaunchIntentForPackage("com.heytap.headset")
-                            if (intent != null) {
-                                startActivity(intent)
-                            } else {
-                                startActivity(Intent(this@PopupActivity, MainActivity::class.java))
-                            }
-                        } else {
-                            startActivity(Intent(this@PopupActivity, MainActivity::class.java))
-                        }
+                        val latestConfig = ConfigManager.refreshFromPrefs(prefs)
+                        openMoreTarget(latestConfig.moreClickAction, bluetoothDevice)
                         finish()
                     },
                     onDone = { finish() }
                 )
             }
+        }
+    }
+
+    private fun openNotificationTarget(action: Int, bluetoothDevice: BluetoothDevice?) {
+        when (action) {
+            ConfigManager.NOTIFICATION_CLICK_SYSTEM_SETTINGS -> openSystemSettings(bluetoothDevice)
+            ConfigManager.NOTIFICATION_CLICK_HEYTAP -> openHeyTapOrModule()
+            else -> openModule()
+        }
+    }
+
+    private fun openMoreTarget(action: Int, bluetoothDevice: BluetoothDevice?) {
+        when (action) {
+            ConfigManager.MORE_CLICK_HEYTAP -> openHeyTapOrModule()
+            ConfigManager.MORE_CLICK_SYSTEM_SETTINGS -> openSystemSettings(bluetoothDevice)
+            else -> openModule()
+        }
+    }
+
+    private fun openModule() {
+        startActivity(Intent(this, MainActivity::class.java))
+    }
+
+    private fun openHeyTapOrModule() {
+        val intent = packageManager.getLaunchIntentForPackage("com.heytap.headset")
+        if (intent != null) {
+            startActivity(intent)
+        } else {
+            openModule()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun openSystemSettings(bluetoothDevice: BluetoothDevice?) {
+        if (bluetoothDevice == null) {
+            openModule()
+            return
+        }
+        val intent = Intent().apply {
+            setClassName("com.android.settings", "com.android.settings.bluetooth.MiuiHeadsetActivity")
+            putExtra("android.bluetooth.device.extra.DEVICE", bluetoothDevice)
+            putExtra("bluetoothaddress", bluetoothDevice.address)
+            putExtra("MIUI_HEADSET_SUPPORT", ConfigManager.fakeSupport())
+            putExtra("COME_FROM", "MIUI_BLUETOOTH_SETTINGS")
+            putExtra("DEVICE_ID", ConfigManager.fakeDeviceId())
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { startActivity(intent) }.onFailure { openModule() }
+    }
+
+    private fun Intent.parcelableDevice(key: String): BluetoothDevice? {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            getParcelableExtra(key, BluetoothDevice::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            getParcelableExtra(key)
         }
     }
 }
@@ -85,14 +154,8 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
     val showDialog = remember { mutableStateOf(false) }
 
-    val prefs = remember { context.getSharedPreferences("hyperpods_settings", Context.MODE_PRIVATE) }
+    val prefs = remember { context.getSharedPreferences(ConfigManager.PREFS_NAME, Context.MODE_PRIVATE) }
     val themeMode = remember { prefs.getInt("theme_mode", 0) }
-    val activeProfile = remember {
-        mutableStateOf(
-            runCatching { DeviceProfileStore.resolveProfile(context, prefs) }
-                .getOrElse { DeviceProfile("popup_fallback", "Unknown") }
-        )
-    }
     val systemDark = isSystemInDarkTheme()
     val isDarkMode = when (themeMode) {
         1 -> false
@@ -103,7 +166,15 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
     val batteryParams = remember { mutableStateOf(BatteryParams()) }
     val ancMode = remember { mutableStateOf(NoiseControlMode.OFF) }
     val gameMode = remember { mutableStateOf(false) }
+    val transparencyVocalEnhancement = remember { mutableStateOf(false) }
     val deviceName = remember { mutableStateOf("") }
+    val productId = remember { mutableStateOf<String?>(null) }
+    remember { ConfigManager.refreshFromPrefs(prefs) }
+    val capabilities = detectDeviceCapabilities(
+        context = context,
+        deviceName = deviceName.value,
+        productId = productId.value,
+    )
 
     val broadcastReceiver = remember {
         object : BroadcastReceiver() {
@@ -116,30 +187,31 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                             2 -> NoiseControlMode.NOISE_CANCELLATION
                             3 -> NoiseControlMode.TRANSPARENCY
                             4 -> NoiseControlMode.ADAPTIVE
+                            5 -> NoiseControlMode.NOISE_CANCELLATION_SMART
+                            6 -> NoiseControlMode.NOISE_CANCELLATION_LIGHT
+                            7 -> NoiseControlMode.NOISE_CANCELLATION_MEDIUM
+                            8 -> NoiseControlMode.NOISE_CANCELLATION_DEEP
                             else -> NoiseControlMode.OFF
                         }
                     }
-
                     HyperPodsAction.ACTION_PODS_BATTERY_CHANGED -> {
-                        p1.batteryStatusCompat()?.let {
-                            batteryParams.value = it
-                        }
+                        batteryParams.value =
+                            p1.getParcelableExtra("status", BatteryParams::class.java)!!
                     }
                     HyperPodsAction.ACTION_PODS_CONNECTED -> {
-                        val name = p1.getStringExtra("device_name") ?: ""
-                        deviceName.value = name
-                        if (name.isNotBlank()) {
-                            runCatching {
-                                DeviceProfileStore.resolveProfile(context, prefs, name)
-                            }.onSuccess { activeProfile.value = it }
-                        }
+                        deviceName.value = p1.getStringExtra("device_name") ?: ""
+                        productId.value = p1.getStringExtra("product_id") ?: productId.value
                         if (!showDialog.value) showDialog.value = true
                     }
                     HyperPodsAction.ACTION_PODS_DISCONNECTED -> {
+                        productId.value = null
                         showDialog.value = false
                     }
                     HyperPodsAction.ACTION_PODS_GAME_MODE_CHANGED -> {
                         gameMode.value = p1.getBooleanExtra("enabled", false)
+                    }
+                    HyperPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED -> {
+                        transparencyVocalEnhancement.value = p1.getBooleanExtra("enabled", false)
                     }
                 }
             }
@@ -153,14 +225,16 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
             addAction(HyperPodsAction.ACTION_PODS_CONNECTED)
             addAction(HyperPodsAction.ACTION_PODS_DISCONNECTED)
             addAction(HyperPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
+            addAction(HyperPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 
         context.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_UI_INIT).apply {
             setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
         })
         context.sendBroadcast(Intent(HyperPodsAction.ACTION_REFRESH_STATUS).apply {
             setPackage("com.android.bluetooth")
-            putExtra(HyperPodsAction.EXTRA_ALLOW_RFCOMM_RECONNECT, true)
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
         })
 
         onDispose {
@@ -178,7 +252,7 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
             delay(15_000)
             context.sendBroadcast(Intent(HyperPodsAction.ACTION_REFRESH_STATUS).apply {
                 setPackage("com.android.bluetooth")
-                putExtra(HyperPodsAction.EXTRA_ALLOW_RFCOMM_RECONNECT, true)
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             })
         }
     }
@@ -190,10 +264,15 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
             NoiseControlMode.NOISE_CANCELLATION -> 2
             NoiseControlMode.TRANSPARENCY -> 3
             NoiseControlMode.ADAPTIVE -> 4
+            NoiseControlMode.NOISE_CANCELLATION_SMART -> 5
+            NoiseControlMode.NOISE_CANCELLATION_LIGHT -> 6
+            NoiseControlMode.NOISE_CANCELLATION_MEDIUM -> 7
+            NoiseControlMode.NOISE_CANCELLATION_DEEP -> 8
         }
         Intent(HyperPodsAction.ACTION_ANC_SELECT).apply {
             putExtra("status", status)
             setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(this)
         }
     }
@@ -203,6 +282,17 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
         Intent(HyperPodsAction.ACTION_GAME_MODE_SET).apply {
             putExtra("enabled", enabled)
             setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun setTransparencyVocalEnhancement(enabled: Boolean) {
+        transparencyVocalEnhancement.value = enabled
+        Intent(HyperPodsAction.ACTION_TRANSPARENCY_VOCAL_ENHANCEMENT_SET).apply {
+            putExtra("enabled", enabled)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(this)
         }
     }
@@ -227,24 +317,26 @@ private fun PopupContent(onMore: () -> Unit, onDone: () -> Unit) {
                     batteryParams = batteryParams.value,
                     ancMode = ancMode.value,
                     gameMode = gameMode.value,
+                    transparencyVocalEnhancement = transparencyVocalEnhancement.value,
                     onAncModeChange = ::setAncMode,
                     onGameModeChange = ::setGameMode,
+                    onTransparencyVocalEnhancementChange = ::setTransparencyVocalEnhancement,
                     onMore = onMore,
                     onDone = { showDialog.value = false },
-                    adaptiveModeEnabled = activeProfile.value.adaptiveVisible,
-                    gameModeVisible = activeProfile.value.gameModeVisible
+                    adaptiveModeEnabled = capabilities.adaptiveSupported
                 )
             } else {
                 PortraitPopupBody(
                     batteryParams = batteryParams.value,
                     ancMode = ancMode.value,
                     gameMode = gameMode.value,
+                    transparencyVocalEnhancement = transparencyVocalEnhancement.value,
                     onAncModeChange = ::setAncMode,
                     onGameModeChange = ::setGameMode,
+                    onTransparencyVocalEnhancementChange = ::setTransparencyVocalEnhancement,
                     onMore = onMore,
                     onDone = { showDialog.value = false },
-                    adaptiveModeEnabled = activeProfile.value.adaptiveVisible,
-                    gameModeVisible = activeProfile.value.gameModeVisible
+                    adaptiveModeEnabled = capabilities.adaptiveSupported
                 )
             }
         }
@@ -256,12 +348,13 @@ private fun PortraitPopupBody(
     batteryParams: BatteryParams,
     ancMode: NoiseControlMode,
     gameMode: Boolean,
+    transparencyVocalEnhancement: Boolean,
     onAncModeChange: (NoiseControlMode) -> Unit,
     onGameModeChange: (Boolean) -> Unit,
+    onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     onMore: () -> Unit,
     onDone: () -> Unit,
-    adaptiveModeEnabled: Boolean = true,
-    gameModeVisible: Boolean = true
+    adaptiveModeEnabled: Boolean = true
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -272,18 +365,22 @@ private fun PortraitPopupBody(
         }
         Spacer(modifier = Modifier.height(12.dp))
         Card(modifier = Modifier.fillMaxWidth()) {
-            AncSwitch(ancMode, onAncModeChange = onAncModeChange, adaptiveModeEnabled = adaptiveModeEnabled)
+            AncSwitch(
+                ancStatus = ancMode,
+                onAncModeChange = onAncModeChange,
+                adaptiveModeEnabled = adaptiveModeEnabled,
+                transparencyVocalEnhancement = transparencyVocalEnhancement,
+                onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
+            )
         }
         Spacer(modifier = Modifier.height(12.dp))
         Card(modifier = Modifier.fillMaxWidth()) {
-            if (gameModeVisible) {
-                SwitchPreference(
-                    title = stringResource(R.string.game_mode),
-                    summary = stringResource(R.string.game_mode_summary),
-                    checked = gameMode,
-                    onCheckedChange = onGameModeChange
-                )
-            }
+            SwitchPreference(
+                title = stringResource(R.string.game_mode),
+                summary = stringResource(R.string.game_mode_summary),
+                checked = gameMode,
+                onCheckedChange = onGameModeChange
+            )
         }
         Spacer(modifier = Modifier.height(16.dp))
         Row(
@@ -309,18 +406,27 @@ private fun LandscapePopupBody(
     batteryParams: BatteryParams,
     ancMode: NoiseControlMode,
     gameMode: Boolean,
+    transparencyVocalEnhancement: Boolean,
     onAncModeChange: (NoiseControlMode) -> Unit,
     onGameModeChange: (Boolean) -> Unit,
+    onTransparencyVocalEnhancementChange: (Boolean) -> Unit,
     onMore: () -> Unit,
     onDone: () -> Unit,
-    adaptiveModeEnabled: Boolean = true,
-    gameModeVisible: Boolean = true
+    adaptiveModeEnabled: Boolean = true
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(min = 560.dp)
+            .height(240.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column(modifier = Modifier.weight(0.60f)) {
+        Column(
+            modifier = Modifier
+                .weight(0.60f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.Center
+        ) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 PodStatus(
                     batteryParams,
@@ -334,32 +440,51 @@ private fun LandscapePopupBody(
                     ancMode,
                     onAncModeChange = onAncModeChange,
                     compact = true,
-                    adaptiveModeEnabled = adaptiveModeEnabled
+                    adaptiveModeEnabled = adaptiveModeEnabled,
+                    transparencyVocalEnhancement = transparencyVocalEnhancement,
+                    onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
                 )
             }
         }
         Column(
-            modifier = Modifier.weight(0.40f).fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier
+                .weight(0.40f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.Center
         ) {
-            if (gameModeVisible) {
-                TextButton(
-                    text = stringResource(
-                        if (gameMode) R.string.disable_game_mode else R.string.enable_game_mode
-                    ),
-                    onClick = { onGameModeChange(!gameMode) },
-                    modifier = Modifier.fillMaxWidth().weight(1f)
+            val gameModeCardColor = if (gameMode) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.surfaceContainer
+            val gameModeTextColor = if (gameMode) Color.White else MiuixTheme.colorScheme.onSurfaceContainer
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.defaultColors(
+                    color = gameModeCardColor,
+                    contentColor = gameModeTextColor
+                ),
+                pressFeedbackType = PressFeedbackType.Sink,
+                showIndication = true,
+                onClick = { onGameModeChange(!gameMode) },
+                onLongPress = {}
+            ) {
+                Text(
+                    text = stringResource(R.string.game_mode),
+                    color = if (gameMode) Color.White else MiuixTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    textAlign = TextAlign.Center
                 )
             }
+            Spacer(modifier = Modifier.height(6.dp))
             TextButton(
                 text = stringResource(R.string.more),
                 onClick = onMore,
-                modifier = Modifier.fillMaxWidth().weight(1f)
+                modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(6.dp))
             TextButton(
                 text = stringResource(R.string.done),
                 onClick = onDone,
-                modifier = Modifier.fillMaxWidth().weight(1f)
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }

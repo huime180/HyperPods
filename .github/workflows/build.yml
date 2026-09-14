@@ -3,9 +3,9 @@ name: Build Release APK
 on:
   push:
     tags: [ "v*" ]
-    branches: [ "master", "main", "dev" ]
+    branches: [ "master", "main" ]
   pull_request:
-    branches: [ "master", "main", "dev" ]
+    branches: [ "master", "main" ]
   workflow_dispatch:
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 22
+          java-version: 21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

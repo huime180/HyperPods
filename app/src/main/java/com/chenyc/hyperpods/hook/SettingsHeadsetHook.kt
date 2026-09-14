@@ -9,20 +9,15 @@ import android.content.IntentFilter
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import com.chenyc.hyperpods.BuildConfig
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
-import com.chenyc.hyperpods.utils.miuiStrongToast.data.MilinkSpatialAudioOptionSettings
-import com.chenyc.hyperpods.utils.miuiStrongToast.data.PodParams
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
-import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsPrefsKey
-import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
+import com.chenyc.hyperpods.utils.miuiStrongToast.data.PodParams
 import java.util.WeakHashMap
 
 @SuppressLint("MissingPermission")
 object SettingsHeadsetHook : HookContext() {
     private const val TAG = "HyperPods-Settings"
-    private const val FAKE_DEVICE_ID = "01010901"
-    private const val FAKE_SUPPORT = "$FAKE_DEVICE_ID,000000000000000010000000"
     private const val PREFS_NAME = "hyperpods_milink_state"
     private const val SETTINGS_REFRESH_INTERVAL_MS = 3_000L
     private val knownOppoAddresses = linkedSetOf<String>()
@@ -30,12 +25,11 @@ object SettingsHeadsetHook : HookContext() {
     private val headsetFragments = WeakHashMap<Any, Boolean>()
     private var context: Context? = null
     private var receiverRegistered = false
-    private var statusReceiver: BroadcastReceiver? = null
     private var currentAddress: String? = null
     private var currentName: String? = null
     private var currentBattery: BatteryParams = BatteryParams()
     private var currentAnc = 1
-    private var milinkSpatialAudioOptionEnabled = HyperPodsPrefsKey.DEFAULT_MILINK_SPATIAL_AUDIO_OPTION_ENABLED
+    private var currentTransparencyVocalEnhancement = false
     private var proxyCheckSupportCalls = 0
     private var proxySetCommonCommandCalls = 0
     private var proxyGetDeviceConfigCalls = 0
@@ -62,15 +56,6 @@ object SettingsHeadsetHook : HookContext() {
         hookFragmentState()
     }
 
-    override fun onHotReloading() {
-        refreshHandler.removeCallbacksAndMessages(null)
-        refreshLoopStarted = false
-        statusReceiver?.let { receiver -> runCatching { context?.unregisterReceiver(receiver) } }
-        statusReceiver = null
-        receiverRegistered = false
-        context = null
-    }
-
     private fun hookActivityEntry() {
         runCatching {
             hookBefore(findMethod("com.android.settings.bluetooth.MiuiHeadsetActivity", "onCreate", Bundle::class.java)) {
@@ -80,13 +65,13 @@ object SettingsHeadsetHook : HookContext() {
                 val device = intent.parcelableDevice("android.bluetooth.device.extra.DEVICE")
                 Log.d(TAG, "Activity.onCreate before device=${device.describe()} support=${intent.getStringExtra("MIUI_HEADSET_SUPPORT")} comeFrom=${intent.getStringExtra("COME_FROM")} btAddress=${intent.getStringExtra("bluetoothaddress")} known=$knownOppoAddresses current=$currentAddress")
                 if (!isOppoPod(device)) return@hookBefore
-                intent.putExtra("MIUI_HEADSET_SUPPORT", FAKE_SUPPORT)
+                intent.putExtra("MIUI_HEADSET_SUPPORT", fakeSupport())
                 intent.putExtra("COME_FROM", intent.getStringExtra("COME_FROM") ?: "MIUI_BLUETOOTH_SETTINGS")
-                intent.putExtra("DEVICE_ID", FAKE_DEVICE_ID)
+                intent.putExtra("DEVICE_ID", fakeDeviceId())
                 Log.d(TAG, "MiuiHeadsetActivity intent patched address=${device?.address}")
             }
-            hookActivityStringGetter("getDeviceID") { FAKE_DEVICE_ID }
-            hookActivityStringGetter("getSupport") { FAKE_SUPPORT }
+            hookActivityStringGetter("getDeviceID") { fakeDeviceId() }
+            hookActivityStringGetter("getSupport") { fakeSupport() }
         }.onFailure { Log.w(TAG, "hook MiuiHeadsetActivity skipped", it) }
 
         runCatching {
@@ -97,8 +82,8 @@ object SettingsHeadsetHook : HookContext() {
                 val device = intent.parcelableDevice("android.bluetooth.device.extra.DEVICE")
                 Log.d(TAG, "Plugin.onCreate before device=${device.describe()} support=${intent.getStringExtra("MIUI_HEADSET_SUPPORT")} comeFrom=${intent.getStringExtra("COME_FROM")} btAddress=${intent.getStringExtra("bluetoothaddress")} known=$knownOppoAddresses current=$currentAddress")
                 if (!isOppoPod(device)) return@hookBefore
-                intent.putExtra("MIUI_HEADSET_SUPPORT", FAKE_SUPPORT)
-                intent.putExtra("DEVICE_ID", FAKE_DEVICE_ID)
+                intent.putExtra("MIUI_HEADSET_SUPPORT", fakeSupport())
+                intent.putExtra("DEVICE_ID", fakeDeviceId())
                 Log.d(TAG, "MiuiHeadsetActivityPlugin intent patched address=${device?.address}")
             }
         }.onFailure { Log.w(TAG, "hook MiuiHeadsetActivityPlugin skipped", it) }
@@ -118,9 +103,9 @@ object SettingsHeadsetHook : HookContext() {
 
     private fun hookSupportChecks() {
         hookStringStaticResult("com.android.settings.bluetooth.HeadsetIDConstants", "checkSupport") { support ->
-            support.startsWith(FAKE_DEVICE_ID) || support.contains(FAKE_DEVICE_ID)
+            support.startsWith(fakeDeviceId()) || support.contains(fakeDeviceId())
         }
-        hookStringStaticResult("com.android.settings.bluetooth.HeadsetIDConstants", "isTWS01Headset") { it == FAKE_DEVICE_ID }
+        hookStringStaticResult("com.android.settings.bluetooth.HeadsetIDConstants", "isTWS01Headset") { it == fakeDeviceId() }
         hookStringStaticResult("com.android.settings.bluetooth.HeadsetIDConstants", "isK77sHeadset") { false }
         hookBleMmaConnectByContext()
         hookBleMmaConnectByService()
@@ -131,7 +116,8 @@ object SettingsHeadsetHook : HookContext() {
             hookAfter(findMethod(className, methodName, String::class.java)) {
                 val value = args[0] as? String ?: return@hookAfter
                 Log.d(TAG, "$className.$methodName value=$value old=$result")
-                if (value != FAKE_DEVICE_ID && !value.startsWith(FAKE_DEVICE_ID)) return@hookAfter
+                val deviceId = fakeDeviceId()
+                if (value != deviceId && !value.startsWith(deviceId)) return@hookAfter
                 result = resultForValue(value)
                 Log.d(TAG, "$className.$methodName forced value=$value result=$result")
             }
@@ -144,7 +130,7 @@ object SettingsHeadsetHook : HookContext() {
                 val device = args[1] as? BluetoothDevice
                 val deviceId = args[2] as? String
                 Log.d(TAG, "isBleMmaConnect(Context) old=$result device=${device.describe()} deviceId=$deviceId service=${runCatching { callMethod(args[0], "getService") }.getOrNull()}")
-                if (deviceId == FAKE_DEVICE_ID || isOppoPod(device)) {
+                if (deviceId == fakeDeviceId() || isOppoPod(device)) {
                     result = true
                     Log.d(TAG, "isBleMmaConnect(Context) forced true")
                 }
@@ -159,7 +145,7 @@ object SettingsHeadsetHook : HookContext() {
                 val device = args[1] as? BluetoothDevice
                 val deviceId = args[2] as? String
                 Log.d(TAG, "isBleMmaConnect(Service) old=$result service=${args[0]} device=${device.describe()} deviceId=$deviceId")
-                if (deviceId == FAKE_DEVICE_ID || isOppoPod(device)) {
+                if (deviceId == fakeDeviceId() || isOppoPod(device)) {
                     result = true
                     Log.d(TAG, "isBleMmaConnect(Service) forced true")
                 }
@@ -169,11 +155,9 @@ object SettingsHeadsetHook : HookContext() {
 
     private fun hookServiceProxy() {
         val proxyClass = "com.android.bluetooth.ble.app.IMiuiHeadsetService\$Stub\$Proxy"
-        hookProxyStringResult(proxyClass, "checkSupport", BluetoothDevice::class.java) { FAKE_SUPPORT }
-        hookProxyStringArgResult(proxyClass, "getDeviceInfo") { FAKE_SUPPORT }
-        hookProxyStringArgResult(proxyClass, "isSupportAudioSwitch") {
-            if (milinkSpatialAudioOptionEnabled) "1" else "0"
-        }
+        hookProxyStringResult(proxyClass, "checkSupport", BluetoothDevice::class.java) { fakeSupport() }
+        hookProxyStringArgResult(proxyClass, "getDeviceInfo") { fakeSupport() }
+        hookProxyStringArgResult(proxyClass, "isSupportAudioSwitch") { "1" }
         hookProxyStringArgResult(proxyClass, "setCommonCommand", Int::class.java, String::class.java, BluetoothDevice::class.java) { commandArgs ->
             val command = commandArgs[0] as? Int
             if (command == 102) "0" else "1"
@@ -190,7 +174,7 @@ object SettingsHeadsetHook : HookContext() {
         }
         hookProxyVoidDeviceCommand(proxyClass, "changeAncLevel", String::class.java, BluetoothDevice::class.java) { commandArgs ->
             val level = commandArgs[0] as? String ?: return@hookProxyVoidDeviceCommand null
-            oppoAncFromLevel(level)
+            oppoAncFromLevelCommand(level)
         }
     }
 
@@ -245,7 +229,7 @@ object SettingsHeadsetHook : HookContext() {
                 val oppoMode = mode(args) ?: return@hookBefore
                 currentAnc = oppoMode
                 sendOppoAnc(oppoMode)
-                sendSettingsAncChanged(oppoMode)
+                sendAncChanged(oppoMode)
                 this.result = null
                 Log.d(TAG, "$methodName proxy command handled address=${device?.address} oppoMode=$oppoMode")
             }
@@ -358,21 +342,22 @@ object SettingsHeadsetHook : HookContext() {
             oppoAncFromSettings(commandArgs[0] as? Int ?: 0)
         }
         hookFragmentAncCommand("updateAncLevel", String::class.java, Boolean::class.javaPrimitiveType!!) { commandArgs ->
-            oppoAncFromLevel(commandArgs[0] as? String ?: "")
+            val level = commandArgs[0] as? String ?: ""
+            oppoAncFromLevelCommand(level)
         }
     }
 
-    private fun hookFragmentAncCommand(methodName: String, vararg parameterTypes: Class<*>, mode: (List<Any?>) -> Int) {
+    private fun hookFragmentAncCommand(methodName: String, vararg parameterTypes: Class<*>, mode: (List<Any?>) -> Int?) {
         runCatching {
             hookBefore(findMethod("com.android.settings.bluetooth.MiuiHeadsetFragment", methodName, *parameterTypes)) {
                 Log.d(TAG, "MiuiHeadsetFragment.$methodName before args=${args.describeArgs()} ${fragmentDebug(instance)} isOppo=${isOppoFragment(instance)}")
                 if (!isOppoFragment(instance)) return@hookBefore
                 val updateDevice = args.getOrNull(1) as? Boolean ?: true
                 if (!updateDevice) return@hookBefore
-                val oppoMode = mode(args)
+                val oppoMode = mode(args) ?: return@hookBefore
                 currentAnc = oppoMode
                 sendOppoAnc(oppoMode)
-                sendSettingsAncChanged(oppoMode)
+                sendAncChanged(oppoMode)
                 runCatching { callMethod(instance, "updateAncUi", settingsAncLevel(), false) }
                 injectFragmentStatus(instance)
                 result = null
@@ -384,21 +369,20 @@ object SettingsHeadsetHook : HookContext() {
     private fun registerStatusReceiver(ctx: Context?) {
         if (ctx == null || receiverRegistered) return
         context = ctx.applicationContext ?: ctx
-        refreshMilinkSpatialAudioOption()
         loadState()
         val filter = IntentFilter().apply {
             addAction(HyperPodsAction.ACTION_PODS_CONNECTED)
             addAction(HyperPodsAction.ACTION_PODS_DISCONNECTED)
             addAction(HyperPodsAction.ACTION_PODS_BATTERY_CHANGED)
             addAction(HyperPodsAction.ACTION_PODS_ANC_CHANGED)
-            addAction(HyperPodsAction.ACTION_MILINK_SPATIAL_AUDIO_OPTION_CHANGED)
+            addAction(HyperPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
+            addAction(HyperPodsAction.ACTION_CONFIG_CHANGED)
         }
-        val receiver = object : BroadcastReceiver() {
+        context?.registerReceiver(object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
-                    HyperPodsAction.ACTION_MILINK_SPATIAL_AUDIO_OPTION_CHANGED -> {
-                        refreshMilinkSpatialAudioOption(intent)
-                        saveState(context)
+                    HyperPodsAction.ACTION_CONFIG_CHANGED -> {
+                        refreshConfig()
                         updateFragments()
                     }
                     HyperPodsAction.ACTION_PODS_CONNECTED -> {
@@ -408,7 +392,7 @@ object SettingsHeadsetHook : HookContext() {
                     }
                     HyperPodsAction.ACTION_PODS_BATTERY_CHANGED -> {
                         currentAddress = intent.getStringExtra("address") ?: currentAddress
-                        currentBattery = intent.batteryStatusCompat() ?: currentBattery
+                        currentBattery = intent.batteryStatusFromExtras() ?: intent.parcelableStatus() ?: currentBattery
                         currentAddress?.let { knownOppoAddresses.add(it.uppercase()) }
                         saveState(context)
                         updateBatteryViews()
@@ -421,12 +405,17 @@ object SettingsHeadsetHook : HookContext() {
                         saveState(context)
                         updateFragments()
                     }
+                    HyperPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED -> {
+                        currentAddress = intent.getStringExtra("address") ?: currentAddress
+                        currentTransparencyVocalEnhancement = intent.getBooleanExtra("enabled", currentTransparencyVocalEnhancement)
+                        currentAddress?.let { knownOppoAddresses.add(it.uppercase()) }
+                        saveState(context)
+                        updateFragments()
+                    }
                 }
-                Log.d(TAG, "state action=${intent?.action} address=$currentAddress anc=$currentAnc miLinkSpatialEnabled=$milinkSpatialAudioOptionEnabled battery=${settingsBatteryString()}")
+                Log.d(TAG, "state action=${intent?.action} address=$currentAddress anc=$currentAnc battery=${settingsBatteryString()}")
             }
-        }
-        context?.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
-        statusReceiver = receiver
+        }, filter, Context.RECEIVER_EXPORTED)
         receiverRegistered = true
         requestBluetoothStatus("receiver-register")
         Log.d(TAG, "registered status receiver context=$context")
@@ -493,7 +482,8 @@ object SettingsHeadsetHook : HookContext() {
         val device = runCatching { getObjectField(fragment, "mDevice") as? BluetoothDevice }.getOrNull()
         val deviceId = runCatching { getObjectField(fragment, "mDeviceId") as? String }.getOrNull()
         val support = runCatching { getObjectField(fragment, "mSupport") as? String }.getOrNull()
-        return isOppoPod(device) || deviceId == FAKE_DEVICE_ID || support?.startsWith(FAKE_DEVICE_ID) == true
+        val fakeDeviceId = fakeDeviceId()
+        return isOppoPod(device) || deviceId == fakeDeviceId || support?.startsWith(fakeDeviceId) == true
     }
 
     private fun isOppoPod(device: BluetoothDevice?): Boolean {
@@ -546,16 +536,6 @@ object SettingsHeadsetHook : HookContext() {
         return normalized == currentAddress?.uppercase() || normalized in knownOppoAddresses
     }
 
-    private fun refreshMilinkSpatialAudioOption(intent: Intent? = null) {
-        milinkSpatialAudioOptionEnabled = MilinkSpatialAudioOptionSettings.resolveAndCache(
-            context,
-            PREFS_NAME,
-            prefs,
-            ::reloadRemotePrefs,
-            intent
-        )
-    }
-
     private fun settingsBatteryString(): String {
         return settingsBatteryValues().joinToString(",")
     }
@@ -578,7 +558,7 @@ object SettingsHeadsetHook : HookContext() {
     private fun settingsAncMode(): String {
         loadState()
         return when (currentAnc) {
-            2 -> "1"
+            2, 5, 6, 7, 8 -> "1"
             3 -> "2"
             else -> "0"
         }
@@ -586,9 +566,13 @@ object SettingsHeadsetHook : HookContext() {
 
     private fun settingsAncLevel(): String {
         loadState()
+        // MIUI Settings level codes: 0103=Smart, 0101=Light, 0100=Medium, 0102=Deep, 0201=Transparency vocal enhancement.
         return when (currentAnc) {
-            2 -> "0100"
-            3 -> "0200"
+            5 -> "0103"
+            6 -> "0101"
+            7 -> "0100"
+            8 -> "0102"
+            3 -> if (currentTransparencyVocalEnhancement) "0201" else "0200"
             else -> "0000"
         }
     }
@@ -619,11 +603,32 @@ object SettingsHeadsetHook : HookContext() {
     }
 
     private fun oppoAncFromLevel(level: String): Int {
+        // Convert MIUI Settings level code back to internal OPPO ANC intensity state.
         return when {
-            level.startsWith("01") -> 2
+            level.startsWith("0103") -> 5
+            level.startsWith("0101") -> 6
+            level.startsWith("0100") -> 7
+            level.startsWith("0102") -> 8
+            level.startsWith("01") -> 7
             level.startsWith("02") -> 3
             else -> 1
         }
+    }
+
+    private fun sendOppoTransparencyVocalEnhancementFromLevel(level: String) {
+        when {
+            level.startsWith("0201") -> sendOppoTransparencyVocalEnhancement(true)
+            level.startsWith("0200") -> sendOppoTransparencyVocalEnhancement(false)
+        }
+    }
+
+    private fun oppoAncFromLevelCommand(level: String): Int? {
+        if (level.startsWith("02")) {
+            currentAnc = 3
+            sendOppoTransparencyVocalEnhancementFromLevel(level)
+            return null
+        }
+        return oppoAncFromLevel(level)
     }
 
     private fun sendOppoAnc(mode: Int) {
@@ -638,13 +643,38 @@ object SettingsHeadsetHook : HookContext() {
         })
     }
 
-    private fun sendSettingsAncChanged(mode: Int) {
-        val ctx = context ?: return
-        ctx.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_ANC_CHANGED).apply {
-            putExtra("status", mode)
-            setPackage("com.android.settings")
+    private fun sendOppoTransparencyVocalEnhancement(enabled: Boolean) {
+        val ctx = context ?: run {
+            Log.w(TAG, "sendOppoTransparencyVocalEnhancement skipped: context is null enabled=$enabled")
+            return
+        }
+        currentTransparencyVocalEnhancement = enabled
+        ctx.sendBroadcast(Intent(HyperPodsAction.ACTION_TRANSPARENCY_VOCAL_ENHANCEMENT_SET).apply {
+            putExtra("enabled", enabled)
+            setPackage("com.android.bluetooth")
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
         })
+        ctx.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED).apply {
+            putExtra("enabled", enabled)
+            setPackage(BuildConfig.APPLICATION_ID)
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        })
+        ctx.sendBroadcast(Intent(HyperPodsAction.ACTION_REFRESH_STATUS).apply {
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        })
+        Log.d(TAG, "sendOppoTransparencyVocalEnhancement broadcast sent enabled=$enabled")
+    }
+
+    private fun sendAncChanged(mode: Int) {
+        val ctx = context ?: return
+        listOf(BuildConfig.APPLICATION_ID, "com.android.settings", "com.milink.service").forEach { targetPackage ->
+            ctx.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_ANC_CHANGED).apply {
+                putExtra("status", mode)
+                setPackage(targetPackage)
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            })
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -653,13 +683,43 @@ object SettingsHeadsetHook : HookContext() {
             ?: runCatching { getParcelableExtra<BluetoothDevice>(key) }.getOrNull()
     }
 
+    @Suppress("DEPRECATION")
+    private fun Intent.parcelableStatus(): BatteryParams? {
+        return runCatching { getParcelableExtra("status", BatteryParams::class.java) }.getOrNull()
+            ?: runCatching { getParcelableExtra<BatteryParams>("status") }.getOrNull()
+    }
+
+    private fun Intent.batteryStatusFromExtras(): BatteryParams? {
+        if (!hasExtra("left_connected") && !hasExtra("right_connected") && !hasExtra("case_connected")) return null
+        return BatteryParams(
+            left = PodParams(
+                getIntExtra("left_battery", 0),
+                getBooleanExtra("left_charging", false),
+                getBooleanExtra("left_connected", false),
+                0
+            ),
+            right = PodParams(
+                getIntExtra("right_battery", 0),
+                getBooleanExtra("right_charging", false),
+                getBooleanExtra("right_connected", false),
+                0
+            ),
+            case = PodParams(
+                getIntExtra("case_battery", 0),
+                getBooleanExtra("case_charging", false),
+                getBooleanExtra("case_connected", false),
+                0
+            )
+        )
+    }
+
     private fun saveState(ctx: Context?) {
         val prefs = (ctx ?: context)?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) ?: return
         prefs.edit()
             .putString("address", currentAddress)
             .putString("name", currentName)
             .putInt("anc", currentAnc)
-            .putBoolean(HyperPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, milinkSpatialAudioOptionEnabled)
+            .putBoolean("transparency_vocal_enhancement", currentTransparencyVocalEnhancement)
             .putInt("left_battery", currentBattery.left?.battery ?: 0)
             .putBoolean("left_charging", currentBattery.left?.isCharging == true)
             .putBoolean("left_connected", currentBattery.left?.isConnected == true)
@@ -680,6 +740,7 @@ object SettingsHeadsetHook : HookContext() {
         currentAddress = prefs.getString("address", currentAddress)
         currentName = prefs.getString("name", currentName)
         currentAnc = prefs.getInt("anc", currentAnc)
+        currentTransparencyVocalEnhancement = prefs.getBoolean("transparency_vocal_enhancement", currentTransparencyVocalEnhancement)
         currentAddress?.let { knownOppoAddresses.add(it.uppercase()) }
         if (!hasSavedBattery && hasCurrentBattery()) return
         currentBattery = BatteryParams(

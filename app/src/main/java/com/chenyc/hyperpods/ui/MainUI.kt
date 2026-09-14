@@ -1,367 +1,187 @@
 package com.chenyc.hyperpods.ui
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Extension
-import androidx.compose.material.icons.rounded.Headset
-import androidx.compose.material.icons.rounded.Settings
-import top.yukonga.miuix.kmp.basic.NavigationBar
-import top.yukonga.miuix.kmp.basic.NavigationBarItem
-
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Bundle
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import android.os.SystemClock
 import android.util.Log
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
+import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.ui.NavDisplay
-import com.chenyc.hyperpods.MainActivity
+import com.chenyc.hyperpods.HyperPodsApp
 import com.chenyc.hyperpods.R
-import com.chenyc.hyperpods.pods.AppRfcommController
-import com.chenyc.hyperpods.pods.BtLogStore
-import com.chenyc.hyperpods.pods.CustomButtonFunction
-import com.chenyc.hyperpods.pods.CustomButtonPosition
-import com.chenyc.hyperpods.pods.DeviceProfile
-import com.chenyc.hyperpods.pods.DeviceProfileStore
-import com.chenyc.hyperpods.pods.EqDevicePreset
-import com.chenyc.hyperpods.pods.EqPreset
-import com.chenyc.hyperpods.pods.PodImageSlot
-import com.chenyc.hyperpods.pods.PodImageStore
+import com.chenyc.hyperpods.config.ConfigManager
+import com.chenyc.hyperpods.config.PodImagePrefs
+import com.chenyc.hyperpods.config.PodImageResource
 import com.chenyc.hyperpods.pods.NoiseControlMode
-import com.chenyc.hyperpods.pods.RfcommConnectionMethod
-import com.chenyc.hyperpods.pods.SpatialAudioMode
-import com.chenyc.hyperpods.utils.SaveOnHideEffect
+import com.chenyc.hyperpods.pods.EqDevicePreset
+import com.chenyc.hyperpods.pods.WearState
+import com.chenyc.hyperpods.pods.WearStatus
+import com.chenyc.hyperpods.pods.detectDeviceCapabilities
+import com.chenyc.hyperpods.ui.pages.AboutPage
+import com.chenyc.hyperpods.ui.pages.EqualizerPage
+import com.chenyc.hyperpods.ui.pages.RfcommDebugPage
+import com.chenyc.hyperpods.ui.pages.ThemeSettingsPage
+import com.chenyc.hyperpods.utils.RootManager
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
-import com.chenyc.hyperpods.utils.miuiStrongToast.data.NotificationSettings
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
-import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsPrefsKey
-import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
-import top.yukonga.miuix.kmp.basic.DropdownEntry
-import top.yukonga.miuix.kmp.basic.DropdownItem
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.icon.extended.More
-import top.yukonga.miuix.kmp.icon.extended.Refresh
-import top.yukonga.miuix.kmp.icon.extended.Settings
-import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
+import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 sealed interface Screen : NavKey {
-    data object Home : Screen
-    data object Settings : Screen
-    data object AdvancedSettings : Screen
-    data object Profiles : Screen
+    data object Main : Screen
     data object About : Screen
-    data object MoreSettings : Screen
+    data object Theme : Screen
     data object Equalizer : Screen
-    data object Debug : Screen
-    data object DebugLog : Screen
+    data object RfcommDebug : Screen
 }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainUI(
+    backStack: SnapshotStateList<Screen>,
     themeMode: MutableState<Int> = mutableStateOf(0),
-    onThemeModeChange: (Int) -> Unit = {}
+    onThemeModeChange: (Int) -> Unit = {},
+    accentMode: MutableState<Int> = mutableStateOf(0),
+    onAccentModeChange: (Int) -> Unit = {},
+    floatingBottomBar: MutableState<Boolean> = mutableStateOf(false),
+    onFloatingBottomBarChange: (Boolean) -> Unit = {},
+    blurBottomBar: MutableState<Boolean> = mutableStateOf(false),
+    onBlurBottomBarChange: (Boolean) -> Unit = {},
+    appLanguage: MutableState<Int> = mutableStateOf(AppLocale.SYSTEM),
+    onAppLanguageChange: (Int) -> Unit = {},
 ) {
-    val backStack = remember { mutableStateListOf<Screen>(Screen.Home) }
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     val mainTitle = remember { mutableStateOf("") }
     val batteryParams = remember { mutableStateOf(BatteryParams()) }
+    val wearStatus = remember { mutableStateOf(WearStatus()) }
     val ancMode = remember { mutableStateOf(NoiseControlMode.OFF) }
+    /** Smart-mode current auto-applied NC level (LIGHT/MEDIUM/DEEP), or null. */
+    val smartAncLevel = remember { mutableStateOf<NoiseControlMode?>(null) }
     val hookConnected = remember { mutableStateOf(false) }
-    // 水月雨线：协议栈跑在被 hook 的蓝牙进程里，应用侧只收广播做镜像
-    // （与上面 hookConnected 那一路同一形态，只是 action 与状态项不同）。
-    val moondropConnected = remember { mutableStateOf(false) }
-    val moondropBattery = remember { mutableStateOf(BatteryParams()) }
-    val moondropAncIndex = remember { mutableStateOf(-1) }
-    val moondropAncIds = remember { mutableStateOf<List<String>>(emptyList()) }
-    val moondropModelName = remember { mutableStateOf("") }
-    val moondropHasAdaptive = remember { mutableStateOf(false) }
-    val moondropGainIndex = remember { mutableStateOf(0) }
-    val moondropGainLabels = remember { mutableStateOf<List<String>>(emptyList()) }
-    val moondropLedOn = remember { mutableStateOf(false) }
-    val moondropPromptToneOn = remember { mutableStateOf(false) }
-    val moondropPromptVolumeRaw = remember { mutableStateOf(0) }
-    val moondropLhdcOn = remember { mutableStateOf(false) }
-    val moondropDualConnectionOn = remember { mutableStateOf(false) }
-    // 能力包：决定「更多设置」里显示哪些水月雨项（显示项随耳机切换）
-    val moondropCaps = remember { mutableStateOf<Bundle?>(null) }
-    val moondropPromptVolumeLabels = remember { (0..10).map { "${it * 10}%" } }
     val gameMode = remember { mutableStateOf(false) }
-    val hookEqPresetId = remember { mutableStateOf(-1) }
-    val hookDeviceEqPresets = remember { mutableStateOf<List<EqDevicePreset>>(emptyList()) }
-    val spatialAudioMode = remember { mutableStateOf(SpatialAudioMode.OFF) }
-    val spatialSound = remember { mutableStateOf(false) }
-    val noiseLevel = remember { mutableStateOf(com.chenyc.hyperpods.pods.NoiseLevel.DEEP) }
-    val smartAncLevel = remember { mutableStateOf(-1) }
-    val autoPlayPause = remember { mutableStateOf(false) }
-    val dualDevice = remember { mutableStateOf(false) }
-    val hookConnectedDevices = remember { mutableStateOf<List<com.chenyc.hyperpods.pods.ConnectedDevice>>(emptyList()) }
-    val hookConnectedDevicesReceived = remember { mutableStateOf(false) }
-
-    val prefs = remember {
-        context.getSharedPreferences("hyperpods_settings", Context.MODE_PRIVATE)
-    }
-    val openHeyTap = remember { mutableStateOf(prefs.getBoolean("open_heytap", false)) }
-    val milinkSpatialAudioOptionEnabled = remember {
-        mutableStateOf(
-            prefs.getBoolean(
-                HyperPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED,
-                HyperPodsPrefsKey.DEFAULT_MILINK_SPATIAL_AUDIO_OPTION_ENABLED
-            )
-        )
-    }
-    val rfcommConnectionMethod = remember {
-        mutableStateOf(
-            RfcommConnectionMethod.fromPreference(
-                prefs.getString(RfcommConnectionMethod.PREF_KEY, null)
-            )
-        )
-    }
-    val customButtonFunction = remember {
-        mutableStateOf(
-            CustomButtonFunction.fromPreference(
-                prefs.getString(CustomButtonFunction.PREF_KEY, null)
-            )
-        )
-    }
-    val customButtonPosition = remember {
-        mutableStateOf(
-            CustomButtonPosition.fromPreference(
-                prefs.getString(CustomButtonPosition.PREF_KEY, null)
-            )
-        )
-    }
-    val showConnectionBatteryIsland = remember {
-        mutableStateOf(
-            prefs.getBoolean(
-                HyperPodsPrefsKey.SHOW_CONNECTION_BATTERY_ISLAND,
-                HyperPodsPrefsKey.DEFAULT_SHOW_CONNECTION_BATTERY_ISLAND
-            )
-        )
-    }
-    val temporaryBatteryIslandDurationSeconds = remember {
-        mutableStateOf(
-            prefs.getInt(
-                HyperPodsPrefsKey.TEMPORARY_BATTERY_ISLAND_DURATION_SECONDS,
-                HyperPodsPrefsKey.DEFAULT_TEMPORARY_BATTERY_ISLAND_DURATION_SECONDS
-            ).takeIf {
-                it in HyperPodsPrefsKey.TEMPORARY_BATTERY_ISLAND_DURATION_SECOND_OPTIONS
-            } ?: HyperPodsPrefsKey.DEFAULT_TEMPORARY_BATTERY_ISLAND_DURATION_SECONDS
-        )
-    }
-    val showConnectionPopup = remember {
-        mutableStateOf(
-            prefs.getBoolean(
-                HyperPodsPrefsKey.SHOW_CONNECTION_POPUP,
-                HyperPodsPrefsKey.DEFAULT_SHOW_CONNECTION_POPUP
-            )
-        )
-    }
-    val connectionPopupDismissSeconds = remember {
-        mutableStateOf(
-            prefs.getInt(
-                HyperPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS,
-                HyperPodsPrefsKey.DEFAULT_CONNECTION_POPUP_DISMISS_SECONDS
-            ).takeIf { it in HyperPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECOND_OPTIONS }
-                ?: HyperPodsPrefsKey.DEFAULT_CONNECTION_POPUP_DISMISS_SECONDS
-        )
-    }
-    val showConnectionNotification = remember {
-        mutableStateOf(
-            prefs.getBoolean(
-                HyperPodsPrefsKey.SHOW_CONNECTION_NOTIFICATION,
-                HyperPodsPrefsKey.DEFAULT_SHOW_CONNECTION_NOTIFICATION
-            )
-        )
-    }
-    val notificationIslandStyle = remember {
-        mutableStateOf(
-            prefs.getBoolean(
-                HyperPodsPrefsKey.NOTIFICATION_ISLAND_STYLE,
-                HyperPodsPrefsKey.DEFAULT_NOTIFICATION_ISLAND_STYLE
-            )
-        )
-    }
-
-    // Hook 连接路径不会经过 onDeviceSelected；先按当前配置模式解析一次，连接广播
-    // 到达后再按实际蓝牙名称刷新，避免旧的持久化种子配置残留可见性开关。
-    val activeProfile = remember {
-        mutableStateOf(DeviceProfileStore.resolveProfile(context, prefs))
-    }
-    val debugMode = remember { mutableStateOf(prefs.getBoolean("debug_mode", false)) }
-    val loggingEnabled = remember { mutableStateOf(prefs.getBoolean("bt_logging_enabled", false)) }
-    BtLogStore.isEnabled = loggingEnabled.value
-    val appController = remember { AppRfcommController() }
-    // 收到 0x8103 后按 productId 在内嵌白名单里精确命中并重建配置（仅自动模式生效）。
-    SideEffect {
-        appController.productIdResolver = { productId ->
-            DeviceProfileStore.profileForProductId(context, prefs, productId)
-                ?.also { activeProfile.value = it }
+    val transparencyVocalEnhancement = remember { mutableStateOf(false) }
+    val dualDeviceConnection = remember { mutableStateOf(false) }
+    val tabs = remember { MainTab.entries.toList() }
+    var selectedTab by remember { mutableStateOf(MainTab.Module) }
+    var hasAppliedDefaultTab by remember { mutableStateOf(false) }
+    var hasAutoOpenedConnectedDevice by remember { mutableStateOf(false) }
+    var bluetoothState by remember { mutableStateOf(readBluetoothState(context)) }
+    var xposedService by remember { mutableStateOf(HyperPodsApp.xposedService) }
+    var showDevicePicker by remember { mutableStateOf(false) }
+    var showRestartScopeDialog by remember { mutableStateOf(false) }
+    var restartingScopes by remember { mutableStateOf(false) }
+    var connectingDeviceAddress by remember { mutableStateOf<String?>(null) }
+    var connectedDeviceAddress by remember { mutableStateOf("") }
+    var showConnectErrorDialog by remember { mutableStateOf(false) }
+    var hookConnectionState by remember { mutableStateOf("disconnected") }
+    var pendingOpenEarphonesAfterPickerLoaded by remember { mutableStateOf(false) }
+    var lastBluetoothServiceAliveMs by remember { mutableStateOf(0L) }
+    var bluetoothServiceResponsive by remember { mutableStateOf(false) }
+    val backgroundColor = appBackground()
+    val overlayBottomBar = floatingBottomBar.value || blurBottomBar.value
+    val pageBottomContentPadding = if (overlayBottomBar) 104.dp else 28.dp
+    val backdrop = if (blurBottomBar.value) {
+        rememberLayerBackdrop {
+            drawRect(backgroundColor)
+            drawContent()
         }
-    }
-    val appConnState by appController.connectionState.collectAsState()
-    val appBattery by appController.batteryParams.collectAsState()
-    val appAnc by appController.ancMode.collectAsState()
-    val appDeviceName by appController.deviceName.collectAsState()
-    val appGameMode by appController.gameMode.collectAsState()
-    val appEqPresets by appController.eqPresets.collectAsState()
-    val appEqDevicePresets by appController.eqDevicePresets.collectAsState()
-    val appEqPresetId by appController.eqPresetId.collectAsState()
-    val appSpatialAudioMode by appController.spatialAudioMode.collectAsState()
-    val appSpatialSound by appController.spatialSound.collectAsState()
-    val appNoiseLevel by appController.noiseLevel.collectAsState()
-    val appSmartAncLevel by appController.smartAncLevel.collectAsState()
-    val appAutoPlayPause by appController.autoPlayPause.collectAsState()
-    val appDualDevice by appController.dualDevice.collectAsState()
-    val appConnectedDevices by appController.connectedDevices.collectAsState()
-    val appConnectedDevicesReceived by appController.connectedDevicesReceived.collectAsState()
-
-    val isStandaloneConnected = appConnState == AppRfcommController.ConnectionState.CONNECTED
-    val isConnecting = appConnState == AppRfcommController.ConnectionState.CONNECTING
-    val isError = appConnState == AppRfcommController.ConnectionState.ERROR
-    val canShowDetailPage = hookConnected.value || isStandaloneConnected || moondropConnected.value
-
-    /** 读能力包里的一个开关（没探测到就是关闭 → 对应控件不显示）。 */
-    fun moondropCap(key: String): Boolean = moondropCaps.value?.getBoolean(key) ?: false
-
-    /** 水月雨档位标识 → 界面上的降噪模式（抗风噪/人声增强按通透处理，语义最接近）。 */
-    fun moondropUiModeOf(ancId: String?): NoiseControlMode = when (ancId) {
-        "anc" -> NoiseControlMode.NOISE_CANCELLATION
-        "transparent", "live", "anti_wind" -> NoiseControlMode.TRANSPARENCY
-        "adaptive" -> NoiseControlMode.ADAPTIVE
-        else -> NoiseControlMode.OFF
+    } else {
+        null
     }
 
-    /** 反向：界面模式 → 档位下标（找不到返回 -1，调用方不发命令）。 */
-    fun moondropAncIndexOf(mode: NoiseControlMode): Int {
-        val wanted = moondropAncIds.value
-        return wanted.indexOfFirst { moondropUiModeOf(it) == mode }
-    }
+    // Auto game mode preference (persisted)
+    val prefs = remember { context.getSharedPreferences(ConfigManager.PREFS_NAME, Context.MODE_PRIVATE) }
+    val appConfig = remember { ConfigManager.refreshFromPrefs(prefs) }
+    val autoGameMode = remember { mutableStateOf(appConfig.autoGameMode) }
+    val milinkCardFeatures = remember { mutableStateOf(appConfig.milinkCardFeatures) }
+    val notificationClickAction = remember { mutableStateOf(appConfig.notificationClickAction) }
+    val moreClickAction = remember { mutableStateOf(appConfig.moreClickAction) }
+    val desktopIconHidden = remember { mutableStateOf(isLauncherIconHidden(context)) }
+    val logLevel = remember { mutableStateOf(appConfig.logLevel) }
+    val fakeDeviceId = remember { mutableStateOf(appConfig.fakeDeviceId) }
+    val islandMode = remember { mutableStateOf(appConfig.islandMode) }
+    val islandShowTimings = remember { mutableStateOf(appConfig.islandShowTimings) }
+    val spatialAudioMode = remember { mutableStateOf(prefs.getInt("spatial_audio_mode", ConfigManager.SPATIAL_AUDIO_OFF)) }
+    val eqPreset = remember { mutableStateOf(-1) }
+    val eqDevicePresets = remember { mutableStateOf<List<EqDevicePreset>>(emptyList()) }
+    val earphonePrefs = remember { mutableStateOf(PodImagePrefs.load(prefs)) }
+    val productId = remember { mutableStateOf<String?>(null) }
 
-    /**
-     * 由能力包构造水月雨的功能档。
-     *
-     * OppoPods 的功能页显隐本来就由 DeviceProfile 的可见位驱动，所以这里把
-     * 「水月雨这台耳机有什么」翻译成同一份配置档，首页/详情页就会随之切换，
-     * 不需要给界面加一套并行的 if 分支。
-     */
-    fun moondropProfileOf(caps: Bundle?): DeviceProfile = DeviceProfile(
-        id = "moondrop",
-        name = moondropModelName.value,
-        // GAIA 侧没有 OPPO 的「降噪深度」「游戏模式」「自动播放暂停」「自定义 EQ」这些开关
-        adaptiveVisible = caps?.getBoolean("hasAdaptive") == true,
-        gameModeVisible = false,
-        noiseLevelVisible = false,
-        autoPlayPauseVisible = false,
-        dualDeviceVisible = caps?.getBoolean("hasDualConnection") == true,
-        connectedDevicesVisible = false,
-        // 空间音频：型号可能支持，但界面这一轮还没接（接了再放开，避免点不动）
-        spatialAudioVisible = false,
-        spatialSoundVisible = false,
-        eqPresets = emptyList(),
-        customEqVisible = false,
-        modelId = "moondrop",
+    val canShowDetailPage = hookConnected.value
+    val showEarphoneDetail = canShowDetailPage && !showDevicePicker
+    val displayBattery = batteryParams.value
+    val displayWearStatus = wearStatus.value
+    val displayAnc = ancMode.value
+    val displayGameMode = gameMode.value
+    val displayTransparencyVocalEnhancement = transparencyVocalEnhancement.value
+    val displayDualDeviceConnection = dualDeviceConnection.value
+    val displayTitle = mainTitle.value.takeIf { it.isNotBlank() && hookConnected.value } ?: mainTitle.value
+    val displayCapabilities = detectDeviceCapabilities(
+        context = context,
+        deviceName = displayTitle,
+        productId = productId.value,
     )
 
-    val displayBattery = when {
-        moondropConnected.value -> moondropBattery.value
-        isStandaloneConnected -> appBattery
-        else -> batteryParams.value
-    }
-    val displayAnc = when {
-        moondropConnected.value -> moondropUiModeOf(moondropAncIds.value.getOrNull(moondropAncIndex.value))
-        isStandaloneConnected -> appAnc
-        else -> ancMode.value
-    }
-    val displayGameMode = if (isStandaloneConnected) appGameMode else gameMode.value
-    val displayEqPresets = if (isStandaloneConnected) {
-        appEqPresets
-    } else {
-        buildList {
-            val byId = LinkedHashMap<Int, EqPreset>()
-            activeProfile.value.eqPresets.forEach { byId[it.id] = it }
-            hookDeviceEqPresets.value.forEach { entry ->
-                if (entry.name.isNotBlank()) byId[entry.id] = EqPreset(entry.id, entry.name)
-            }
-            addAll(byId.values.sortedBy { it.id })
-        }
-    }
-    val displayEqDevicePresets = if (isStandaloneConnected) {
-        appEqDevicePresets
-    } else {
-        hookDeviceEqPresets.value
-    }
-    val displayEqPresetId = if (isStandaloneConnected) appEqPresetId else hookEqPresetId.value
-    val displayEqCurrentName = displayEqPresets.firstOrNull { it.id == displayEqPresetId }?.name.orEmpty()
-    val displaySpatialAudioMode = if (isStandaloneConnected) appSpatialAudioMode else spatialAudioMode.value
-    val displaySpatialSound = if (isStandaloneConnected) appSpatialSound else spatialSound.value
-    val displayNoiseLevel = if (isStandaloneConnected) appNoiseLevel else noiseLevel.value
-    val displaySmartAncLevel = if (isStandaloneConnected) appSmartAncLevel else smartAncLevel.value
-    val displayAutoPlayPause = if (isStandaloneConnected) appAutoPlayPause else autoPlayPause.value
-    val displayDualDevice = if (isStandaloneConnected) appDualDevice else dualDevice.value
-    val displayConnectedDevices = if (isStandaloneConnected) appConnectedDevices else hookConnectedDevices.value
-    val displayConnectedDevicesReceived = if (isStandaloneConnected) appConnectedDevicesReceived else hookConnectedDevicesReceived.value
-    val displayTitle = when {
-        moondropConnected.value -> mainTitle.value
-        hookConnected.value -> mainTitle.value
-        isStandaloneConnected -> appDeviceName
-        isConnecting -> stringResource(R.string.connecting)
-        else -> ""
+    LaunchedEffect(displayTitle, displayCapabilities) {
+        Log.i(
+            "HyperPods",
+            "capability check: deviceName='$displayTitle', adaptive=${displayCapabilities.adaptiveSupported}, spatial=${displayCapabilities.spatialAudioSupported}, spatialSoundSwitch=${displayCapabilities.spatialSoundSwitchSupported}"
+        )
     }
 
     LaunchedEffect(displayTitle) {
@@ -370,180 +190,155 @@ fun MainUI(
         }
     }
 
+    LaunchedEffect(canShowDetailPage) {
+        if (!hasAppliedDefaultTab) {
+            selectedTab = if (canShowDetailPage) MainTab.Earphones else MainTab.Module
+            hasAppliedDefaultTab = true
+        }
+    }
+
+    LaunchedEffect(hookConnectionState) {
+        if (hookConnectionState == "error") {
+            connectingDeviceAddress = null
+            pendingOpenEarphonesAfterPickerLoaded = false
+            showConnectErrorDialog = true
+            showDevicePicker = true
+        }
+    }
+
+    LaunchedEffect(pendingOpenEarphonesAfterPickerLoaded, connectingDeviceAddress, hookConnected.value) {
+        if (pendingOpenEarphonesAfterPickerLoaded && connectingDeviceAddress == null && hookConnected.value) {
+            withFrameNanos { }
+            pendingOpenEarphonesAfterPickerLoaded = false
+            showDevicePicker = false
+        }
+    }
+
     val broadcastReceiver = remember {
         object : BroadcastReceiver() {
             override fun onReceive(p0: Context?, p1: Intent?) {
                 when (p1?.action) {
                     HyperPodsAction.ACTION_PODS_ANC_CHANGED -> {
+                        connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
                         val status = p1.getIntExtra("status", 1)
                         ancMode.value = when (status) {
                             1 -> NoiseControlMode.OFF
                             2 -> NoiseControlMode.NOISE_CANCELLATION
                             3 -> NoiseControlMode.TRANSPARENCY
                             4 -> NoiseControlMode.ADAPTIVE
+                            5 -> NoiseControlMode.NOISE_CANCELLATION_SMART
+                            6 -> NoiseControlMode.NOISE_CANCELLATION_LIGHT
+                            7 -> NoiseControlMode.NOISE_CANCELLATION_MEDIUM
+                            8 -> NoiseControlMode.NOISE_CANCELLATION_DEEP
                             else -> NoiseControlMode.OFF
                         }
                     }
 
+                    HyperPodsAction.ACTION_PODS_SMART_ANC_LEVEL_CHANGED -> {
+                        val ord = p1.getIntExtra("ordinal", -1)
+                        smartAncLevel.value = NoiseControlMode.entries.getOrNull(ord)
+                    }
+
                     HyperPodsAction.ACTION_PODS_BATTERY_CHANGED -> {
-                        p1.batteryStatusCompat()?.let {
-                            batteryParams.value = it
-                        }
+                        connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
+                        batteryParams.value =
+                            p1.getParcelableExtra("status", BatteryParams::class.java)!!
+                    }
+
+                    HyperPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED -> {
+                        connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
+                        wearStatus.value = WearStatus(
+                            left = wearStateFromExtra(p1.getIntExtra("left_wear_status", -1)),
+                            right = wearStateFromExtra(p1.getIntExtra("right_wear_status", -1)),
+                            case = wearStateFromExtra(p1.getIntExtra("case_wear_status", -1))
+                        )
                     }
 
                     HyperPodsAction.ACTION_PODS_GAME_MODE_CHANGED -> {
                         gameMode.value = p1.getBooleanExtra("enabled", false)
                     }
 
-                    HyperPodsAction.ACTION_PODS_EQ_PRESET_CHANGED -> {
-                        hookEqPresetId.value = p1.getIntExtra("id", -1)
-                        val entriesJson = p1.getStringExtra(HyperPodsAction.EXTRA_EQ_ENTRIES_JSON)
-                        hookDeviceEqPresets.value = if (entriesJson != null) {
-                            DeviceProfileStore.parseEqEntries(entriesJson)
-                        } else {
-                            val ids = p1.getIntegerArrayListExtra("preset_ids") ?: arrayListOf()
-                            val names = p1.getStringArrayListExtra("preset_names") ?: arrayListOf()
-                            ids.mapIndexedNotNull { index, id ->
-                                names.getOrNull(index)?.takeIf { it.isNotBlank() }?.let {
-                                    EqDevicePreset(id = id, name = it)
-                                }
-                            }
-                        }
-                    }
-
-                    HyperPodsAction.ACTION_PODS_PROFILE_CHANGED -> {
-                        p1.getStringExtra(HyperPodsAction.EXTRA_PROFILE_JSON)?.let { json ->
-                            runCatching { DeviceProfileStore.parse(json) }
-                                .onSuccess { activeProfile.value = it }
-                        }
+                    HyperPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED -> {
+                        transparencyVocalEnhancement.value = p1.getBooleanExtra("enabled", false)
                     }
 
                     HyperPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED -> {
-                        spatialAudioMode.value = p1.getIntExtra("mode", SpatialAudioMode.OFF)
-                            .coerceIn(SpatialAudioMode.OFF, SpatialAudioMode.HEAD_TRACKING)
+                        spatialAudioMode.value = p1.getIntExtra("mode", ConfigManager.SPATIAL_AUDIO_OFF)
                     }
 
-                    HyperPodsAction.ACTION_PODS_SPATIAL_SOUND_CHANGED -> {
-                        spatialSound.value = p1.getBooleanExtra("enabled", false)
+                    HyperPodsAction.ACTION_PODS_EQ_PRESET_CHANGED -> {
+                        eqPreset.value = p1.getIntExtra("preset", -1)
+                        eqDevicePresets.value = runCatching {
+                            Json.decodeFromString(
+                                ListSerializer(EqDevicePreset.serializer()),
+                                p1.getStringExtra(HyperPodsAction.EXTRA_EQ_ENTRIES_JSON).orEmpty(),
+                            )
+                        }.getOrDefault(emptyList())
                     }
 
-                    HyperPodsAction.ACTION_PODS_NOISE_LEVEL_CHANGED -> {
-                        noiseLevel.value = p1.getIntExtra("level", com.chenyc.hyperpods.pods.NoiseLevel.DEEP)
-                    }
-
-                    HyperPodsAction.ACTION_PODS_SMART_ANC_LEVEL_CHANGED -> {
-                        smartAncLevel.value = p1.getIntExtra("level", -1)
-                    }
-
-                    HyperPodsAction.ACTION_PODS_AUTO_PLAY_PAUSE_CHANGED -> {
-                        autoPlayPause.value = p1.getBooleanExtra("enabled", false)
-                    }
-
-                    HyperPodsAction.ACTION_PODS_DUAL_DEVICE_CHANGED -> {
-                        dualDevice.value = p1.getBooleanExtra("enabled", false)
-                        hookConnectedDevicesReceived.value = p1.getBooleanExtra("devices_received", false)
-                    }
-
-                    HyperPodsAction.ACTION_PODS_CONNECTED_DEVICES_CHANGED -> {
-                        p1.extras?.classLoader = com.chenyc.hyperpods.pods.ConnectedDevice::class.java.classLoader
-                        val devices = p1.getParcelableArrayListExtra("devices", com.chenyc.hyperpods.pods.ConnectedDevice::class.java)
-                        hookConnectedDevices.value = devices ?: emptyList()
-                        hookConnectedDevicesReceived.value = p1.getBooleanExtra("devices_received", true)
+                    HyperPodsAction.ACTION_PODS_DUAL_DEVICE_CONNECTION_CHANGED -> {
+                        dualDeviceConnection.value = p1.getBooleanExtra("enabled", false)
                     }
 
                     HyperPodsAction.ACTION_PODS_CONNECTED -> {
                         val deviceName = p1.getStringExtra("device_name")
+                        val shouldOpenEarphones = connectingDeviceAddress != null || !hasAutoOpenedConnectedDevice
+                        connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
+                        productId.value = p1.getStringExtra("product_id") ?: productId.value
+                        connectingDeviceAddress = null
                         mainTitle.value = deviceName ?: ""
-                        hookEqPresetId.value = -1
-                        hookDeviceEqPresets.value = emptyList()
-                        if (!deviceName.isNullOrBlank()) {
-                            runCatching {
-                                DeviceProfileStore.resolveProfile(context, prefs, deviceName)
-                            }.onSuccess { activeProfile.value = it }
-                        }
+                        earphonePrefs.value = PodImagePrefs.upsertConnected(
+                            prefs = prefs,
+                            service = xposedService,
+                            address = connectedDeviceAddress,
+                            name = deviceName.orEmpty(),
+                        )
                         hookConnected.value = true
+                        hookConnectionState = "connected"
+                        if (shouldOpenEarphones) {
+                            selectedTab = MainTab.Earphones
+                            hasAppliedDefaultTab = true
+                            hasAutoOpenedConnectedDevice = true
+                            showDevicePicker = false
+                            pendingOpenEarphonesAfterPickerLoaded = false
+                        }
                         Log.i("HyperPods", "pod connected via hook: $deviceName")
+                    }
+
+                    HyperPodsAction.ACTION_PODS_CONNECTION_STATE_CHANGED -> {
+                        hookConnectionState = p1.getStringExtra("state") ?: hookConnectionState
+                        if (hookConnectionState == "disconnected") {
+                            connectedDeviceAddress = ""
+                            productId.value = null
+                            mainTitle.value = ""
+                            hookConnected.value = false
+                            hasAutoOpenedConnectedDevice = false
+                        } else if (hookConnected.value) {
+                            connectedDeviceAddress = p1.getStringExtra("address") ?: connectedDeviceAddress
+                            p1.getStringExtra("device_name")?.let {
+                                mainTitle.value = it
+                                earphonePrefs.value = PodImagePrefs.upsertConnected(prefs, xposedService, connectedDeviceAddress, it)
+                            }
+                        }
                     }
 
                     HyperPodsAction.ACTION_PODS_DISCONNECTED -> {
                         mainTitle.value = ""
+                        connectedDeviceAddress = ""
+                        productId.value = null
+                        hookConnectionState = "disconnected"
                         hookConnected.value = false
-                        hookEqPresetId.value = -1
-                        hookDeviceEqPresets.value = emptyList()
-                        if (p0 is MainActivity) {
-                            p0.finish()
-                        }
+                        hasAutoOpenedConnectedDevice = false
                     }
 
-                    // ── 水月雨线（协议栈在被 hook 的蓝牙进程里，应用侧只做镜像）──
-
-                    HyperPodsAction.PODS_CONNECTED -> {
-                        moondropConnected.value = true
-                        val name = p1.getStringExtra(HyperPodsAction.EXTRA_DEVICE_NAME)
-                        mainTitle.value = name ?: ""
-                        Log.i("HyperPods", "moondrop pod connected: $name")
+                    HyperPodsAction.ACTION_MODULE_BLUETOOTH_SERVICE_ALIVE -> {
+                        lastBluetoothServiceAliveMs = SystemClock.elapsedRealtime()
+                        bluetoothServiceResponsive = true
                     }
 
-                    HyperPodsAction.PODS_DISCONNECTED -> {
-                        moondropConnected.value = false
-                        moondropBattery.value = BatteryParams()
-                        moondropAncIndex.value = -1
-                        moondropAncIds.value = emptyList()
-                        mainTitle.value = ""
-                        // 换回本机档，避免把水月雨的能力档留给下一台 OPPO 设备
-                        activeProfile.value = DeviceProfileStore.resolveProfile(context, prefs)
-                    }
-
-                    HyperPodsAction.BATTERY_CHANGED -> {
-                        p1.batteryStatusCompat()?.let { moondropBattery.value = it }
-                    }
-
-                    HyperPodsAction.ANC_CHANGED -> {
-                        moondropAncIndex.value = p1.getIntExtra(HyperPodsAction.EXTRA_STATUS, -1)
-                        p1.getStringArrayListExtra(HyperPodsAction.EXTRA_ANC_IDS)?.let {
-                            moondropAncIds.value = it
-                        }
-                    }
-
-                    // 能力到位就换档：首页与详情页的功能区随这台耳机实际具备的能力收窄/展开
-                    HyperPodsAction.GAIN_CHANGED -> {
-                        moondropGainIndex.value =
-                            p1.getIntExtra(HyperPodsAction.EXTRA_STATUS, 0).coerceAtLeast(0)
-                    }
-
-                    HyperPodsAction.LED_CHANGED ->
-                        moondropLedOn.value = p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
-
-                    HyperPodsAction.PROMPT_TONE_CHANGED ->
-                        moondropPromptToneOn.value =
-                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
-
-                    HyperPodsAction.PROMPT_VOLUME_CHANGED ->
-                        moondropPromptVolumeRaw.value =
-                            p1.getIntExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, 0).coerceAtLeast(0)
-
-                    HyperPodsAction.LHDC_CHANGED ->
-                        moondropLhdcOn.value = p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
-
-                    HyperPodsAction.DUAL_CONNECTION_CHANGED ->
-                        moondropDualConnectionOn.value =
-                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
-
-                    HyperPodsAction.CAPABILITIES_CHANGED -> {
-                        moondropModelName.value =
-                            p1.getStringExtra(HyperPodsAction.EXTRA_MODEL_NAME).orEmpty()
-                        val caps = p1.getBundleExtra(HyperPodsAction.EXTRA_CAPS_BUNDLE)
-                        moondropCaps.value = caps
-                        moondropHasAdaptive.value = caps?.getBoolean("hasAdaptive") == true
-                        moondropGainLabels.value = caps?.getStringArrayList("gainLabels") ?: emptyList()
-                        activeProfile.value = moondropProfileOf(caps)
-                    }
-
-                    HyperPodsAction.ACTION_BT_LOG_ENTRY -> {
-                        val isSend = p1.getBooleanExtra(HyperPodsAction.EXTRA_BT_LOG_IS_SEND, false)
-                        val hex = p1.getStringExtra(HyperPodsAction.EXTRA_BT_LOG_HEX) ?: return
-                        val label = p1.getStringExtra(HyperPodsAction.EXTRA_BT_LOG_LABEL)
-                        BtLogStore.addFromBroadcast(isSend, hex, label)
+                    BluetoothAdapter.ACTION_STATE_CHANGED,
+                    BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                        bluetoothState = readBluetoothState(context)
                     }
                 }
             }
@@ -551,144 +346,153 @@ fun MainUI(
     }
 
     DisposableEffect(Unit) {
+        val serviceListener: (io.github.libxposed.service.XposedService?) -> Unit = { service ->
+            xposedService = service
+        }
+        HyperPodsApp.addServiceListener(serviceListener)
+
         context.registerReceiver(broadcastReceiver, IntentFilter().apply {
             addAction(HyperPodsAction.ACTION_PODS_ANC_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_BATTERY_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_EQ_PRESET_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_PROFILE_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_SPATIAL_SOUND_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_NOISE_LEVEL_CHANGED)
             addAction(HyperPodsAction.ACTION_PODS_SMART_ANC_LEVEL_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_AUTO_PLAY_PAUSE_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_DUAL_DEVICE_CHANGED)
-            addAction(HyperPodsAction.ACTION_PODS_CONNECTED_DEVICES_CHANGED)
+            addAction(HyperPodsAction.ACTION_PODS_BATTERY_CHANGED)
+            addAction(HyperPodsAction.ACTION_PODS_WEAR_STATUS_CHANGED)
+            addAction(HyperPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
+            addAction(HyperPodsAction.ACTION_PODS_TRANSPARENCY_VOCAL_ENHANCEMENT_CHANGED)
+            addAction(HyperPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED)
+            addAction(HyperPodsAction.ACTION_PODS_EQ_PRESET_CHANGED)
+            addAction(HyperPodsAction.ACTION_PODS_DUAL_DEVICE_CONNECTION_CHANGED)
             addAction(HyperPodsAction.ACTION_PODS_CONNECTED)
+            addAction(HyperPodsAction.ACTION_PODS_CONNECTION_STATE_CHANGED)
             addAction(HyperPodsAction.ACTION_PODS_DISCONNECTED)
-            addAction(HyperPodsAction.ACTION_BT_LOG_ENTRY)
-            // 水月雨线
-            addAction(HyperPodsAction.PODS_CONNECTED)
-            addAction(HyperPodsAction.PODS_DISCONNECTED)
-            addAction(HyperPodsAction.BATTERY_CHANGED)
-            addAction(HyperPodsAction.ANC_CHANGED)
-            addAction(HyperPodsAction.CAPABILITIES_CHANGED)
-            addAction(HyperPodsAction.GAIN_CHANGED)
-            addAction(HyperPodsAction.LED_CHANGED)
-            addAction(HyperPodsAction.PROMPT_TONE_CHANGED)
-            addAction(HyperPodsAction.PROMPT_VOLUME_CHANGED)
-            addAction(HyperPodsAction.LHDC_CHANGED)
-            addAction(HyperPodsAction.DUAL_CONNECTION_CHANGED)
+            addAction(HyperPodsAction.ACTION_MODULE_BLUETOOTH_SERVICE_ALIVE)
+            addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 
-        context.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_UI_INIT).apply {
-            setPackage("com.android.bluetooth")
-        })
-        context.sendBroadcast(Intent(HyperPodsAction.ACTION_REFRESH_STATUS).apply {
-            setPackage("com.android.bluetooth")
-            putExtra(HyperPodsAction.EXTRA_ALLOW_RFCOMM_RECONNECT, true)
-        })
-        // 水月雨的请求走同一进程、另一个 action：让它重放全量状态（能力/电量/降噪）
-        context.sendBroadcast(Intent(HyperPodsAction.UI_INIT).apply {
-            setPackage("com.android.bluetooth")
-        })
+        sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_PODS_UI_INIT)
 
         onDispose {
+            sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_PODS_UI_CLOSED)
             try {
                 context.unregisterReceiver(broadcastReceiver)
             } catch (_: Exception) {}
-            appController.disconnect()
+            HyperPodsApp.removeServiceListener(serviceListener)
         }
     }
 
-    /** 水月雨的命令统一「广播回协议栈所在进程」（com.android.bluetooth）。 */
-    fun moondropSend(action: String, configure: (Intent) -> Unit = {}) {
-        context.sendBroadcast(Intent(action).apply {
-            setPackage("com.android.bluetooth")
-            configure(this)
-        })
-    }
-
-    fun setMoondropGain(index: Int) =
-        moondropSend(HyperPodsAction.GAIN_SELECT) { it.putExtra(HyperPodsAction.EXTRA_STATUS, index) }
-
-    fun setMoondropLed(on: Boolean) =
-        moondropSend(HyperPodsAction.LED_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
-
-    fun setMoondropPromptTone(on: Boolean) =
-        moondropSend(HyperPodsAction.PROMPT_TONE_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
-
-    fun setMoondropPromptVolumeStep(stepIndex: Int) {
-        // 界面按 10% 一档；协议侧收的是 0..100 原始百分比
-        moondropSend(HyperPodsAction.PROMPT_VOLUME_SELECT) {
-            it.putExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, (stepIndex * 10).coerceIn(0, 100))
+    LaunchedEffect(Unit) {
+        while (true) {
+            sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_PODS_UI_INIT)
+            sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_REFRESH_STATUS)
+            delay(30_000L)
         }
     }
 
-    fun setMoondropLhdc(on: Boolean) =
-        moondropSend(HyperPodsAction.LHDC_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
+    LaunchedEffect(selectedTab, hookConnected.value) {
+        sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_PODS_UI_INIT)
+        if (selectedTab == MainTab.Module || hookConnected.value) {
+            sendBluetoothModuleBroadcast(context, HyperPodsAction.ACTION_REFRESH_STATUS)
+        }
+    }
 
-    fun setMoondropDualConnection(on: Boolean) =
-        moondropSend(HyperPodsAction.DUAL_CONNECTION_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
+    LaunchedEffect(lastBluetoothServiceAliveMs) {
+        while (true) {
+            bluetoothServiceResponsive = lastBluetoothServiceAliveMs > 0L &&
+                    SystemClock.elapsedRealtime() - lastBluetoothServiceAliveMs <= 75_000L
+            delay(5_000L)
+        }
+    }
 
     fun setAncMode(mode: NoiseControlMode) {
-        if (moondropConnected.value) {
-            // 水月雨侧线上传的是「档位下标」，不是 OPPO 那套 1/2/3/4 语义，必须反查
-            val index = moondropAncIndexOf(mode)
-            if (index < 0) {
-                Log.w("HyperPods", "moondrop anc $mode unsupported by this model, ignored")
-                return
-            }
-            context.sendBroadcast(Intent(HyperPodsAction.ANC_SELECT).apply {
-                setPackage("com.android.bluetooth")
-                putExtra(HyperPodsAction.EXTRA_STATUS, index)
-            })
-            moondropAncIndex.value = index
-            return
-        }
-        if (isStandaloneConnected) {
-            appController.setANCMode(mode)
-            return
-        }
         ancMode.value = mode
         val status = when (mode) {
             NoiseControlMode.OFF -> 1
             NoiseControlMode.NOISE_CANCELLATION -> 2
             NoiseControlMode.TRANSPARENCY -> 3
             NoiseControlMode.ADAPTIVE -> 4
+            NoiseControlMode.NOISE_CANCELLATION_SMART -> 5
+            NoiseControlMode.NOISE_CANCELLATION_LIGHT -> 6
+            NoiseControlMode.NOISE_CANCELLATION_MEDIUM -> 7
+            NoiseControlMode.NOISE_CANCELLATION_DEEP -> 8
         }
         Intent(HyperPodsAction.ACTION_ANC_SELECT).apply {
             this.putExtra("status", status)
             setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(this)
         }
     }
 
     fun setGameMode(enabled: Boolean) {
-        if (isStandaloneConnected) {
-            appController.setGameMode(enabled)
-            return
-        }
         gameMode.value = enabled
         Intent(HyperPodsAction.ACTION_GAME_MODE_SET).apply {
             this.putExtra("enabled", enabled)
             setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(this)
         }
     }
 
-    fun setEqPreset(id: Int) {
-        if (id < 0) return
-        if (isStandaloneConnected) {
-            appController.setEqPreset(id)
-            return
-        }
-        hookEqPresetId.value = id
-        context.sendBroadcast(Intent(HyperPodsAction.ACTION_EQ_PRESET_SET).apply {
-            putExtra("id", id)
+    fun setTransparencyVocalEnhancement(enabled: Boolean) {
+        transparencyVocalEnhancement.value = enabled
+        Intent(HyperPodsAction.ACTION_TRANSPARENCY_VOCAL_ENHANCEMENT_SET).apply {
+            this.putExtra("enabled", enabled)
             setPackage("com.android.bluetooth")
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-        })
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun clearPodConnectionState() {
+        connectingDeviceAddress = null
+        pendingOpenEarphonesAfterPickerLoaded = false
+        connectedDeviceAddress = ""
+        mainTitle.value = ""
+        batteryParams.value = BatteryParams()
+        wearStatus.value = WearStatus()
+        ancMode.value = NoiseControlMode.OFF
+        hookConnected.value = false
+        hookConnectionState = "disconnected"
+        showConnectErrorDialog = false
+        showDevicePicker = true
+        selectedTab = MainTab.Earphones
+    }
+
+    fun onDeviceSelected(device: BluetoothDevice) {
+        connectingDeviceAddress = device.address
+        pendingOpenEarphonesAfterPickerLoaded = false
+        showConnectErrorDialog = false
+        showDevicePicker = true
+        selectedTab = MainTab.Earphones
+        hookConnectionState = "connecting"
+        Intent(HyperPodsAction.ACTION_CONNECT_POD_REQUEST).apply {
+            putExtra("device", device)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun setSpatialAudioMode(mode: Int) {
+        val normalizedMode = mode.coerceIn(ConfigManager.SPATIAL_AUDIO_OFF, ConfigManager.SPATIAL_AUDIO_HEAD_TRACKING)
+        spatialAudioMode.value = normalizedMode
+        prefs.edit().putInt("spatial_audio_mode", normalizedMode).apply()
+        Intent(HyperPodsAction.ACTION_SPATIAL_AUDIO_SET).apply {
+            this.putExtra("mode", normalizedMode)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun setEqPreset(preset: Int) {
+        eqPreset.value = preset
+        Intent(HyperPodsAction.ACTION_EQ_PRESET_SET).apply {
+            this.putExtra("preset", preset)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
     }
 
     fun saveEqPreset(
@@ -699,11 +503,7 @@ fun MainUI(
         minValue: Int,
         maxValue: Int,
     ) {
-        if (isStandaloneConnected) {
-            appController.saveEqPreset(id, name, frequencies, gains, minValue, maxValue)
-            return
-        }
-        context.sendBroadcast(Intent(HyperPodsAction.ACTION_EQ_PRESET_SAVE).apply {
+        Intent(HyperPodsAction.ACTION_EQ_PRESET_SAVE).apply {
             putExtra("id", id)
             putExtra("name", name)
             putIntegerArrayListExtra("frequencies", ArrayList(frequencies))
@@ -712,767 +512,424 @@ fun MainUI(
             putExtra("max_value", maxValue)
             setPackage("com.android.bluetooth")
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-        })
+            context.sendBroadcast(this)
+        }
     }
 
     fun deleteEqPreset(entry: EqDevicePreset) {
-        if (isStandaloneConnected) {
-            appController.deleteEqPreset(entry)
-            return
-        }
-        context.sendBroadcast(Intent(HyperPodsAction.ACTION_EQ_PRESET_DELETE).apply {
+        Intent(HyperPodsAction.ACTION_EQ_PRESET_DELETE).apply {
             putExtra(
                 HyperPodsAction.EXTRA_EQ_ENTRIES_JSON,
-                DeviceProfileStore.exportEqEntries(listOf(entry)),
+                Json.encodeToString(ListSerializer(EqDevicePreset.serializer()), listOf(entry)),
             )
             setPackage("com.android.bluetooth")
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-        })
-    }
-
-    fun setSpatialAudioMode(mode: Int) {
-        val normalizedMode = mode.coerceIn(SpatialAudioMode.OFF, SpatialAudioMode.HEAD_TRACKING)
-        if (isStandaloneConnected) {
-            appController.setSpatialAudioMode(normalizedMode)
-            return
-        }
-        spatialAudioMode.value = normalizedMode
-        Intent(HyperPodsAction.ACTION_SPATIAL_AUDIO_SET).apply {
-            this.putExtra("mode", normalizedMode)
-            setPackage("com.android.bluetooth")
             context.sendBroadcast(this)
         }
     }
 
-    fun setSpatialSound(enabled: Boolean) {
-        if (isStandaloneConnected) {
-            appController.setSpatialSound(enabled)
-            return
-        }
-        spatialSound.value = enabled
-        Intent(HyperPodsAction.ACTION_SPATIAL_SOUND_SET).apply {
+    fun setDualDeviceConnection(enabled: Boolean) {
+        dualDeviceConnection.value = enabled
+        Intent(HyperPodsAction.ACTION_DUAL_DEVICE_CONNECTION_SET).apply {
             this.putExtra("enabled", enabled)
             setPackage("com.android.bluetooth")
-            context.sendBroadcast(this)
-        }
-    }
-
-    fun setNoiseLevel(level: Int) {
-        if (isStandaloneConnected) {
-            appController.setNoiseLevel(level)
-            return
-        }
-        noiseLevel.value = level
-        Intent(HyperPodsAction.ACTION_NOISE_LEVEL_SET).apply {
-            this.putExtra("level", level)
-            setPackage("com.android.bluetooth")
-            context.sendBroadcast(this)
-        }
-    }
-
-    fun setAutoPlayPause(enabled: Boolean) {
-        if (isStandaloneConnected) {
-            appController.setAutoPlayPause(enabled)
-            return
-        }
-        autoPlayPause.value = enabled
-        Intent(HyperPodsAction.ACTION_AUTO_PLAY_PAUSE_SET).apply {
-            this.putExtra("enabled", enabled)
-            setPackage("com.android.bluetooth")
-            context.sendBroadcast(this)
-        }
-    }
-
-    fun setDualDevice(enabled: Boolean) {
-        if (isStandaloneConnected) {
-            appController.setDualDevice(enabled)
-            return
-        }
-        dualDevice.value = enabled
-        Intent(HyperPodsAction.ACTION_DUAL_DEVICE_SET).apply {
-            this.putExtra("enabled", enabled)
-            setPackage("com.android.bluetooth")
-            context.sendBroadcast(this)
-        }
-    }
-
-    fun broadcastActiveProfile(profile: DeviceProfile) {
-        Intent(HyperPodsAction.ACTION_ACTIVE_PROFILE_CHANGED).apply {
-            setPackage("com.android.bluetooth")
-            putExtra(HyperPodsAction.EXTRA_PROFILE_JSON, DeviceProfileStore.exportJson(profile))
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(this)
         }
     }
 
-    fun onDeviceSelected(device: BluetoothDevice) {
-        // 按当前模式预解析（自动模式先用蓝牙名预判），连上后 0x8103 再精确校正。
-        val deviceName = if (
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            device.name
-        } else {
-            null
+    fun onDeviceDisconnect(device: BluetoothDevice) {
+        connectingDeviceAddress = null
+        pendingOpenEarphonesAfterPickerLoaded = false
+        if (device.address == connectedDeviceAddress) {
+            hookConnected.value = false
+            hookConnectionState = "disconnected"
+            connectedDeviceAddress = ""
+            mainTitle.value = ""
         }
-        val resolved = runCatching {
-            DeviceProfileStore.resolveProfile(context, prefs, deviceName)
-        }.getOrElse { activeProfile.value }
-        activeProfile.value = resolved
-        appController.connect(
-            device = device,
-            connectionMethod = rfcommConnectionMethod.value,
-            profile = resolved
-        )
+        Intent(HyperPodsAction.ACTION_DISCONNECT_POD_REQUEST).apply {
+            putExtra("device", device)
+            setPackage("com.android.bluetooth")
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
+        }
+    }
+
+    fun onConnectedDeviceClick() {
+        if (connectedDeviceAddress.isBlank() && mainTitle.value.isBlank()) return
+        pendingOpenEarphonesAfterPickerLoaded = false
+        hookConnected.value = true
+        hookConnectionState = "connected"
+        showDevicePicker = false
+        selectedTab = MainTab.Earphones
+    }
+
+    fun backToDevicePicker() {
+        showDevicePicker = true
+    }
+
+    fun openBluetoothSettings() {
+        val action = if (bluetoothState.enabled) Settings.ACTION_BLUETOOTH_SETTINGS else BluetoothAdapter.ACTION_REQUEST_ENABLE
+        Intent(action).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(this) }
+                .onFailure { Toast.makeText(context, R.string.connect_failed, Toast.LENGTH_SHORT).show() }
+        }
+    }
+
+    fun openDevicePicker() {
+        showDevicePicker = true
+        selectedTab = MainTab.Earphones
+    }
+
+    @SuppressLint("MissingPermission")
+    fun openSystemHeadsetSettings() {
+        val address = connectedDeviceAddress
+        if (address.isBlank()) {
+            Toast.makeText(context, R.string.connect_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val device = runCatching {
+            BluetoothAdapter.getDefaultAdapter()?.getRemoteDevice(address)
+        }.getOrNull()
+        if (device == null) {
+            Toast.makeText(context, R.string.connect_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        Intent().apply {
+            setClassName("com.android.settings", "com.android.settings.bluetooth.MiuiHeadsetActivity")
+            putExtra("android.bluetooth.device.extra.DEVICE", device)
+            putExtra("bluetoothaddress", device.address)
+            putExtra("MIUI_HEADSET_SUPPORT", ConfigManager.fakeSupport())
+            putExtra("COME_FROM", "MIUI_BLUETOOTH_SETTINGS")
+            putExtra("DEVICE_ID", ConfigManager.fakeDeviceId())
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(this) }
+                .onFailure { Toast.makeText(context, R.string.connect_failed, Toast.LENGTH_SHORT).show() }
+        }
     }
 
     fun refreshStatus() {
-        if (isStandaloneConnected) {
-            appController.refreshStatus()
-        } else if (hookConnected.value) {
+        if (hookConnected.value) {
             context.sendBroadcast(Intent(HyperPodsAction.ACTION_REFRESH_STATUS).apply {
                 setPackage("com.android.bluetooth")
-                putExtra(HyperPodsAction.EXTRA_ALLOW_RFCOMM_RECONNECT, true)
-            })
-        } else if (moondropConnected.value) {
-            context.sendBroadcast(Intent(HyperPodsAction.UI_INIT).apply {
-                setPackage("com.android.bluetooth")
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             })
         }
     }
 
-    fun broadcastNotificationSettings(
-        showConnectionBatteryIslandEnabled: Boolean,
-        temporaryBatteryIslandDurationSecondsValue: Int,
-        showConnectionPopupEnabled: Boolean,
-        connectionPopupDismissSecondsValue: Int,
-        showConnectionNotificationEnabled: Boolean,
-        notificationIslandStyleEnabled: Boolean
+    fun savePodImages(
+        address: String,
+        name: String,
+        images: Map<PodImageResource, Uri?>,
+        clearedImages: Set<PodImageResource>,
     ) {
-        val settings = NotificationSettings(
-            showConnectionBatteryIsland = showConnectionBatteryIslandEnabled,
-            temporaryBatteryIslandDurationSeconds = temporaryBatteryIslandDurationSecondsValue,
-            showConnectionPopup = showConnectionPopupEnabled,
-            connectionPopupDismissSeconds = connectionPopupDismissSecondsValue,
-            showConnectionNotification = showConnectionNotificationEnabled,
-            notificationIslandStyle = notificationIslandStyleEnabled,
-            updatedAt = System.currentTimeMillis()
-        )
-        settings.writeToPrefs(prefs, commit = true)
-        listOf("com.android.bluetooth", "com.xiaomi.bluetooth").forEach { targetPackage ->
-            Intent(HyperPodsAction.ACTION_NOTIFICATION_SETTINGS_CHANGED).apply {
-                setPackage(targetPackage)
-                settings.putExtras(this)
-                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-                context.sendBroadcast(this)
+        earphonePrefs.value = PodImagePrefs.saveImages(context, prefs, xposedService, address, name, images, clearedImages)
+    }
+
+    fun savePodImageBytes(address: String, name: String, images: Map<PodImageResource, ByteArray>) {
+        earphonePrefs.value = PodImagePrefs.saveImageBytes(context, prefs, xposedService, address, name, images)
+    }
+
+    fun restartScopes(packages: List<String>) {
+        if (packages.isEmpty() || restartingScopes) return
+        restartingScopes = true
+        coroutineScope.launch {
+            val success = withContext(Dispatchers.IO) {
+                RootManager.restartPackages(packages)
             }
-        }
-    }
-
-    fun broadcastMilinkSpatialAudioOption(enabled: Boolean) {
-        listOf("com.milink.service", "com.android.settings").forEach { targetPackage ->
-            Intent(HyperPodsAction.ACTION_MILINK_SPATIAL_AUDIO_OPTION_CHANGED).apply {
-                setPackage(targetPackage)
-                putExtra(HyperPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, enabled)
-                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-                context.sendBroadcast(this)
+            restartingScopes = false
+            showRestartScopeDialog = false
+            if (success && "com.android.bluetooth" in packages) {
+                clearPodConnectionState()
             }
+            Toast.makeText(
+                context,
+                if (success) R.string.restart_scope_success else R.string.restart_scope_failed,
+                Toast.LENGTH_SHORT,
+            ).show()
         }
     }
 
-    // 配置切换时：隐藏的 UI 自动关闭，重新显示时恢复原值
-    SaveOnHideEffect(
-        visible = activeProfile.value.spatialAudioVisible,
-        currentValue = milinkSpatialAudioOptionEnabled.value,
-        hiddenValue = false,
-        onValueChange = { enabled ->
-            milinkSpatialAudioOptionEnabled.value = enabled
-            prefs.edit()
-                .putBoolean(HyperPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, enabled)
-                .commit()
-            broadcastMilinkSpatialAudioOption(enabled)
-        }
-    )
-    SaveOnHideEffect(
-        visible = activeProfile.value.spatialAudioVisible,
-        currentValue = displaySpatialAudioMode,
-        hiddenValue = SpatialAudioMode.OFF,
-        onValueChange = { setSpatialAudioMode(it) }
-    )
-    SaveOnHideEffect(
-        visible = activeProfile.value.spatialSoundVisible,
-        currentValue = displaySpatialSound,
-        hiddenValue = false,
-        onValueChange = { setSpatialSound(it) }
-    )
-
-    fun broadcastCustomButtonFunction(value: String) {
-        Intent(HyperPodsAction.ACTION_CUSTOM_BUTTON_FUNCTION_CHANGED).apply {
-            setPackage("com.milink.service")
-            putExtra(CustomButtonFunction.PREF_KEY, value)
-            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            context.sendBroadcast(this)
-        }
-    }
-
-    fun broadcastCustomButtonPosition(value: String) {
-        Intent(HyperPodsAction.ACTION_CUSTOM_BUTTON_POSITION_CHANGED).apply {
-            setPackage("com.milink.service")
-            putExtra(CustomButtonPosition.PREF_KEY, value)
-            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-            context.sendBroadcast(this)
-        }
-    }
-
-    // Each entry has its own Scaffold+TopAppBar so the full page transitions together
     val entryProvider = entryProvider<Screen> {
-        entry<Screen.Home> {
-            val homeTitle = mainTitle.value.ifEmpty { stringResource(R.string.app_name) }
-            val topAppBarScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
+        entry<Screen.Main> {
+            MainTabsScaffold(
+                tabs = tabs,
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                floatingBottomBar = floatingBottomBar.value,
+                blurBottomBar = blurBottomBar.value,
+                backdrop = backdrop,
+                backgroundColor = backgroundColor,
+                overlayBottomBar = overlayBottomBar,
+                pageBottomContentPadding = pageBottomContentPadding,
+                xposedService = xposedService,
+                bluetoothServiceResponsive = bluetoothServiceResponsive,
+                bluetoothEnabled = bluetoothState.enabled,
+                bondedDeviceCount = bluetoothState.bondedCount,
+                onBluetoothStatusClick = { openBluetoothSettings() },
+                onPairedBluetoothClick = { openDevicePicker() },
+                showEarphoneDetail = showEarphoneDetail,
+                mainTitle = mainTitle.value,
+                displayTitle = displayTitle,
+                displayBattery = displayBattery,
+                displayWearStatus = displayWearStatus,
+                displayAnc = displayAnc,
+                onAncModeChange = { setAncMode(it) },
+                smartAncLevel = smartAncLevel.value,
+                displayTransparencyVocalEnhancement = displayTransparencyVocalEnhancement,
+                onTransparencyVocalEnhancementChange = { setTransparencyVocalEnhancement(it) },
+                displayGameMode = displayGameMode,
+                gameModeSupported = displayCapabilities.gameModeSupported,
+                onGameModeChange = { setGameMode(it) },
+                spatialAudioMode = spatialAudioMode.value,
+                onSpatialAudioModeChange = { setSpatialAudioMode(it) },
+                equalizerVisible = displayCapabilities.eqPresets.isNotEmpty() ||
+                    displayCapabilities.customEqSupported,
+                dualDeviceSupported = displayCapabilities.dualDeviceSupported,
+                onOpenEqualizer = { backStack.add(Screen.Equalizer) },
+                displayDualDeviceConnection = displayDualDeviceConnection,
+                onDualDeviceConnectionChange = { setDualDeviceConnection(it) },
+                spatialAudioSupported = displayCapabilities.spatialAudioSupported,
+                spatialSoundSupported = displayCapabilities.spatialSoundSwitchSupported,
+                adaptiveModeEnabled = displayCapabilities.adaptiveSupported,
+                earphonePrefs = earphonePrefs.value,
+                connectedDeviceAddress = connectedDeviceAddress,
+                connectingDeviceAddress = connectingDeviceAddress,
+                showConnectErrorDialog = showConnectErrorDialog,
+                onDeviceSelected = { onDeviceSelected(it) },
+                onConnectedDeviceClick = { onConnectedDeviceClick() },
+                onDeviceDisconnect = { onDeviceDisconnect(it) },
+                onDismissConnectError = { showConnectErrorDialog = false },
+                desktopIconHidden = desktopIconHidden,
+                onDesktopIconHiddenChange = {
+                    desktopIconHidden.value = it
+                    setLauncherIconHidden(context, it)
+                },
+                logLevel = logLevel,
+                onLogLevelChange = {
+                    logLevel.value = it
+                    ConfigManager.updateLogLevel(prefs, xposedService, it)
+                    broadcastConfigChanged(context, "com.android.bluetooth")
+                    broadcastConfigChanged(context, "com.milink.service")
+                    broadcastConfigChanged(context, "com.xiaomi.bluetooth")
+                },
+                islandMode = islandMode,
+                onIslandModeChange = {
+                    islandMode.value = it
+                    ConfigManager.updateIslandMode(prefs, xposedService, it)
+                    broadcastConfigChanged(context, "com.android.bluetooth")
+                    broadcastConfigChanged(context, "com.xiaomi.bluetooth")
+                },
+                islandShowTimings = islandShowTimings,
+                onIslandShowTimingsChange = {
+                    islandShowTimings.value = it
+                    ConfigManager.updateIslandShowTimings(prefs, xposedService, it)
+                    broadcastConfigChanged(context, "com.android.bluetooth")
+                },
+                appLanguage = appLanguage,
+                onAppLanguageChange = {
+                    appLanguage.value = it
+                    onAppLanguageChange(it)
+                },
+                autoGameMode = autoGameMode,
+                onAutoGameModeChange = {
+                    autoGameMode.value = it
+                    ConfigManager.updateAutoGameMode(prefs, xposedService, it)
+                    Intent(HyperPodsAction.ACTION_AUTO_GAME_MODE_CHANGED).apply {
+                        setPackage("com.android.bluetooth")
+                        putExtra("enabled", it)
+                        addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                        context.sendBroadcast(this)
+                    }
+                },
+                milinkCardFeatures = milinkCardFeatures,
+                onMilinkCardFeaturesChange = {
+                    milinkCardFeatures.value = it
+                    ConfigManager.updateMilinkCardFeatures(prefs, xposedService, it)
+                    broadcastConfigChanged(context, "com.milink.service")
+                },
+                notificationClickAction = notificationClickAction,
+                onNotificationClickActionChange = {
+                    notificationClickAction.value = it
+                    ConfigManager.updateNotificationClickAction(prefs, xposedService, it)
+                    broadcastConfigChanged(context, "com.xiaomi.bluetooth")
+                },
+                moreClickAction = moreClickAction,
+                onMoreClickActionChange = {
+                    moreClickAction.value = it
+                    ConfigManager.updateMoreClickAction(prefs, xposedService, it)
+                },
+                onOpenRfcommDebug = { backStack.add(Screen.RfcommDebug) },
+                fakeDeviceId = fakeDeviceId,
+                onFakeDeviceIdChange = {
+                    fakeDeviceId.value = it
+                    ConfigManager.updateFakeDeviceId(prefs, xposedService, it)
+                    broadcastConfigChanged(context, "com.android.bluetooth")
+                    broadcastConfigChanged(context, "com.android.settings")
+                    broadcastConfigChanged(context, "com.milink.service")
+                    broadcastConfigChanged(context, "com.xiaomi.bluetooth")
+                },
+                onOpenTheme = { backStack.add(Screen.Theme) },
+                onOpenAbout = { backStack.add(Screen.About) },
+                showRestartScopeDialog = showRestartScopeDialog,
+                restartingScopes = restartingScopes,
+                onShowRestartScopeDialog = { showRestartScopeDialog = true },
+                onDismissRestartScopeDialog = { showRestartScopeDialog = false },
+                onRestartScopes = { restartScopes(it) },
+                onBackToDevicePicker = { backToDevicePicker() },
+                onOpenSystemHeadsetSettings = { openSystemHeadsetSettings() },
+                onSavePodImages = { address, name, images, clearedImages ->
+                    savePodImages(address, name, images, clearedImages)
+                },
+                onSavePodImageBytes = { address, name, images -> savePodImageBytes(address, name, images) },
+            )
+        }
+        entry<Screen.About> {
+            val aboutScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = homeTitle,
-                        largeTitle = homeTitle,
-                        scrollBehavior = topAppBarScrollBehavior,
+                        title = stringResource(R.string.about),
+                        largeTitle = stringResource(R.string.about),
+                        scrollBehavior = aboutScrollBehavior,
                         navigationIcon = {
-                            IconButton(
-                                onClick = { (context as? Activity)?.finish() },
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        },
-                        actions = {
-                            if (canShowDetailPage) {
-                                IconButton(onClick = { refreshStatus() }) {
-                                    Icon(
-                                        imageVector = MiuixIcons.Refresh,
-                                        contentDescription = "Refresh"
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = { backStack.add(Screen.Settings) },
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Settings,
-                                    contentDescription = "Settings"
-                                )
+                            IconButton(onClick = { backStack.removeLast() }) {
+                                Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
                             }
                         }
                     )
                 }
             ) { padding ->
-                AnimatedContent(
-                    targetState = when {
-                        canShowDetailPage -> "detail"
-                        isConnecting -> "connecting"
-                        isError -> "error"
-                        else -> "picker"
-                    },
-                    label = "MainPageAnim"
-                ) { state ->
-                    when (state) {
-                        "detail" -> PodDetailPage(
-                            modifier = Modifier
-                                .overScrollVertical()
-                                .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
-                            contentPadding = padding,
-                            batteryParams = displayBattery,
-                            ancMode = displayAnc,
-                            onAncModeChange = { setAncMode(it) },
-                            gameMode = displayGameMode,
-                            onGameModeChange = { setGameMode(it) },
-                            eqVisible = activeProfile.value.eqPresets.isNotEmpty() ||
-                                    activeProfile.value.customEqVisible,
-                            eqCurrentName = displayEqCurrentName,
-                            onOpenEqualizer = { backStack.add(Screen.Equalizer) },
-                            spatialAudioMode = displaySpatialAudioMode,
-                            onSpatialAudioModeChange = { setSpatialAudioMode(it) },
-                            spatialAudioVisible = activeProfile.value.spatialAudioVisible,
-                            spatialSound = displaySpatialSound,
-                            onSpatialSoundChange = { setSpatialSound(it) },
-                            spatialSoundVisible = activeProfile.value.spatialSoundVisible,
-                            adaptiveModeEnabled = if (moondropConnected.value) {
-                                moondropHasAdaptive.value
-                            } else {
-                                activeProfile.value.adaptiveVisible
-                            },
-                            gameModeVisible = activeProfile.value.gameModeVisible,
-                            noiseLevelVisible = activeProfile.value.noiseLevelVisible,
-                            noiseLevel = displayNoiseLevel,
-                            smartAncLevel = displaySmartAncLevel,
-                            onNoiseLevelChange = { setNoiseLevel(it) },
-                            homeImageFile = PodImageStore.customFile(context, PodImageSlot.HOME_IMAGE),
-                            onOpenMoreSettings = { backStack.add(Screen.MoreSettings) }
-                        )
-                        "connecting" -> Box(Modifier.padding(padding).fillMaxSize()) { ConnectingPage() }
-                        "error" -> Box(Modifier.padding(padding).fillMaxSize()) { ErrorPage(onRetry = { appController.disconnect() }) }
-                        else -> Box(Modifier.padding(padding).fillMaxSize()) { DevicePickerPage(onDeviceSelected = { onDeviceSelected(it) }) }
-                    }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundColor)
+                        .padding(padding),
+                ) {
+                    AboutPage(
+                        modifier = Modifier
+                            .overScrollVertical()
+                            .nestedScroll(aboutScrollBehavior.nestedScrollConnection),
+                        contentPadding = PaddingValues(bottom = pageBottomContentPadding),
+                    )
+                }
+            }
+        }
+        entry<Screen.Theme> {
+            val themeScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
+
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = stringResource(R.string.theme_title),
+                        largeTitle = stringResource(R.string.theme_title),
+                        scrollBehavior = themeScrollBehavior,
+                        navigationIcon = {
+                            IconButton(onClick = { backStack.removeLast() }) {
+                                Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
+                            }
+                        }
+                    )
+                }
+            ) { padding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundColor)
+                        .padding(padding),
+                ) {
+                    ThemeSettingsPage(
+                        modifier = Modifier
+                            .overScrollVertical()
+                            .nestedScroll(themeScrollBehavior.nestedScrollConnection),
+                        contentPadding = PaddingValues(bottom = pageBottomContentPadding),
+                        themeMode = themeMode,
+                        onThemeModeChange = onThemeModeChange,
+                        accentMode = accentMode,
+                        onAccentModeChange = onAccentModeChange,
+                        floatingBottomBar = floatingBottomBar,
+                        onFloatingBottomBarChange = onFloatingBottomBarChange,
+                        blurBottomBar = blurBottomBar,
+                        onBlurBottomBarChange = onBlurBottomBarChange,
+                    )
                 }
             }
         }
         entry<Screen.Equalizer> {
             val equalizerScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-            var isEqEditing by remember { mutableStateOf(false) }
-
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = stringResource(R.string.sound_effects),
-                        largeTitle = stringResource(R.string.sound_effects),
+                        title = stringResource(R.string.eq_preset_title),
+                        largeTitle = stringResource(R.string.eq_preset_title),
                         scrollBehavior = equalizerScrollBehavior,
                         navigationIcon = {
-                            IconButton(
-                                onClick = {
-                                    if (isEqEditing) isEqEditing = false
-                                    else backStack.removeLast()
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "Back"
-                                )
+                            IconButton(onClick = { backStack.removeLast() }) {
+                                Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
                             }
                         },
-                        actions = {
-                            if (activeProfile.value.customEqVisible) {
-                                if (isEqEditing) {
-                                    TextButton(
-                                        text = stringResource(R.string.done),
-                                        onClick = { isEqEditing = false },
-                                    )
-                                } else {
-                                    val editEntry = DropdownEntry(
-                                        items = listOf(
-                                            DropdownItem(
-                                                text = stringResource(R.string.eq_edit),
-                                                onClick = { isEqEditing = true },
-                                            )
-                                        )
-                                    )
-                                    OverlayIconDropdownMenu(entry = editEntry) {
-                                        Icon(
-                                            imageVector = MiuixIcons.More,
-                                            contentDescription = stringResource(R.string.eq_edit)
-                                        )
-                                    }
-                                }
-                            }
-                        }
                     )
-                }
+                },
             ) { padding ->
                 EqualizerPage(
                     modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundColor)
                         .overScrollVertical()
                         .nestedScroll(equalizerScrollBehavior.nestedScrollConnection),
-                    contentPadding = padding,
-                    builtInPresets = activeProfile.value.eqPresets,
-                    devicePresets = displayEqDevicePresets,
-                    selectedId = displayEqPresetId,
-                    customEqVisible = activeProfile.value.customEqVisible,
-                    customEqFrequencies = activeProfile.value.customEqFrequencies,
-                    customEqMaxPresets = activeProfile.value.customEqMaxPresets,
-                    isEditing = isEqEditing,
-                    onSelectPreset = { setEqPreset(it) },
-                    onOpenCustomEq = { preset -> setEqPreset(preset.id) },
-                    onSavePreset = { id, name, frequencies, gains, minValue, maxValue ->
-                        saveEqPreset(id, name, frequencies, gains, minValue, maxValue)
-                    },
-                    onDeletePreset = { deleteEqPreset(it) },
+                    contentPadding = PaddingValues(
+                        top = padding.calculateTopPadding(),
+                        bottom = pageBottomContentPadding,
+                    ),
+                    builtInPresets = displayCapabilities.eqPresets,
+                    devicePresets = eqDevicePresets.value,
+                    selectedId = eqPreset.value,
+                    customEqSupported = displayCapabilities.customEqSupported,
+                    customEqFrequencies = displayCapabilities.customEqFrequencies,
+                    customEqMaxPresets = displayCapabilities.customEqMaxPresets,
+                    onSelectPreset = ::setEqPreset,
+                    onSavePreset = ::saveEqPreset,
+                    onDeletePreset = ::deleteEqPreset,
                 )
             }
         }
-        entry<Screen.Settings> {
-            val settingsScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
+        entry<Screen.RfcommDebug> {
+            val rfcommScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
+            var clearRfcommLogsRequest by remember { mutableIntStateOf(0) }
 
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = stringResource(R.string.settings),
-                        largeTitle = stringResource(R.string.settings),
-                        scrollBehavior = settingsScrollBehavior,
+                        title = "RFCOMM 调试",
+                        largeTitle = "RFCOMM 调试",
+                        scrollBehavior = rfcommScrollBehavior,
                         navigationIcon = {
-                            IconButton(
-                                onClick = { backStack.removeLast() },
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "Back"
-                                )
+                            IconButton(onClick = { backStack.removeLast() }) {
+                                Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { clearRfcommLogsRequest++ }) {
+                                Icon(imageVector = MiuixIcons.Delete, contentDescription = "Clear logs")
                             }
                         }
                     )
                 }
             ) { padding ->
-                SettingsPage(
+                Box(
                     modifier = Modifier
-                        .overScrollVertical()
-                        .nestedScroll(settingsScrollBehavior.nestedScrollConnection),
-                    contentPadding = padding,
-                    themeMode = themeMode,
-                    onThemeModeChange = onThemeModeChange,
-                    showConnectionBatteryIsland = showConnectionBatteryIsland,
-                    onShowConnectionBatteryIslandChange = {
-                        showConnectionBatteryIsland.value = it
-                        prefs.edit()
-                            .putBoolean(HyperPodsPrefsKey.SHOW_CONNECTION_BATTERY_ISLAND, it)
-                            .commit()
-                        broadcastNotificationSettings(
-                            it,
-                            temporaryBatteryIslandDurationSeconds.value,
-                            showConnectionPopup.value,
-                            connectionPopupDismissSeconds.value,
-                            showConnectionNotification.value,
-                            notificationIslandStyle.value
-                        )
-                    },
-                    temporaryBatteryIslandDurationSeconds = temporaryBatteryIslandDurationSeconds,
-                    onTemporaryBatteryIslandDurationSecondsChange = {
-                        temporaryBatteryIslandDurationSeconds.value = it
-                        prefs.edit()
-                            .putInt(HyperPodsPrefsKey.TEMPORARY_BATTERY_ISLAND_DURATION_SECONDS, it)
-                            .commit()
-                        broadcastNotificationSettings(
-                            showConnectionBatteryIsland.value,
-                            it,
-                            showConnectionPopup.value,
-                            connectionPopupDismissSeconds.value,
-                            showConnectionNotification.value,
-                            notificationIslandStyle.value
-                        )
-                    },
-                    showConnectionNotification = showConnectionNotification,
-                    onShowConnectionNotificationChange = {
-                        showConnectionNotification.value = it
-                        prefs.edit()
-                            .putBoolean(HyperPodsPrefsKey.SHOW_CONNECTION_NOTIFICATION, it)
-                            .commit()
-                        broadcastNotificationSettings(
-                            showConnectionBatteryIsland.value,
-                            temporaryBatteryIslandDurationSeconds.value,
-                            showConnectionPopup.value,
-                            connectionPopupDismissSeconds.value,
-                            it,
-                            notificationIslandStyle.value
-                        )
-                    },
-                    notificationIslandStyle = notificationIslandStyle,
-                    onNotificationIslandStyleChange = {
-                        notificationIslandStyle.value = it
-                        prefs.edit()
-                            .putBoolean(HyperPodsPrefsKey.NOTIFICATION_ISLAND_STYLE, it)
-                            .commit()
-                        broadcastNotificationSettings(
-                            showConnectionBatteryIsland.value,
-                            temporaryBatteryIslandDurationSeconds.value,
-                            showConnectionPopup.value,
-                            connectionPopupDismissSeconds.value,
-                            showConnectionNotification.value,
-                            it
-                        )
-                    },
-                    onOpenAdvancedSettings = { backStack.add(Screen.AdvancedSettings) },
-                    onOpenAbout = { backStack.add(Screen.About) },
-                    onOpenProfiles = { backStack.add(Screen.Profiles) },
-                    debugMode = debugMode.value,
-                    onOpenDebug = { backStack.add(Screen.Debug) }
-                )
-            }
-        }
-        entry<Screen.Profiles> {
-            val profilesScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = stringResource(R.string.device_profiles),
-                        largeTitle = stringResource(R.string.device_profiles),
-                        scrollBehavior = profilesScrollBehavior,
-                        navigationIcon = {
-                            IconButton(
-                                onClick = { backStack.removeLast() },
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        }
+                        .fillMaxSize()
+                        .background(backgroundColor)
+                        .padding(padding),
+                ) {
+                    RfcommDebugPage(
+                        modifier = Modifier.nestedScroll(rfcommScrollBehavior.nestedScrollConnection),
+                        contentPadding = PaddingValues(0.dp),
+                        clearRequest = clearRfcommLogsRequest,
                     )
                 }
-            ) { padding ->
-                ProfilesPage(
-                    modifier = Modifier
-                        .overScrollVertical()
-                        .nestedScroll(profilesScrollBehavior.nestedScrollConnection),
-                    contentPadding = padding,
-                    prefs = prefs,
-                    activeProfile = activeProfile.value,
-                    onActiveProfileChanged = { p ->
-                        activeProfile.value = p
-                        appController.setProfile(p)
-                        broadcastActiveProfile(p)
-                    }
-                )
-            }
-        }
-        entry<Screen.AdvancedSettings> {
-            val advancedScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = stringResource(R.string.advanced_settings),
-                        largeTitle = stringResource(R.string.advanced_settings),
-                        scrollBehavior = advancedScrollBehavior,
-                        navigationIcon = {
-                            IconButton(
-                                onClick = { backStack.removeLast() },
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        }
-                    )
-                }
-            ) { padding ->
-                AdvancedSettingsPage(
-                    modifier = Modifier
-                        .overScrollVertical()
-                        .nestedScroll(advancedScrollBehavior.nestedScrollConnection),
-                    contentPadding = padding,
-                    openHeyTap = openHeyTap,
-                    onOpenHeyTapChange = {
-                        openHeyTap.value = it
-                        prefs.edit().putBoolean("open_heytap", it).apply()
-                    },
-                    rfcommConnectionMethod = rfcommConnectionMethod,
-                    onRfcommConnectionMethodChange = {
-                        rfcommConnectionMethod.value = it
-                        prefs.edit()
-                            .putString(RfcommConnectionMethod.PREF_KEY, it.preferenceValue)
-                            .apply()
-                    },
-                    adaptiveVisible = activeProfile.value.adaptiveVisible,
-                    spatialAudioVisible = activeProfile.value.spatialAudioVisible,
-                    spatialSoundVisible = activeProfile.value.spatialSoundVisible,
-                    showConnectionPopup = showConnectionPopup,
-                    onShowConnectionPopupChange = {
-                        showConnectionPopup.value = it
-                        prefs.edit()
-                            .putBoolean(HyperPodsPrefsKey.SHOW_CONNECTION_POPUP, it)
-                            .commit()
-                        broadcastNotificationSettings(
-                            showConnectionBatteryIsland.value,
-                            temporaryBatteryIslandDurationSeconds.value,
-                            it,
-                            connectionPopupDismissSeconds.value,
-                            showConnectionNotification.value,
-                            notificationIslandStyle.value
-                        )
-                    },
-                    connectionPopupDismissSeconds = connectionPopupDismissSeconds,
-                    onConnectionPopupDismissSecondsChange = {
-                        connectionPopupDismissSeconds.value = it
-                        prefs.edit()
-                            .putInt(HyperPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS, it)
-                            .commit()
-                        broadcastNotificationSettings(
-                            showConnectionBatteryIsland.value,
-                            temporaryBatteryIslandDurationSeconds.value,
-                            showConnectionPopup.value,
-                            it,
-                            showConnectionNotification.value,
-                            notificationIslandStyle.value
-                        )
-                    },
-                    milinkSpatialAudioOptionEnabled = milinkSpatialAudioOptionEnabled,
-                    onMilinkSpatialAudioOptionEnabledChange = {
-                        milinkSpatialAudioOptionEnabled.value = it
-                        prefs.edit()
-                            .putBoolean(HyperPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, it)
-                            .commit()
-                        broadcastMilinkSpatialAudioOption(it)
-                    },
-                    customButtonFunction = customButtonFunction,
-                    onCustomButtonFunctionChange = {
-                        customButtonFunction.value = it
-                        prefs.edit()
-                            .putString(CustomButtonFunction.PREF_KEY, it.preferenceValue)
-                            .commit()
-                        broadcastCustomButtonFunction(it.preferenceValue)
-                    },
-                    customButtonPosition = customButtonPosition,
-                    onCustomButtonPositionChange = {
-                        customButtonPosition.value = it
-                        prefs.edit()
-                            .putString(CustomButtonPosition.PREF_KEY, it.preferenceValue)
-                            .commit()
-                        broadcastCustomButtonPosition(it.preferenceValue)
-                    }
-                )
-            }
-        }
-        entry<Screen.About> {
-            AboutPage(
-                onBack = { backStack.removeLast() },
-                debugMode = debugMode.value,
-                onDebugModeChanged = { enabled ->
-                    debugMode.value = enabled
-                    prefs.edit().putBoolean("debug_mode", enabled).commit()
-                }
-            )
-        }
-        entry<Screen.MoreSettings> {
-            val moreSettingsScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = stringResource(R.string.more_settings),
-                        largeTitle = stringResource(R.string.more_settings),
-                        scrollBehavior = moreSettingsScrollBehavior,
-                        navigationIcon = {
-                            IconButton(
-                                onClick = { backStack.removeLast() },
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        }
-                    )
-                }
-            ) { padding ->
-                MoreSettingsPage(
-                    modifier = Modifier
-                        .overScrollVertical()
-                        .nestedScroll(moreSettingsScrollBehavior.nestedScrollConnection),
-                    contentPadding = padding,
-                    autoPlayPauseVisible = activeProfile.value.autoPlayPauseVisible,
-                    autoPlayPause = displayAutoPlayPause,
-                    onAutoPlayPauseChange = { setAutoPlayPause(it) },
-                    // 水月雨接上时，双设备连接走它自己的命令与状态；OPPO 侧保持原样
-                    dualDeviceSummaryMoondrop = stringResource(R.string.moondrop_dual_summary),
-                    dualDeviceVisible = if (moondropConnected.value) {
-                        moondropCap("hasDualConnection")
-                    } else {
-                        activeProfile.value.dualDeviceVisible
-                    },
-                    dualDevice = if (moondropConnected.value) {
-                        moondropDualConnectionOn.value
-                    } else {
-                        displayDualDevice
-                    },
-                    onDualDeviceChange = { on ->
-                        if (moondropConnected.value) setMoondropDualConnection(on) else setDualDevice(on)
-                    },
-                    connectedDevicesVisible = activeProfile.value.connectedDevicesVisible,
-                    connectedDevices = displayConnectedDevices,
-                    connectedDevicesReceived = displayConnectedDevicesReceived,
-                    // 以下 6 项只在识别到水月雨且探测出对应能力时出现
-                    gainVisible = moondropConnected.value && moondropCap("hasGain"),
-                    gainLabels = moondropGainLabels.value,
-                    gainIndex = moondropGainIndex.value,
-                    onGainChange = { setMoondropGain(it) },
-                    ledVisible = moondropConnected.value && moondropCap("hasLed"),
-                    ledOn = moondropLedOn.value,
-                    onLedChange = { setMoondropLed(it) },
-                    promptToneVisible = moondropConnected.value && moondropCap("hasPromptTone"),
-                    promptToneOn = moondropPromptToneOn.value,
-                    onPromptToneChange = { setMoondropPromptTone(it) },
-                    promptVolumeVisible = moondropConnected.value && moondropCap("hasPromptVolume"),
-                    promptVolumeLabels = moondropPromptVolumeLabels,
-                    promptVolumeIndex = (moondropPromptVolumeRaw.value / 10).coerceIn(0, 10),
-                    onPromptVolumeChange = { setMoondropPromptVolumeStep(it) },
-                    lhdcVisible = moondropConnected.value && moondropCap("hasLhdc"),
-                    lhdcSummary = stringResource(R.string.moondrop_lhdc_summary),
-                    lhdcOn = moondropLhdcOn.value,
-                    onLhdcChange = { setMoondropLhdc(it) },
-                )
-            }
-        }
-        entry<Screen.Debug> {
-            val debugScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = stringResource(R.string.debug_mode),
-                        largeTitle = stringResource(R.string.debug_mode),
-                        scrollBehavior = debugScrollBehavior,
-                        navigationIcon = {
-                            IconButton(
-                                onClick = { backStack.removeLast() },
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        }
-                    )
-                }
-            ) { padding ->
-                DebugPage(
-                    modifier = Modifier
-                        .overScrollVertical()
-                        .nestedScroll(debugScrollBehavior.nestedScrollConnection),
-                    contentPadding = padding,
-                    loggingEnabled = loggingEnabled.value,
-                    onLoggingEnabledChange = {
-                        loggingEnabled.value = it
-                        BtLogStore.isEnabled = it
-                        prefs.edit().putBoolean("bt_logging_enabled", it).commit()
-                        if (it) {
-                            BtLogStore.addRecv(byteArrayOf(), "日志已启用，等待蓝牙数据...")
-                        }
-                    },
-                    onOpenLog = { backStack.add(Screen.DebugLog) }
-                )
-            }
-        }
-        entry<Screen.DebugLog> {
-            val logScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = stringResource(R.string.debug_view_log),
-                        largeTitle = stringResource(R.string.debug_view_log),
-                        scrollBehavior = logScrollBehavior,
-                        navigationIcon = {
-                            IconButton(
-                                onClick = { backStack.removeLast() },
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        }
-                    )
-                }
-            ) { padding ->
-                DebugLogPage(
-                    modifier = Modifier
-                        .overScrollVertical()
-                        .nestedScroll(logScrollBehavior.nestedScrollConnection),
-                    contentPadding = padding,
-                    onClear = { BtLogStore.clear() }
-                )
             }
         }
     }
@@ -1482,118 +939,70 @@ fun MainUI(
         entryProvider = entryProvider
     )
 
-    // 一级页底栏：模块 / 耳机 / 设置。
-    // 二级页（均衡器、配置档、手势控制、调试等）不显示底栏，避免在二级页里再切换一级页。
-    val currentRootTab = when (backStack.last()) {
-        Screen.Home -> RootTab.PODS
-        Screen.Settings -> RootTab.MODULE
-        Screen.About -> RootTab.SETTINGS
-        else -> null
-    }
-
-    fun openRootTab(tab: RootTab) {
-        // 切一级页就重置返回栈：一级页之间是平级关系，不该互相压栈
-        backStack.clear()
-        backStack.add(
-            when (tab) {
-                RootTab.PODS -> Screen.Home
-                RootTab.MODULE -> Screen.Settings
-                RootTab.SETTINGS -> Screen.About
-            }
-        )
-    }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.weight(1f)) {
-            NavDisplay(
-                entries = entries,
-                onBack = {
-                    if (backStack.size > 1) {
-                        backStack.removeLast()
-                    } else {
-                        (context as? Activity)?.finish()
-                    }
-                }
-            )
-        }
-        if (currentRootTab != null) {
-            // 顺序与 PuddingPods / OppoPods 一致：模块、耳机、设置
-            NavigationBar {
-                NavigationBarItem(
-                    selected = currentRootTab == RootTab.MODULE,
-                    onClick = { openRootTab(RootTab.MODULE) },
-                    icon = Icons.Rounded.Extension,
-                    label = stringResource(R.string.tab_module)
-                )
-                NavigationBarItem(
-                    selected = currentRootTab == RootTab.PODS,
-                    onClick = { openRootTab(RootTab.PODS) },
-                    icon = Icons.Rounded.Headset,
-                    label = stringResource(R.string.tab_pods)
-                )
-                NavigationBarItem(
-                    selected = currentRootTab == RootTab.SETTINGS,
-                    onClick = { openRootTab(RootTab.SETTINGS) },
-                    icon = Icons.Rounded.Settings,
-                    label = stringResource(R.string.tab_settings)
-                )
+    NavDisplay(
+        entries = entries,
+        onBack = {
+            if (backStack.size > 1) {
+                backStack.removeLast()
+            } else {
+                (context as? Activity)?.finish()
             }
         }
-    }
-}
-
-/** 一级页（底栏三页）。二级页用 [Screen] 表示。 */
-enum class RootTab { PODS, MODULE, SETTINGS }
-
-@Composable
-fun ConnectingPage() {
-    val primaryColor = MiuixTheme.colorScheme.primary
-    val infiniteTransition = rememberInfiniteTransition(label = "loading")
-    val angle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
     )
+}
 
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Canvas(modifier = Modifier.size(48.dp)) {
-                drawArc(
-                    color = primaryColor,
-                    startAngle = angle,
-                    sweepAngle = 270f,
-                    useCenter = false,
-                    style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
-                )
-            }
-            Text(
-                stringResource(R.string.connecting),
-                modifier = Modifier.padding(top = 16.dp)
-            )
+@Composable
+fun appBackground(): Color = MiuixTheme.colorScheme.surface
+
+private data class BluetoothSummary(
+    val enabled: Boolean,
+    val bondedCount: Int,
+)
+
+private fun readBluetoothState(context: Context): BluetoothSummary {
+    val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+    return runCatching {
+        BluetoothSummary(
+            enabled = adapter?.isEnabled == true,
+            bondedCount = adapter?.bondedDevices?.size ?: 0,
+        )
+    }.getOrDefault(BluetoothSummary(enabled = false, bondedCount = 0))
+}
+
+private fun wearStateFromExtra(value: Int): WearState? {
+    return WearState.fromValue(value)
+}
+
+private fun sendBluetoothModuleBroadcast(context: Context, action: String) {
+    listOf("com.android.bluetooth", "com.xiaomi.bluetooth").forEach { packageName ->
+        Intent(action).apply {
+            setPackage(packageName)
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(this)
         }
     }
 }
 
-@Composable
-fun ErrorPage(onRetry: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                stringResource(R.string.connect_failed),
-                color = Color(0xFFFF3B30)
-            )
-            TextButton(
-                text = stringResource(R.string.retry),
-                onClick = onRetry,
-                modifier = Modifier.padding(top = 12.dp)
-            )
-        }
+private fun isLauncherIconHidden(context: Context): Boolean {
+    val component = ComponentName(context, "com.chenyc.hyperpods.LauncherActivity")
+    val state = context.packageManager.getComponentEnabledSetting(component)
+    return state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+}
+
+private fun setLauncherIconHidden(context: Context, hidden: Boolean) {
+    val component = ComponentName(context, "com.chenyc.hyperpods.LauncherActivity")
+    val state = if (hidden) {
+        PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+    } else {
+        PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+    }
+    context.packageManager.setComponentEnabledSetting(component, state, PackageManager.DONT_KILL_APP)
+}
+
+private fun broadcastConfigChanged(context: Context, packageName: String) {
+    Intent(HyperPodsAction.ACTION_CONFIG_CHANGED).apply {
+        setPackage(packageName)
+        addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        context.sendBroadcast(this)
     }
 }

@@ -22,14 +22,19 @@ android {
         applicationId = "com.chenyc.hyperpods"
         minSdk = 35
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 16
+        versionName = "2.1.0"
+        buildConfigField("long", "BUILD_TIMESTAMP", System.currentTimeMillis().toString())
     }
 
     buildTypes {
         debug {
             isDebuggable = true
             isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
         release {
             isMinifyEnabled = true
@@ -39,6 +44,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        create("releaseFast") {
+            initWith(getByName("release"))
+            isMinifyEnabled = false
+            isShrinkResources = false
+            matchingFallbacks += listOf("release")
         }
     }
 
@@ -81,6 +92,7 @@ configurations.configureEach {
 dependencies {
     implementation(libs.coreKtx)
     compileOnly(libs.libxposedApi)
+    implementation(libs.libxposedService)
     implementation(libs.kotlinx.serialization.json)
 
     // Compose
@@ -90,7 +102,6 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.androidx.activity.compose)
-    implementation("androidx.compose.material:material-icons-extended")
 
     // MIUIX
     implementation(libs.miuix)
@@ -105,8 +116,5 @@ dependencies {
     // HyperOS Focus Island API
     implementation(libs.focus.api)
 
-    // Unit tests. android.jar 里的 org.json 是空桩，用真实实现替换，
-    // 使 DeviceModelRegistry 的解析逻辑能在 JVM 上直接跑。
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.json:json:20240303")
+    testImplementation(libs.junit)
 }

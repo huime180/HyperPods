@@ -1,6 +1,5 @@
 *.iml
 .gradle
-/.kotlin/
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -20,10 +19,10 @@ assets/xposed_init
 resources/META-INF/yukihookapi_init
 opencode.json
 /.idea
-/.workbuddy/
+/.qoder
 
 # 上游参考仓库克隆（只用于对照，不进入版本库）
 /_reference/
-# 本地临时工作区（静态检查脚本、待重写文件）
+# 本地临时工作区
 /.work/
 /_analysis/

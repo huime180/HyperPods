@@ -3,7 +3,6 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- 内容缩放至 70%（比原始小 30%），绕中心 (12,12)，四周留透明边距 -->
     <group
         android:pivotX="12"
         android:pivotY="12"

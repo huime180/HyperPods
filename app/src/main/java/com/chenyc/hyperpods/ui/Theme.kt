@@ -12,13 +12,22 @@ import top.yukonga.miuix.kmp.theme.ThemeController
 @Composable
 fun AppTheme(
     colorSchemeMode: ColorSchemeMode = ColorSchemeMode.System,
+    accentMode: Int = 0,
     content: @Composable () -> Unit
 ) {
-    val controller = remember(colorSchemeMode) { ThemeController(colorSchemeMode) }
+    val actualMode = when (accentMode) {
+        1 -> when (colorSchemeMode) {
+            ColorSchemeMode.Light -> ColorSchemeMode.MonetLight
+            ColorSchemeMode.Dark -> ColorSchemeMode.MonetDark
+            else -> ColorSchemeMode.MonetSystem
+        }
+        else -> colorSchemeMode
+    }
+    val controller = remember(actualMode) { ThemeController(actualMode) }
 
-    when (colorSchemeMode) {
+    when (actualMode) {
         ColorSchemeMode.Light, ColorSchemeMode.Dark -> {
-            val nightMode = if (colorSchemeMode == ColorSchemeMode.Dark)
+            val nightMode = if (actualMode == ColorSchemeMode.Dark)
                 Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
             val currentConfig = LocalConfiguration.current
             val overrideConfig = remember(currentConfig, nightMode) {

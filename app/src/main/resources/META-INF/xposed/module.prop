@@ -5,6 +5,5 @@ versionCode=1
 author=huime180
 description=为 HyperOS 设备提供系统级 OPPO / 水月雨（MOONDROP）耳机控制（多机型适配）
 minApiVersion=101
-targetApiVersion=102
+targetApiVersion=101
 staticScope=true
-autoHotReload=true

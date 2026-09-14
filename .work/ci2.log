@@ -1,0 +1,392 @@
+﻿2026-09-14T02:36:50.7165591Z Current runner version: '2.337.0'
+2026-09-14T02:36:50.7185313Z ##[group]Runner Image Provisioner
+2026-09-14T02:36:50.7185920Z Hosted Compute Agent
+2026-09-14T02:36:50.7186339Z Version: 20260828.587
+2026-09-14T02:36:50.7186775Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-14T02:36:50.7187216Z Build Date: 2026-08-28T16:44:25Z
+2026-09-14T02:36:50.7187698Z Worker ID: {13ba5345-6dec-4194-b6dc-ac8f3fc0f9c9}
+2026-09-14T02:36:50.7188180Z Azure Region: westus2
+2026-09-14T02:36:50.7188852Z ##[endgroup]
+2026-09-14T02:36:50.7189723Z ##[group]Operating System
+2026-09-14T02:36:50.7190098Z Ubuntu
+2026-09-14T02:36:50.7190470Z 24.04.5
+2026-09-14T02:36:50.7190822Z LTS
+2026-09-14T02:36:50.7191140Z ##[endgroup]
+2026-09-14T02:36:50.7191558Z ##[group]Runner Image
+2026-09-14T02:36:50.7191973Z Image: ubuntu-24.04
+2026-09-14T02:36:50.7192689Z Version: 20260907.300.1
+2026-09-14T02:36:50.7193524Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-14T02:36:50.7194586Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+2026-09-14T02:36:50.7195154Z ##[endgroup]
+2026-09-14T02:36:50.7195938Z ##[group]GITHUB_TOKEN Permissions
+2026-09-14T02:36:50.7197460Z Contents: write
+2026-09-14T02:36:50.7197869Z Metadata: read
+2026-09-14T02:36:50.7198218Z ##[endgroup]
+2026-09-14T02:36:50.7199700Z Secret source: Actions
+2026-09-14T02:36:50.7200406Z Cache mode: write
+2026-09-14T02:36:50.7200887Z Prepare workflow directory
+2026-09-14T02:36:50.7430650Z Prepare all required actions
+2026-09-14T02:36:50.7465544Z Getting action download info
+2026-09-14T02:36:51.1255711Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-09-14T02:36:51.4515077Z Download action repository 'actions/setup-java@v4' (SHA:cf277c60eb25467037889841efdb72551f06f6c3)
+2026-09-14T02:36:51.8446463Z Download action repository 'gradle/actions@v4' (SHA:ed408507eac070d1f99cc633dbcf757c94c7933a)
+2026-09-14T02:36:52.9603387Z Download action repository 'actions/upload-artifact@v7' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-09-14T02:36:53.1118697Z Download action repository 'ncipollo/release-action@v1' (SHA:339a81892b84b4eeb0f6e744e4574d79d0d9b8dd)
+2026-09-14T02:36:53.4035761Z Complete job name: build
+2026-09-14T02:36:53.4708398Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-14T02:36:53.4715891Z ##[group]Run actions/checkout@v4
+2026-09-14T02:36:53.4716573Z with:
+2026-09-14T02:36:53.4717088Z   repository: huime180/HyperPods
+2026-09-14T02:36:53.4721828Z   token: ***
+2026-09-14T02:36:53.4722545Z   ssh-strict: true
+2026-09-14T02:36:53.4723039Z   ssh-user: git
+2026-09-14T02:36:53.4723560Z   persist-credentials: true
+2026-09-14T02:36:53.4724125Z   clean: true
+2026-09-14T02:36:53.4724672Z   sparse-checkout-cone-mode: true
+2026-09-14T02:36:53.4725300Z   fetch-depth: 1
+2026-09-14T02:36:53.4725845Z   fetch-tags: false
+2026-09-14T02:36:53.4726361Z   show-progress: true
+2026-09-14T02:36:53.4726881Z   lfs: false
+2026-09-14T02:36:53.4727414Z   submodules: false
+2026-09-14T02:36:53.4727929Z   set-safe-directory: true
+2026-09-14T02:36:53.4728526Z   allow-unsafe-pr-checkout: false
+2026-09-14T02:36:53.4729240Z ##[endgroup]
+2026-09-14T02:36:53.5495409Z Syncing repository: huime180/HyperPods
+2026-09-14T02:36:53.5498063Z ##[group]Getting Git version info
+2026-09-14T02:36:53.5499326Z Working directory is '/home/runner/work/HyperPods/HyperPods'
+2026-09-14T02:36:53.5501162Z [command]/usr/bin/git version
+2026-09-14T02:36:53.6149656Z git version 2.55.0
+2026-09-14T02:36:53.6164892Z ##[endgroup]
+2026-09-14T02:36:53.6176782Z Temporarily overriding HOME='/home/runner/work/_temp/0acd2d9f-0a4c-41fb-92cc-e37e0cabba87' before making global git config changes
+2026-09-14T02:36:53.6180060Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-14T02:36:53.6182495Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/HyperPods/HyperPods
+2026-09-14T02:36:53.6235981Z Deleting the contents of '/home/runner/work/HyperPods/HyperPods'
+2026-09-14T02:36:53.6239350Z ##[group]Initializing the repository
+2026-09-14T02:36:53.6242953Z [command]/usr/bin/git init /home/runner/work/HyperPods/HyperPods
+2026-09-14T02:36:53.6941655Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-14T02:36:53.6944060Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-14T02:36:53.6946189Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-14T02:36:53.6948233Z hint: call:
+2026-09-14T02:36:53.6949314Z hint:
+2026-09-14T02:36:53.6950419Z hint: 	git config --global init.defaultBranch <name>
+2026-09-14T02:36:53.6951926Z hint:
+2026-09-14T02:36:53.6953621Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-14T02:36:53.6955617Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-14T02:36:53.6957476Z hint:
+2026-09-14T02:36:53.6958362Z hint: 	git branch -m <name>
+2026-09-14T02:36:53.6959145Z hint:
+2026-09-14T02:36:53.6960229Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-14T02:36:53.6963688Z Initialized empty Git repository in /home/runner/work/HyperPods/HyperPods/.git/
+2026-09-14T02:36:53.6976266Z [command]/usr/bin/git remote add origin https://github.com/huime180/HyperPods
+2026-09-14T02:36:53.7026968Z ##[endgroup]
+2026-09-14T02:36:53.7029031Z ##[group]Disabling automatic garbage collection
+2026-09-14T02:36:53.7030698Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-14T02:36:53.7064481Z ##[endgroup]
+2026-09-14T02:36:53.7065851Z ##[group]Setting up auth
+2026-09-14T02:36:53.7070364Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-14T02:36:53.7103624Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-14T02:36:53.7413728Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-14T02:36:53.7447951Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-14T02:36:53.7636212Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-14T02:36:53.7667262Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-14T02:36:53.7875892Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-14T02:36:53.7913434Z ##[endgroup]
+2026-09-14T02:36:53.7914935Z ##[group]Fetching the repository
+2026-09-14T02:36:53.7921746Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5e6949f7320ede5121c229c3bc90bd30abcbcab1:refs/remotes/origin/master
+2026-09-14T02:36:54.4136573Z From https://github.com/huime180/HyperPods
+2026-09-14T02:36:54.4143327Z  * [new ref]         5e6949f7320ede5121c229c3bc90bd30abcbcab1 -> origin/master
+2026-09-14T02:36:54.4144505Z ##[endgroup]
+2026-09-14T02:36:54.4144800Z ##[group]Determining the checkout info
+2026-09-14T02:36:54.4145093Z ##[endgroup]
+2026-09-14T02:36:54.4146709Z [command]/usr/bin/git sparse-checkout disable
+2026-09-14T02:36:54.4214669Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-14T02:36:54.4246456Z ##[group]Checking out the ref
+2026-09-14T02:36:54.4251269Z [command]/usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+2026-09-14T02:36:54.4440238Z Reset branch 'master'
+2026-09-14T02:36:54.4443638Z branch 'master' set up to track 'origin/master'.
+2026-09-14T02:36:54.4449449Z ##[endgroup]
+2026-09-14T02:36:54.4493629Z [command]/usr/bin/git log -1 --format=%H
+2026-09-14T02:36:54.4519702Z 5e6949f7320ede5121c229c3bc90bd30abcbcab1
+2026-09-14T02:36:54.4738058Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-14T02:36:54.4739255Z ##[group]Run actions/setup-java@v4
+2026-09-14T02:36:54.4739440Z with:
+2026-09-14T02:36:54.4739595Z   distribution: temurin
+2026-09-14T02:36:54.4739754Z   java-version: 22
+2026-09-14T02:36:54.4739906Z   java-package: jdk
+2026-09-14T02:36:54.4740063Z   check-latest: false
+2026-09-14T02:36:54.4740220Z   server-id: github
+2026-09-14T02:36:54.4740382Z   server-username: GITHUB_ACTOR
+2026-09-14T02:36:54.4740584Z   server-password: GITHUB_TOKEN
+2026-09-14T02:36:54.4740762Z   overwrite-settings: true
+2026-09-14T02:36:54.4740933Z   job-status: success
+2026-09-14T02:36:54.4742443Z   token: ***
+2026-09-14T02:36:54.4742598Z ##[endgroup]
+2026-09-14T02:36:54.5963528Z ##[warning]setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.
+2026-09-14T02:36:54.5969235Z ##[group]Installed distributions
+2026-09-14T02:36:54.6344126Z Trying to resolve the latest version from remote
+2026-09-14T02:36:54.6419745Z (node:2060) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-14T02:36:54.6420307Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-14T02:36:55.0012826Z Resolved latest version as 22.0.2+9
+2026-09-14T02:36:55.0013343Z Trying to download...
+2026-09-14T02:36:55.0014235Z Downloading Java 22.0.2+9 (Temurin-Hotspot) from https://github.com/adoptium/temurin22-binaries/releases/download/jdk-22.0.2%2B9/OpenJDK22U-jdk_x64_linux_hotspot_22.0.2_9.tar.gz ...
+2026-09-14T02:36:55.9938450Z Extracting Java archive...
+2026-09-14T02:36:56.0032800Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/e2a4c8b0-eddd-4f42-af42-477c594a37a0 -f /home/runner/work/_temp/7e5c06aa-055d-4ca5-9243-f81614448661
+2026-09-14T02:37:00.0261978Z Java 22.0.2+9 was downloaded
+2026-09-14T02:37:00.0262451Z Setting Java 22.0.2+9 as the default
+2026-09-14T02:37:00.0267579Z Creating toolchains.xml for JDK version 22 from temurin
+2026-09-14T02:37:00.0312596Z Writing to /home/runner/.m2/toolchains.xml
+2026-09-14T02:37:00.0312852Z 
+2026-09-14T02:37:00.0312947Z Java configuration:
+2026-09-14T02:37:00.0313178Z   Distribution: temurin
+2026-09-14T02:37:00.0313393Z   Version: 22.0.2+9
+2026-09-14T02:37:00.0313704Z   Path: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/22.0.2-9/x64
+2026-09-14T02:37:00.0313964Z 
+2026-09-14T02:37:00.0314362Z ##[endgroup]
+2026-09-14T02:37:00.0330771Z Creating settings.xml with server-id: github
+2026-09-14T02:37:00.0331050Z Writing to /home/runner/.m2/settings.xml
+2026-09-14T02:37:00.0585582Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-14T02:37:00.0586303Z ##[group]Run gradle/actions/setup-gradle@v4
+2026-09-14T02:37:00.0586465Z with:
+2026-09-14T02:37:00.0586601Z   cache-disabled: false
+2026-09-14T02:37:00.0586738Z   cache-read-only: false
+2026-09-14T02:37:00.0586873Z   cache-write-only: false
+2026-09-14T02:37:00.0587028Z   cache-overwrite-existing: false
+2026-09-14T02:37:00.0587182Z   cache-cleanup: on-success
+2026-09-14T02:37:00.0587355Z   gradle-home-cache-includes: caches
+notifications
+
+2026-09-14T02:37:00.0587543Z   add-job-summary: always
+2026-09-14T02:37:00.0587691Z   add-job-summary-as-pr-comment: never
+2026-09-14T02:37:00.0587987Z   dependency-graph: disabled
+2026-09-14T02:37:00.0588199Z   dependency-graph-report-dir: dependency-graph-reports
+2026-09-14T02:37:00.0588407Z   dependency-graph-continue-on-failure: true
+2026-09-14T02:37:00.0588605Z   build-scan-publish: false
+2026-09-14T02:37:00.0588758Z   validate-wrappers: true
+2026-09-14T02:37:00.0588900Z   allow-snapshot-wrappers: false
+2026-09-14T02:37:00.0589090Z   gradle-home-cache-strict-match: false
+2026-09-14T02:37:00.0589253Z   workflow-job-context: null
+2026-09-14T02:37:00.0590538Z   github-token: ***
+2026-09-14T02:37:00.0590661Z env:
+2026-09-14T02:37:00.0590831Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/22.0.2-9/x64
+2026-09-14T02:37:00.0591102Z   JAVA_HOME_22_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/22.0.2-9/x64
+2026-09-14T02:37:00.0591316Z ##[endgroup]
+2026-09-14T02:37:00.3173184Z Merged default JDK locations into /home/runner/.m2/toolchains.xml
+2026-09-14T02:37:00.3174089Z Preparing cache for cleanup.
+2026-09-14T02:37:00.3175016Z ##[group]Restore Gradle state from cache
+2026-09-14T02:37:00.5714094Z Cache hit for restore-key: gradle-home-v1|Linux-X64|build[c4346d2f90cb10f39259e32865a43598]-85e93ada2bf2c75af4d8bbbfc01678462533ab35
+2026-09-14T02:37:01.9026671Z Received 0 of 3591004 (0.0%), 0.0 MBs/sec
+2026-09-14T02:37:02.3184318Z Received 3591004 of 3591004 (100.0%), 2.4 MBs/sec
+2026-09-14T02:37:02.3185002Z Cache Size: ~3 MB (3591004 B)
+2026-09-14T02:37:02.3203931Z [command]/usr/bin/tar -xf /home/runner/work/_temp/ac89d0b0-f4b2-4a6c-827f-9816f8833778/cache.tzst -P -C /home/runner/work/HyperPods/HyperPods --use-compress-program unzstd
+2026-09-14T02:37:02.4198815Z Cache restored successfully
+2026-09-14T02:37:02.4205227Z Restored cache entry with key gradle-home-v1|Linux-X64|build[c4346d2f90cb10f39259e32865a43598]-5e6949f7320ede5121c229c3bc90bd30abcbcab1 to /home/runner/.gradle/caches,/home/runner/.gradle/notifications,/home/runner/.gradle/.setup-gradle in 2102ms
+2026-09-14T02:37:02.6537507Z Cache hit for: gradle-transforms-v1-e0321aeb9dee4c87eb20229c440e493b
+2026-09-14T02:37:02.6574221Z Cache hit for: gradle-generated-gradle-jars-v1-8e79c31f3eb4e570a88142dd102a0a2f
+2026-09-14T02:37:02.6684621Z Cache hit for: gradle-groovy-dsl-v1-df5fe44a7cab44426849d0c4a38a3c50
+2026-09-14T02:37:02.6753082Z Cache hit for: gradle-kotlin-dsl-v1-960737df2f1f8f4a8e67e91b77cd0c0a
+2026-09-14T02:37:02.6779464Z Cache hit for: gradle-dependencies-v1-58ea499d0582df0fc159cd5ea35814fa
+2026-09-14T02:37:02.6962545Z Cache hit for: gradle-wrapper-zips-v1-9db0835d029c62b1a3d29bf9e5532cf5
+2026-09-14T02:37:02.6995933Z Cache hit for: gradle-instrumented-jars-v1-81ec5289b336c8d4cb08133edd931048
+2026-09-14T02:37:02.9704105Z Received 87798 of 87798 (100.0%), 0.4 MBs/sec
+2026-09-14T02:37:02.9704394Z Cache Size: ~0 MB (87798 B)
+2026-09-14T02:37:02.9727872Z [command]/usr/bin/tar -xf /home/runner/work/_temp/08cf6f00-57b9-4a79-8ef6-193938317642/cache.tzst -P -C /home/runner/work/HyperPods/HyperPods --use-compress-program unzstd
+2026-09-14T02:37:03.0075281Z Cache restored successfully
+2026-09-14T02:37:03.0076258Z Restored cache entry with key gradle-kotlin-dsl-v1-960737df2f1f8f4a8e67e91b77cd0c0a to /home/runner/.gradle/caches/*/kotlin-dsl/accessors/*/,/home/runner/.gradle/caches/*/kotlin-dsl/scripts/*/ in 585ms
+2026-09-14T02:37:03.1965677Z Received 65028 of 65028 (100.0%), 0.3 MBs/sec
+2026-09-14T02:37:03.1966125Z Cache Size: ~0 MB (65028 B)
+2026-09-14T02:37:03.1999438Z [command]/usr/bin/tar -xf /home/runner/work/_temp/23f3953d-9239-470a-8d65-4a3f6043fde7/cache.tzst -P -C /home/runner/work/HyperPods/HyperPods --use-compress-program unzstd
+2026-09-14T02:37:03.2125431Z Cache restored successfully
+2026-09-14T02:37:03.2159229Z Restored cache entry with key gradle-instrumented-jars-v1-81ec5289b336c8d4cb08133edd931048 to /home/runner/.gradle/caches/jars-*/*/ in 794ms
+2026-09-14T02:37:03.4613513Z Received 110662 of 110662 (100.0%), 0.2 MBs/sec
+2026-09-14T02:37:03.4613971Z Cache Size: ~0 MB (110662 B)
+2026-09-14T02:37:03.4626020Z [command]/usr/bin/tar -xf /home/runner/work/_temp/778b5758-15f3-4194-83eb-33c9a8875480/cache.tzst -P -C /home/runner/work/HyperPods/HyperPods --use-compress-program unzstd
+2026-09-14T02:37:03.4796807Z Cache restored successfully
+2026-09-14T02:37:03.4798098Z Restored cache entry with key gradle-groovy-dsl-v1-df5fe44a7cab44426849d0c4a38a3c50 to /home/runner/.gradle/caches/*/groovy-dsl/*/ in 1058ms
+2026-09-14T02:37:03.9539761Z Received 0 of 41895870 (0.0%), 0.0 MBs/sec
+2026-09-14T02:37:03.9633659Z Received 0 of 190162264 (0.0%), 0.0 MBs/sec
+2026-09-14T02:37:03.9825641Z Received 0 of 349700637 (0.0%), 0.0 MBs/sec
+2026-09-14T02:37:03.9990666Z Received 0 of 137171855 (0.0%), 0.0 MBs/sec
+2026-09-14T02:37:04.3719019Z Received 41895870 of 41895870 (100.0%), 28.2 MBs/sec
+2026-09-14T02:37:04.3719445Z Cache Size: ~40 MB (41895870 B)
+2026-09-14T02:37:04.3825568Z [command]/usr/bin/tar -xf /home/runner/work/_temp/fbca9169-a99f-4cee-a52a-6534dbb0d644/cache.tzst -P -C /home/runner/work/HyperPods/HyperPods --use-compress-program unzstd
+2026-09-14T02:37:04.6169623Z Cache restored successfully
+2026-09-14T02:37:04.6262931Z Restored cache entry with key gradle-generated-gradle-jars-v1-8e79c31f3eb4e570a88142dd102a0a2f to /home/runner/.gradle/caches/9.4.1/generated-gradle-jars/gradle-api-9.4.1.jar in 2206ms
+2026-09-14T02:37:04.9618805Z Received 113246208 of 190162264 (59.6%), 54.0 MBs/sec
+2026-09-14T02:37:04.9825930Z Received 83886080 of 349700637 (24.0%), 40.0 MBs/sec
+2026-09-14T02:37:04.9965163Z Received 88080384 of 137171855 (64.2%), 42.0 MBs/sec
+2026-09-14T02:37:05.9116229Z Received 137171855 of 137171855 (100.0%), 44.9 MBs/sec
+2026-09-14T02:37:05.9117724Z Cache Size: ~131 MB (137171855 B)
+2026-09-14T02:37:05.9233479Z [command]/usr/bin/tar -xf /home/runner/work/_temp/7efaa643-79c5-43fe-a43c-3b085e3386a0/cache.tzst -P -C /home/runner/work/HyperPods/HyperPods --use-compress-program unzstd
+2026-09-14T02:37:05.9619619Z Received 185967960 of 190162264 (97.8%), 59.1 MBs/sec
+2026-09-14T02:37:05.9832647Z Received 130023424 of 349700637 (37.2%), 41.3 MBs/sec
+2026-09-14T02:37:06.0733820Z Cache restored successfully
+2026-09-14T02:37:06.0794859Z Restored cache entry with key gradle-wrapper-zips-v1-9db0835d029c62b1a3d29bf9e5532cf5 to /home/runner/.gradle/wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj in 3658ms
+2026-09-14T02:37:06.8723102Z Received 190162264 of 190162264 (100.0%), 46.4 MBs/sec
+2026-09-14T02:37:06.8725023Z Cache Size: ~181 MB (190162264 B)
+2026-09-14T02:37:06.8756570Z [command]/usr/bin/tar -xf /home/runner/work/_temp/5056f0cf-1782-4fed-9b7a-14dfd9da10fd/cache.tzst -P -C /home/runner/work/HyperPods/HyperPods --use-compress-program unzstd
+2026-09-14T02:37:06.9829276Z Received 205520896 of 349700637 (58.8%), 49.0 MBs/sec
+2026-09-14T02:37:07.9616838Z Cache restored successfully
+2026-09-14T02:37:07.9693250Z Restored cache entry with key gradle-transforms-v1-e0321aeb9dee4c87eb20229c440e493b to /home/runner/.gradle/caches/transforms-4/*/,/home/runner/.gradle/caches/*/transforms/*/ in 5547ms
+2026-09-14T02:37:07.9824174Z Received 268435456 of 349700637 (76.8%), 51.2 MBs/sec
+2026-09-14T02:37:08.9835718Z Received 341312029 of 349700637 (97.6%), 54.2 MBs/sec
+2026-09-14T02:37:09.6334415Z Received 349700637 of 349700637 (100.0%), 50.2 MBs/sec
+2026-09-14T02:37:09.6363124Z Cache Size: ~334 MB (349700637 B)
+2026-09-14T02:37:09.6424900Z [command]/usr/bin/tar -xf /home/runner/work/_temp/9bc612bf-8ab1-45ca-b86b-b0b3282bea74/cache.tzst -P -C /home/runner/work/HyperPods/HyperPods --use-compress-program unzstd
+2026-09-14T02:37:10.0465200Z Cache restored successfully
+2026-09-14T02:37:10.0603990Z Restored cache entry with key gradle-dependencies-v1-58ea499d0582df0fc159cd5ea35814fa to /home/runner/.gradle/caches/modules-*/files-*/*/*/*/* in 7639ms
+2026-09-14T02:37:10.1391915Z ##[endgroup]
+2026-09-14T02:37:10.1448985Z ##[group]All Gradle Wrapper jars are valid
+2026-09-14T02:37:10.1449856Z ✓ Found known Gradle Wrapper JAR files:
+2026-09-14T02:37:10.1450355Z   cb0da6751c2b753a16ac168bb354870ebb1e162e9083f116729cec9c781156b8 gradle/wrapper/gradle-wrapper.jar
+2026-09-14T02:37:10.1450966Z ##[endgroup]
+2026-09-14T02:37:10.2505888Z ##[group]Run chmod +x gradlew
+2026-09-14T02:37:10.2506144Z [36;1mchmod +x gradlew[0m
+2026-09-14T02:37:10.2540268Z shell: /usr/bin/bash -e {0}
+2026-09-14T02:37:10.2540507Z env:
+2026-09-14T02:37:10.2540752Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/22.0.2-9/x64
+2026-09-14T02:37:10.2541069Z   JAVA_HOME_22_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/22.0.2-9/x64
+2026-09-14T02:37:10.2541351Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-09-14T02:37:10.2541580Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-09-14T02:37:10.2541779Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-09-14T02:37:10.2541977Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-09-14T02:37:10.2542515Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-09-14T02:37:10.2542855Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-09-14T02:37:10.2543069Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-09-14T02:37:10.2543251Z ##[endgroup]
+2026-09-14T02:37:10.3273162Z ##[group]Run ./gradlew :app:assembleRelease
+2026-09-14T02:37:10.3273422Z [36;1m./gradlew :app:assembleRelease[0m
+2026-09-14T02:37:10.3304028Z shell: /usr/bin/bash -e {0}
+2026-09-14T02:37:10.3304200Z env:
+2026-09-14T02:37:10.3304404Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/22.0.2-9/x64
+2026-09-14T02:37:10.3304709Z   JAVA_HOME_22_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/22.0.2-9/x64
+2026-09-14T02:37:10.3304972Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-09-14T02:37:10.3305179Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-09-14T02:37:10.3305375Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-09-14T02:37:10.3305574Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-09-14T02:37:10.3305856Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-09-14T02:37:10.3306167Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-09-14T02:37:10.3306390Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-09-14T02:37:10.3306603Z ##[endgroup]
+2026-09-14T02:37:11.0768817Z Starting a Gradle Daemon (subsequent builds will be faster)
+2026-09-14T02:37:14.4772162Z Type-safe project accessors is an incubating feature.
+2026-09-14T02:37:17.4762723Z 
+2026-09-14T02:37:17.4764727Z > Configure project :app
+2026-09-14T02:37:17.4765192Z Apksign fallbacks to use debug singature as null does not exist
+2026-09-14T02:37:22.8794004Z WARNING: We recommend using a newer Android Gradle plugin to use compile SDK version 37.0
+2026-09-14T02:37:22.8814392Z 
+2026-09-14T02:37:22.8843329Z This Android Gradle plugin (9.1.0) was tested up to compile SDK version 36.1.
+2026-09-14T02:37:22.8844214Z 
+2026-09-14T02:37:22.8844616Z You are strongly encouraged to update your project to use a newer
+2026-09-14T02:37:22.8845209Z Android Gradle plugin that has been tested with compile SDK version 37.0.
+2026-09-14T02:37:22.8847136Z 
+2026-09-14T02:37:22.8847444Z If you are already using the latest version of the Android Gradle plugin,
+2026-09-14T02:37:22.8848068Z you may need to wait until a newer version with support for compile SDK version 37.0 is available.
+2026-09-14T02:37:22.8848530Z 
+2026-09-14T02:37:22.8848753Z For more information refer to the compatibility table:
+2026-09-14T02:37:22.8849231Z https://d.android.com/r/tools/api-level-support
+2026-09-14T02:37:22.8849555Z 
+2026-09-14T02:37:22.8849744Z To suppress this warning, add/update
+2026-09-14T02:37:22.8850150Z     android.suppressUnsupportedCompileSdk=37.0
+2026-09-14T02:37:22.8850569Z to this project's gradle.properties.
+2026-09-14T02:37:23.1761706Z 
+2026-09-14T02:37:23.1762919Z > Task :app:preBuild UP-TO-DATE
+2026-09-14T02:37:23.1763381Z > Task :app:preReleaseBuild UP-TO-DATE
+2026-09-14T02:37:23.3786662Z > Task :app:mergeReleaseJniLibFolders
+2026-09-14T02:37:23.6783719Z > Task :app:mergeReleaseNativeLibs
+2026-09-14T02:37:23.7788670Z > Task :app:checkReleaseDuplicateClasses
+2026-09-14T02:37:23.7813501Z > Task :app:generateReleaseBuildConfig
+2026-09-14T02:37:23.7843238Z > Task :app:generateReleaseResources
+2026-09-14T02:37:23.9761430Z > Task :app:packageReleaseResources
+2026-09-14T02:37:24.4769678Z > Task :app:stripReleaseDebugSymbols
+2026-09-14T02:37:24.4804293Z > Task :app:processReleaseNavigationResources
+2026-09-14T02:37:24.5762468Z > Task :app:extractReleaseNativeSymbolTables
+2026-09-14T02:37:26.4793311Z > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+2026-09-14T02:37:26.4796893Z > Task :app:javaPreCompileRelease
+2026-09-14T02:37:26.5769441Z > Task :app:mergeReleaseArtProfile
+2026-09-14T02:37:26.5776018Z > Task :app:parseReleaseLocalResources
+2026-09-14T02:37:26.5776617Z > Task :app:checkReleaseAarMetadata
+2026-09-14T02:37:26.5778709Z > Task :app:mapReleaseSourceSetPaths
+2026-09-14T02:37:26.6762686Z > Task :app:compileReleaseNavigationResources
+2026-09-14T02:37:26.6774764Z > Task :app:generateReleaseRFile
+2026-09-14T02:37:27.7773436Z > Task :app:createReleaseCompatibleScreenManifests
+2026-09-14T02:37:27.7802924Z > Task :app:extractDeepLinksRelease
+2026-09-14T02:37:27.9773257Z > Task :app:mergeReleaseResources
+2026-09-14T02:37:28.0766432Z 
+2026-09-14T02:37:28.0823380Z > Task :app:processReleaseMainManifest
+2026-09-14T02:37:28.0823998Z /home/runner/work/HyperPods/HyperPods/app/src/main/AndroidManifest.xml:15:9-42 Warning:
+2026-09-14T02:37:28.0824851Z 	android:extractNativeLibs should not be specified in this source AndroidManifest.xml file. See https://d.android.com/guide/topics/manifest/application-element#extractNativeLibs for more information.
+2026-09-14T02:37:28.0825796Z The AGP Upgrade Assistant can remove the attribute from the AndroidManifest.xml file and update the build file accordingly. See https://d.android.com/studio/build/agp-upgrade-assistant for more information.
+2026-09-14T02:37:28.1792763Z 
+2026-09-14T02:37:28.1844517Z > Task :app:processReleaseManifest
+2026-09-14T02:37:28.1889433Z > Task :app:extractProguardFiles
+2026-09-14T02:37:28.1935446Z > Task :app:mergeReleaseStartupProfile
+2026-09-14T02:37:28.1940196Z > Task :app:generateReleaseAssets UP-TO-DATE
+2026-09-14T02:37:28.2833592Z > Task :app:mergeReleaseAssets
+2026-09-14T02:37:28.2851369Z > Task :app:processReleaseManifestForPackage
+2026-09-14T02:37:28.3835661Z > Task :app:compressReleaseAssets
+2026-09-14T02:37:28.4783759Z > Task :app:extractReleaseVersionControlInfo
+2026-09-14T02:37:28.6773635Z > Task :app:processReleaseResources
+2026-09-14T02:37:29.2775738Z > Task :app:validateSigningRelease
+2026-09-14T02:37:29.2803445Z > Task :app:writeReleaseAppMetadata
+2026-09-14T02:37:29.3773518Z > Task :app:writeReleaseSigningConfigVersions
+2026-09-14T02:37:42.0776310Z e: file:///home/runner/work/HyperPods/HyperPods/app/src/main/java/com/chenyc/hyperpods/pods/moondrop/MoondropController.kt:355:81 Unresolved reference 'toPayload'.
+2026-09-14T02:37:42.0776979Z 
+2026-09-14T02:37:42.0780361Z e: file:///home/runner/work/HyperPods/HyperPods/app/src/main/java/com/chenyc/hyperpods/pods/moondrop/MoondropController.kt:382:13 Modifier 'companion' is not applicable inside 'standalone object'.
+2026-09-14T02:37:42.0781225Z > Task :app:compileReleaseKotlin FAILED
+2026-09-14T02:37:42.0782511Z e: file:///home/runner/work/HyperPods/HyperPods/app/src/main/java/com/chenyc/hyperpods/pods/moondrop/MoondropController.kt:384:58 Variable 'PKG_APP' must be initialized.
+2026-09-14T02:37:42.0783438Z 
+2026-09-14T02:37:42.0784746Z gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1789353433362.json
+2026-09-14T02:37:42.0785683Z 32 actionable tasks: 32 executed
+2026-09-14T02:37:42.0833576Z FAILURE: Build failed with an exception.
+2026-09-14T02:37:42.0833910Z 
+2026-09-14T02:37:42.0834024Z * What went wrong:
+2026-09-14T02:37:42.0834360Z Execution failed for task ':app:compileReleaseKotlin'.
+2026-09-14T02:37:42.0834983Z > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
+2026-09-14T02:37:42.0835542Z    > Compilation error. See log for more details
+2026-09-14T02:37:42.0835755Z 
+2026-09-14T02:37:42.0835847Z * Try:
+2026-09-14T02:37:42.0836148Z > Run with --stacktrace option to get the stack trace.
+2026-09-14T02:37:42.0836955Z > Run with --info or --debug option to get more log output.
+2026-09-14T02:37:42.0837416Z > Run with --scan to get full insights from a Build Scan (powered by Develocity).
+2026-09-14T02:37:42.0837853Z > Get more help at https://help.gradle.org.
+2026-09-14T02:37:42.0838063Z 
+2026-09-14T02:37:42.0838161Z BUILD FAILED in 31s
+2026-09-14T02:37:42.5234252Z ##[error]Process completed with exit code 1.
+2026-09-14T02:37:42.5344870Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-14T02:37:42.5345561Z Post job cleanup.
+2026-09-14T02:37:42.6941275Z In post-action step
+2026-09-14T02:37:42.6948407Z ##[group]Stopping Gradle daemons
+2026-09-14T02:37:42.6948897Z Stopping Gradle daemons for /home/runner/.gradle/wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj/gradle-9.4.1
+2026-09-14T02:37:42.6960225Z [command]/home/runner/.gradle/wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj/gradle-9.4.1/bin/gradle --stop
+2026-09-14T02:37:43.1659252Z Stopping Daemon(s)
+2026-09-14T02:37:43.1661158Z 1 Daemon stopped
+2026-09-14T02:37:43.1739048Z ##[endgroup]
+2026-09-14T02:37:43.1739464Z Not performing cache-cleanup due to build failure
+2026-09-14T02:37:43.1740280Z ##[group]Caching Gradle state
+2026-09-14T02:37:44.1973783Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/HyperPods/HyperPods --files-from manifest.txt --use-compress-program zstdmt
+2026-09-14T02:37:45.4820508Z Sent 3649868 of 3649868 (100.0%), 3.7 MBs/sec
+2026-09-14T02:37:45.7604294Z Saved cache entry with key gradle-home-v1|Linux-X64|build[c4346d2f90cb10f39259e32865a43598]-5e6949f7320ede5121c229c3bc90bd30abcbcab1 from /home/runner/.gradle/caches,/home/runner/.gradle/notifications,/home/runner/.gradle/.setup-gradle in 1574ms
+2026-09-14T02:37:45.7605094Z ##[endgroup]
+2026-09-14T02:37:45.7608570Z Generating Job Summary
+2026-09-14T02:37:45.7616629Z Completed post-action step
+2026-09-14T02:37:45.7766662Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-14T02:37:45.7767385Z Post job cleanup.
+2026-09-14T02:37:45.8686505Z (node:2502) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-14T02:37:45.8687295Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-14T02:37:45.8900190Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-14T02:37:45.8901360Z Post job cleanup.
+2026-09-14T02:37:45.9511805Z [command]/usr/bin/git version
+2026-09-14T02:37:45.9545100Z git version 2.55.0
+2026-09-14T02:37:45.9569491Z Temporarily overriding HOME='/home/runner/work/_temp/6f612b64-b3b1-4e20-a9a9-b1681bf09513' before making global git config changes
+2026-09-14T02:37:45.9570311Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-14T02:37:45.9583735Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/HyperPods/HyperPods
+2026-09-14T02:37:45.9619421Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-14T02:37:45.9650958Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-14T02:37:45.9913758Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-14T02:37:45.9954969Z http.https://github.com/.extraheader
+2026-09-14T02:37:45.9970309Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-09-14T02:37:46.0014930Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-14T02:37:46.0264564Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-14T02:37:46.0301740Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-14T02:37:46.0609988Z Cleaning up orphan processes
+2026-09-14T02:37:46.0808431Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-java@v4, gradle/actions/setup-gradle@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

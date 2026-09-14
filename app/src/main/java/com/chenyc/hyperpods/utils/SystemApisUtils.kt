@@ -1,7 +1,6 @@
 package com.chenyc.hyperpods.utils
 
 import android.app.Notification
-import android.content.Context
 import android.app.NotificationManager
 import android.app.StatusBarManager
 import android.bluetooth.BluetoothDevice
@@ -33,19 +32,6 @@ object SystemApisUtils {
     val BluetoothDevice.METADATA_MAIN_CHARGING: Int get() = 19
 
     const val BATTERY_LEVEL_UNKNOWN: Int = -1
-
-    /**
-     * 被注入进程里的 Application。
-     *
-     * 「模块后装、耳机已经连着」的补扫需要它：那条路拿不到任何 Service 实例，
-     * 只能从 ActivityThread 取；拿不到就返回 null，调用方自行降级。
-     */
-    fun currentApplication(): Context? = runCatching {
-        val cls = Class.forName("android.app.ActivityThread")
-        val method = cls.getDeclaredMethod("currentApplication")
-        method.isAccessible = true
-        method.invoke(null) as? Context
-    }.getOrNull()
 
     fun getUserAllUserHandle(): UserHandle {
         return UserHandle::class.java.getDeclaredField("ALL").apply { isAccessible = true }.get(null) as UserHandle

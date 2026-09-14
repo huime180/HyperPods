@@ -1,8 +1,5 @@
 package com.chenyc.hyperpods.pods
 
-import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
-
 /**
  * OPPO earphone RFCOMM protocol packet definitions.
  *
@@ -12,71 +9,30 @@ import kotlinx.parcelize.Parcelize
 
 object OppoPackets {
 
-    private var seqCounter: Int = 0x01
-
-    private fun nextSeq(): Int {
-        val seq = seqCounter
-        seqCounter = if (seqCounter >= 0xFE) 0x01 else seqCounter + 1
-        return seq
-    }
-
-    /** Build a complete OPPO protocol packet with auto-incrementing seq. */
-    fun buildPacket(cmd: Int, seq: Int = nextSeq(), payload: ByteArray = byteArrayOf()): ByteArray {
+    /** Build a complete OPPO protocol packet. */
+    fun buildPacket(cmd: Int, seq: Int = 0xF0, payload: ByteArray = byteArrayOf()): ByteArray {
         val payLen = payload.size
+        // TotalLen = 7 (header fields after TotalLen: Res(2) + Cmd(2) + Seq(1) + PayLen(2)) + payLen
         val totalLen = 7 + payLen
-        val packet = ByteArray(2 + totalLen)
-        packet[0] = 0xAA.toByte()
-        packet[1] = totalLen.toByte()
-        packet[2] = 0x00
-        packet[3] = 0x00
-        packet[4] = (cmd and 0xFF).toByte()
-        packet[5] = ((cmd shr 8) and 0xFF).toByte()
-        packet[6] = seq.toByte()
-        packet[7] = (payLen and 0xFF).toByte()
-        packet[8] = ((payLen shr 8) and 0xFF).toByte()
+        val packet = ByteArray(2 + totalLen) // Header(1) + TotalLen(1) + rest
+        packet[0] = 0xAA.toByte()           // Header
+        packet[1] = totalLen.toByte()        // TotalLen
+        packet[2] = 0x00                     // Res byte 1
+        packet[3] = 0x00                     // Res byte 2
+        packet[4] = (cmd and 0xFF).toByte()          // Cmd low byte
+        packet[5] = ((cmd shr 8) and 0xFF).toByte()  // Cmd high byte
+        packet[6] = seq.toByte()             // Seq
+        packet[7] = (payLen and 0xFF).toByte()        // PayLen low byte
+        packet[8] = ((payLen shr 8) and 0xFF).toByte() // PayLen high byte
         payload.copyInto(packet, 9)
         return packet
     }
 
-    /** Build with fixed seq (for seed profile packets that need deterministic output). */
-    fun buildPacketFixedSeq(cmd: Int, seq: Int = 0xF0, payload: ByteArray = byteArrayOf()): ByteArray {
-        val payLen = payload.size
-        val totalLen = 7 + payLen
-        val packet = ByteArray(2 + totalLen)
-        packet[0] = 0xAA.toByte()
-        packet[1] = totalLen.toByte()
-        packet[2] = 0x00
-        packet[3] = 0x00
-        packet[4] = (cmd and 0xFF).toByte()
-        packet[5] = ((cmd shr 8) and 0xFF).toByte()
-        packet[6] = seq.toByte()
-        packet[7] = (payLen and 0xFF).toByte()
-        packet[8] = ((payLen shr 8) and 0xFF).toByte()
-        payload.copyInto(packet, 9)
-        return packet
-    }
-
-    /** Handshake (query remote capability): 0x0100 */
-    fun buildHandshake(): ByteArray = buildPacket(Cmd.HANDSHAKE)
-
-    /** Query notification capability: 0x0200 */
-    fun buildQueryBroadcastCodes(): ByteArray = buildPacket(Cmd.QUERY_BROADCAST_CODES)
-
-    /** Query product id (getRemotePID): 0x0103 */
     fun buildQueryProductId(): ByteArray = buildPacket(Cmd.QUERY_PRODUCT_ID)
 
-    /** Query the currently selected EQ preset: 0x010F */
-    fun buildQueryEqualizer(): ByteArray = buildPacket(Cmd.QUERY_EQ)
-
-    /** Query all device-side EQ entries, including custom presets: 0x0122 */
     fun buildQueryAllEqualizers(): ByteArray =
         buildPacket(Cmd.QUERY_EQ_ALL, payload = byteArrayOf(0x01, 0x05))
 
-    /** Select an EQ preset by its device protocol index: 0x0406 */
-    fun buildSetEqualizer(id: Int): ByteArray =
-        buildPacket(Cmd.SET_EQ_PRESET, payload = byteArrayOf(id.toByte()))
-
-    /** Create or update a custom EQ entry: 0x0418. */
     fun buildSaveEqualizer(
         id: Int,
         name: String,
@@ -87,42 +43,31 @@ object OppoPackets {
     ): ByteArray = buildPacket(
         Cmd.SET_EQ_DETAIL,
         payload = buildEqDetailPayload(
-            actionType = if (id > 0) 2 else 1,
-            id = id,
-            name = name,
-            frequencies = frequencies,
-            gains = gains,
-            minValue = minValue,
-            maxValue = maxValue,
+            if (id > 0) 2 else 1,
+            id,
+            name,
+            frequencies,
+            gains,
+            minValue,
+            maxValue,
         ),
     )
 
-    /** Delete a custom EQ entry: 0x0418 actionType=3. */
     fun buildDeleteEqualizer(entry: EqDevicePreset): ByteArray = buildPacket(
         Cmd.SET_EQ_DETAIL,
         payload = buildEqDetailPayload(
-            actionType = 3,
-            id = entry.id,
-            name = entry.name,
-            frequencies = entry.frequencies,
-            gains = entry.gains,
-            minValue = entry.minValue,
-            maxValue = entry.maxValue,
+            3,
+            entry.id,
+            entry.name,
+            entry.frequencies,
+            entry.gains,
+            entry.minValue,
+            entry.maxValue,
         ),
     )
 
-    /** Minimal delete payload used when the device did not return full EQ details. */
-    fun buildDeleteEqualizer(id: Int): ByteArray = buildPacket(
-        Cmd.SET_EQ_DETAIL,
-        payload = byteArrayOf(0x03, 0xFA.toByte(), 0x06, id.toByte(), 0x00),
-    )
-
-    /**
-     * Official Melody EqInfo payload:
-     * [action][min][max][eqId][nameLength][name UTF-8][count][freq LE uint16][gain signed byte]...
-     */
     private fun buildEqDetailPayload(
-        actionType: Int,
+        action: Int,
         id: Int,
         name: String,
         frequencies: List<Int>,
@@ -130,91 +75,75 @@ object OppoPackets {
         minValue: Int,
         maxValue: Int,
     ): ByteArray {
-        val safeFrequencies = (frequencies.ifEmpty { EqDefaults.FREQUENCIES }).take(32)
-        val count = safeFrequencies.size.coerceAtLeast(1)
+        val safeFrequencies = frequencies.ifEmpty { EqDefaults.FREQUENCIES }.take(32)
         val nameBytes = name.toByteArray(Charsets.UTF_8).take(255).toByteArray()
-        val safeMinValue = minValue.coerceAtMost(maxValue).coerceIn(-128, 127)
-        val safeMaxValue = maxValue.coerceAtLeast(safeMinValue).coerceIn(-128, 127)
-        val payload = ByteArray(6 + nameBytes.size + count * 3)
-        payload[0] = actionType.coerceIn(1, 3).toByte()
-        payload[1] = safeMinValue.toByte()
-        payload[2] = safeMaxValue.toByte()
+        val lower = minValue.coerceAtMost(maxValue).coerceIn(-128, 127)
+        val upper = maxValue.coerceAtLeast(lower).coerceIn(-128, 127)
+        val payload = ByteArray(6 + nameBytes.size + safeFrequencies.size * 3)
+        payload[0] = action.coerceIn(1, 3).toByte()
+        payload[1] = lower.toByte()
+        payload[2] = upper.toByte()
         payload[3] = id.coerceIn(0, 255).toByte()
         payload[4] = nameBytes.size.toByte()
         nameBytes.copyInto(payload, 5)
-        payload[5 + nameBytes.size] = count.toByte()
-        for (index in 0 until count) {
+        payload[5 + nameBytes.size] = safeFrequencies.size.toByte()
+        safeFrequencies.forEachIndexed { index, frequency ->
             val offset = 6 + nameBytes.size + index * 3
-            val frequency = safeFrequencies[index].coerceIn(0, 0xFFFF)
-            payload[offset] = frequency.toByte()
-            payload[offset + 1] = (frequency shr 8).toByte()
-            val gain = gains.getOrNull(index) ?: 0
-            payload[offset + 2] = gain.coerceIn(safeMinValue, safeMaxValue).toByte()
+            val value = frequency.coerceIn(0, 0xFFFF)
+            payload[offset] = value.toByte()
+            payload[offset + 1] = (value shr 8).toByte()
+            payload[offset + 2] = (gains.getOrNull(index) ?: 0).coerceIn(lower, upper).toByte()
         }
         return payload
     }
-
-    /** Subscribe to notification events: 0x0205 */
-    fun buildSubscribeBroadcast(codes: List<Int>): ByteArray {
-        val payload = byteArrayOf(codes.size.toByte()) + codes.map { it.toByte() }.toByteArray()
-        return buildPacket(Cmd.SUBSCRIBE_BROADCAST, payload = payload)
-    }
 }
 
-class OppoPacketFramer {
-    private var pending = ByteArray(0)
-
-    fun append(buffer: ByteArray, length: Int): List<ByteArray> {
-        if (length <= 0) return emptyList()
-
-        pending += buffer.copyOfRange(0, length)
-        val frames = mutableListOf<ByteArray>()
-
-        while (pending.isNotEmpty()) {
-            val start = pending.indexOf(OPPO_PACKET_HEADER)
-            if (start < 0) {
-                pending = ByteArray(0)
-                break
-            }
-            if (start > 0) {
-                pending = pending.copyOfRange(start, pending.size)
-            }
-            if (pending.size < 2) break
-
-            val totalLen = pending[1].toInt() and 0xFF
-            val frameLen = totalLen + 2
-            if (totalLen < OPPO_PACKET_MIN_TOTAL_LEN || frameLen > OPPO_PACKET_MAX_FRAME_LEN) {
-                pending = pending.copyOfRange(1, pending.size)
-                continue
-            }
-            if (pending.size < frameLen) break
-
-            frames += pending.copyOfRange(0, frameLen)
-            pending = pending.copyOfRange(frameLen, pending.size)
-        }
-
-        return frames
-    }
-
-    companion object {
-        private val OPPO_PACKET_HEADER = 0xAA.toByte()
-        private const val OPPO_PACKET_MIN_TOTAL_LEN = 7
-        private const val OPPO_PACKET_MAX_FRAME_LEN = 512
-    }
-}
-
-/** ANC mode values for OPPO earphones (used in SET commands). */
+/**
+ * ANC mode values for OPPO earphones (used in SET commands).
+ * OPPO payload is 01 01 [value], except Adaptive which uses 01 01 00 08.
+ */
 object AncMode {
     const val OFF = 0x01
     const val NOISE_CANCELLATION = 0x02
+    // ANC intensity payloads from OPPO captures: Smart/Light/Medium/Deep.
+    const val NOISE_CANCELLATION_SMART = 0x80
+    const val NOISE_CANCELLATION_LIGHT = 0x40
+    const val NOISE_CANCELLATION_MEDIUM = 0x20
+    const val NOISE_CANCELLATION_DEEP = 0x10
     const val TRANSPARENCY = 0x04
     const val ADAPTIVE_HIGH = 0x00
     const val ADAPTIVE_LOW = 0x08
 }
 
+/** ANC protocol implementation variant. */
+enum class AncImplementation {
+    /** Standard: 0x01=Off, 0x02=NC. */
+    STANDARD,
+    /** Compatible: 0x01=NC, 0x02=Off. Used by some older devices. */
+    COMPATIBLE;
+}
+
 /** Noise control mode enum for UI. */
 enum class NoiseControlMode {
-    OFF, NOISE_CANCELLATION, ADAPTIVE, TRANSPARENCY
+    OFF,
+    NOISE_CANCELLATION,
+    NOISE_CANCELLATION_SMART,
+    NOISE_CANCELLATION_LIGHT,
+    NOISE_CANCELLATION_MEDIUM,
+    NOISE_CANCELLATION_DEEP,
+    ADAPTIVE,
+    TRANSPARENCY
+}
+
+fun NoiseControlMode.isNoiseCancellation(): Boolean {
+    return when (this) {
+        NoiseControlMode.NOISE_CANCELLATION,
+        NoiseControlMode.NOISE_CANCELLATION_SMART,
+        NoiseControlMode.NOISE_CANCELLATION_LIGHT,
+        NoiseControlMode.NOISE_CANCELLATION_MEDIUM,
+        NoiseControlMode.NOISE_CANCELLATION_DEEP -> true
+        else -> false
+    }
 }
 
 /** Battery component index in response payload. */
@@ -224,17 +153,36 @@ object BatteryComponent {
     const val CASE = 3
 }
 
+/** Wearing-detection component/status values in active reports. */
+object WearComponent {
+    const val LEFT = 1
+    const val RIGHT = 2
+    const val CASE = 3
+}
+
+enum class WearState(val value: Int) {
+    DISCONNECTED(0x00),
+    IN_CASE(0x04),
+    REMOVED(0x05),
+    WEARING(0x07);
+
+    companion object {
+        fun fromValue(value: Int): WearState? = entries.firstOrNull { it.value == value }
+    }
+}
+
+data class WearStatus(
+    val left: WearState? = null,
+    val right: WearState? = null,
+    val case: WearState? = null
+)
+
 /** Feature IDs used by the switch-feature command/query. */
 object GameModeFeature {
     const val LOW_LATENCY = 0x06
+    const val DUAL_DEVICE_CONNECTION = 0x11
+    const val FREE4_SPATIAL_SOUND = 0x1B
     const val MAIN = 0x28
-}
-
-/** Batch status query parameter IDs (0x810D response). */
-object BatchParamId {
-    const val AUTO_PLAY_PAUSE = 0x04
-    const val DUAL_DEVICE = 0x11
-    const val SPATIAL_SOUND = 0x1B
 }
 
 /** Spatial audio mode values. */
@@ -246,24 +194,12 @@ object SpatialAudioMode {
 
 /** Protocol command codes. */
 object Cmd {
-    /** Query product id (getRemotePID) */
+    /** Query product id (getRemotePID). */
     const val QUERY_PRODUCT_ID = 0x0103
-    /** Product id response */
+    /** Product id response. */
     const val PRODUCT_ID_RESPONSE = 0x8103
-    /** Set EQ preset */
-    const val SET_EQ_PRESET = 0x0406
-    /** Query current EQ preset */
-    const val QUERY_EQ = 0x010F
-    /** Current EQ preset response */
-    const val EQ_RESPONSE = 0x810F
-    /** EQ preset change notification */
-    const val EQ_NOTIFY = 0x0504
-    /** Query all device-side EQ entries */
     const val QUERY_EQ_ALL = 0x0122
-    /** Create/update/delete custom EQ details */
     const val SET_EQ_DETAIL = 0x0418
-    /** Custom EQ detail command response */
-    const val SET_EQ_DETAIL_RESPONSE = 0x8418
     /** Set ANC mode */
     const val SET_ANC = 0x0404
     /** Set game mode */
@@ -288,20 +224,225 @@ object Cmd {
     const val SET_GAME_MODE_RESPONSE = 0x8403
     /** Spatial audio mode response */
     const val SET_SPATIAL_AUDIO_RESPONSE = 0x8422
+    /** Set spatial sound switch response */
+    const val SET_SPATIAL_SOUND_SWITCH_RESPONSE = 0x8403
     /** Spatial audio mode notification */
     const val SPATIAL_AUDIO_NOTIFY = 0x0510
-    /** Query remote capability (handshake) */
-    const val HANDSHAKE = 0x0100
-    /** Handshake response */
-    const val HANDSHAKE_RESPONSE = 0x8100
-    /** Query notification capability */
-    const val QUERY_BROADCAST_CODES = 0x0200
-    /** Notification capability response */
-    const val BROADCAST_CODES_RESPONSE = 0x8200
-    /** Subscribe to notification events */
-    const val SUBSCRIBE_BROADCAST = 0x0205
-    /** Subscribe response */
-    const val SUBSCRIBE_BROADCAST_RESPONSE = 0x8205
+
+    /** Set master EQ preset ("大师调音"). Payload `[presetId]`. */
+    const val SET_EQ = 0x0406
+    /** Query current EQ preset (no payload). */
+    const val QUERY_EQ_PRESET = 0x010F
+    /** Response to [QUERY_EQ_PRESET]. Payload `[status, preset]`. */
+    const val EQ_PRESET_RESPONSE = 0x810F
+    /** Unsolicited push notification when EQ preset changes. Payload `[preset]`. */
+    const val EQ_PRESET_NOTIFY = 0x0504
+
+    /** Query the bud's supported-notification bitmap (subscribe handshake step 1). */
+    const val QUERY_NOTIFICATION_SUPPORT = 0x0200
+    /** Reply to [QUERY_NOTIFICATION_SUPPORT]: `[status, count, id1, id2, …]`. */
+    const val NOTIFICATION_SUPPORT_RESPONSE = 0x8200
+    /** Subscribe to N notification IDs: payload `[count, id1, id2, …]` (handshake step 2). */
+    const val REGISTER_MULTI_NOTIFICATION = 0x0205
+}
+
+object EqDetailsParser {
+    fun parseAll(data: ByteArray): List<EqDevicePreset>? {
+        if (data.size < 11 || data[0] != 0xAA.toByte()) return null
+        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
+        if (cmd != (Cmd.QUERY_EQ_ALL or 0x8000)) return null
+        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
+        val end = 9 + payLen
+        if (payLen < 2 || data.size < end || data[9].toInt() != 0) return null
+        val count = data[10].toInt() and 0xFF
+        var position = 11
+        val result = mutableListOf<EqDevicePreset>()
+        repeat(count) {
+            if (position + 5 > end) return result
+            val selected = data[position].toInt() != 0
+            val minValue = data[position + 1].toInt()
+            val maxValue = data[position + 2].toInt()
+            val id = data[position + 3].toInt() and 0xFF
+            val nameLength = data[position + 4].toInt() and 0xFF
+            position += 5
+            if (position + nameLength >= end) return result
+            val name = data.copyOfRange(position, position + nameLength).toString(Charsets.UTF_8).trim()
+            position += nameLength
+            val frequencyCount = data[position].toInt() and 0xFF
+            position++
+            if (position + frequencyCount * 3 > end) return result
+            val frequencies = ArrayList<Int>(frequencyCount)
+            val gains = ArrayList<Int>(frequencyCount)
+            repeat(frequencyCount) { index ->
+                val offset = position + index * 3
+                frequencies += (data[offset].toInt() and 0xFF) or
+                    ((data[offset + 1].toInt() and 0xFF) shl 8)
+                gains += data[offset + 2].toInt()
+            }
+            position += frequencyCount * 3
+            result += EqDevicePreset(id, name, selected, minValue, maxValue, frequencies, gains)
+        }
+        return result
+    }
+}
+
+/** Parses the exact six-digit product id returned by command 0x8103. */
+object ProductIdParser {
+    fun parse(data: ByteArray): String? {
+        if (data.size < 13 || data[0] != 0xAA.toByte()) return null
+        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
+        if (cmd != Cmd.PRODUCT_ID_RESPONSE) return null
+        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
+        if (payLen != 4 || data.size < 9 + payLen || data[9].toInt() != 0) return null
+        val id = (data[10].toInt() and 0xFF) or
+            ((data[11].toInt() and 0xFF) shl 8) or
+            ((data[12].toInt() and 0xFF) shl 16)
+        return "%06X".format(id)
+    }
+}
+
+/** Pre-built packets. */
+object Enums {
+    /** Switch to Noise Cancellation: AA 0A 00 00 04 04 00 03 00 01 01 02 */
+    val ANC_NOISE_CANCEL: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC, payload = byteArrayOf(0x01, 0x01, AncMode.NOISE_CANCELLATION.toByte())
+    )
+
+    /** Switch to Smart Noise Cancellation: AA 0A 00 00 04 04 00 03 00 01 01 80 */
+    val ANC_NOISE_CANCEL_SMART: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC, payload = byteArrayOf(0x01, 0x01, AncMode.NOISE_CANCELLATION_SMART.toByte())
+    )
+
+    /** Switch to Light Noise Cancellation: AA 0A 00 00 04 04 00 03 00 01 01 40 */
+    val ANC_NOISE_CANCEL_LIGHT: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC, payload = byteArrayOf(0x01, 0x01, AncMode.NOISE_CANCELLATION_LIGHT.toByte())
+    )
+
+    /** Switch to Medium Noise Cancellation: AA 0A 00 00 04 04 00 03 00 01 01 20 */
+    val ANC_NOISE_CANCEL_MEDIUM: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC, payload = byteArrayOf(0x01, 0x01, AncMode.NOISE_CANCELLATION_MEDIUM.toByte())
+    )
+
+    /** Switch to Deep Noise Cancellation: AA 0A 00 00 04 04 00 03 00 01 01 10 */
+    val ANC_NOISE_CANCEL_DEEP: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC, payload = byteArrayOf(0x01, 0x01, AncMode.NOISE_CANCELLATION_DEEP.toByte())
+    )
+
+    /** Switch to Transparency: AA 0A 00 00 04 04 00 03 00 01 01 04 */
+    val ANC_TRANSPARENCY: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC, payload = byteArrayOf(0x01, 0x01, AncMode.TRANSPARENCY.toByte())
+    )
+
+    /** Enable transparency vocal enhancement: AA 0B 00 00 04 04 57 04 00 01 01 00 02 */
+    val TRANSPARENCY_VOCAL_ENHANCEMENT_ON: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC,
+        seq = 0x57,
+        payload = byteArrayOf(0x01, 0x01, 0x00, 0x02)
+    )
+
+    /** Disable transparency vocal enhancement: AA 0B 00 00 04 04 57 04 00 01 01 00 01 */
+    val TRANSPARENCY_VOCAL_ENHANCEMENT_OFF: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC,
+        seq = 0x57,
+        payload = byteArrayOf(0x01, 0x01, 0x00, 0x01)
+    )
+
+    /** Switch to Off: AA 0A 00 00 04 04 00 03 00 01 01 01 */
+    val ANC_OFF: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC, payload = byteArrayOf(0x01, 0x01, AncMode.OFF.toByte())
+    )
+
+    /** Switch to Adaptive: AA 0B 00 00 04 04 00 04 00 01 01 00 08 */
+    val ANC_ADAPTIVE: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_ANC, payload = byteArrayOf(0x01, 0x01, AncMode.ADAPTIVE_HIGH.toByte(), AncMode.ADAPTIVE_LOW.toByte())
+    )
+
+    /** Query battery: AA 07 00 00 06 01 F0 00 00 */
+    val QUERY_BATTERY: ByteArray = byteArrayOf(
+        0xAA.toByte(), 0x07, 0x00, 0x00, 0x06, 0x01, 0xF0.toByte(), 0x00, 0x00
+    )
+
+    /** Query the bud's supported-notification bitmap. Empty payload. */
+    val QUERY_NOTIFICATION_SUPPORT: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.QUERY_NOTIFICATION_SUPPORT, payload = byteArrayOf()
+    )
+
+    /** Subscribe to the given notification IDs: payload `[count, id1, id2, …]`. */
+    fun registerMultiNotification(ids: ByteArray): ByteArray {
+        val payload = ByteArray(ids.size + 1)
+        payload[0] = ids.size.toByte()
+        ids.copyInto(payload, destinationOffset = 1)
+        return OppoPackets.buildPacket(cmd = Cmd.REGISTER_MULTI_NOTIFICATION, payload = payload)
+    }
+
+    /** Query ANC mode: AA 09 00 00 0C 01 00 02 00 01 01 */
+    val QUERY_ANC: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.QUERY_ANC_MODE, payload = byteArrayOf(0x01, 0x01)
+    )
+
+    /** Enable game mode main switch: AA 09 00 00 03 04 00 02 00 28 01 */
+    val GAME_MODE_ON: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_GAME_MODE, payload = byteArrayOf(GameModeFeature.MAIN.toByte(), 0x01)
+    )
+
+    /** Disable game mode main switch: AA 09 00 00 03 04 00 02 00 28 00 */
+    val GAME_MODE_OFF: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_GAME_MODE, payload = byteArrayOf(GameModeFeature.MAIN.toByte(), 0x00)
+    )
+
+    /** Enable low-latency game mode: AA 09 00 00 03 04 00 02 00 06 01 */
+    val GAME_LOW_LATENCY_ON: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_GAME_MODE, payload = byteArrayOf(GameModeFeature.LOW_LATENCY.toByte(), 0x01)
+    )
+
+    /** Disable low-latency game mode: AA 09 00 00 03 04 00 02 00 06 00 */
+    val GAME_LOW_LATENCY_OFF: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_GAME_MODE, payload = byteArrayOf(GameModeFeature.LOW_LATENCY.toByte(), 0x00)
+    )
+
+    fun gameModePacket(enabled: Boolean, featureId: Int): ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_GAME_MODE,
+        payload = byteArrayOf(featureId.toByte(), if (enabled) 0x01 else 0x00),
+    )
+
+    /** Set spatial audio: AA 08 00 00 22 04 F0 01 00 [mode]. */
+    fun spatialAudioPacket(mode: Int): ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_SPATIAL_AUDIO,
+        payload = byteArrayOf(mode.coerceIn(SpatialAudioMode.OFF, SpatialAudioMode.HEAD_TRACKING).toByte())
+    )
+
+    /** Set master EQ preset. Payload `[presetId]`. */
+    fun eqPresetPacket(presetId: Int): ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_EQ,
+        payload = byteArrayOf(presetId.toByte())
+    )
+
+    /** Query current EQ preset: AA 07 00 00 0F 01 F0 00 00 */
+    val QUERY_EQ: ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.QUERY_EQ_PRESET, payload = byteArrayOf()
+    )
+
+    /** Set spatial sound switch: AA 09 00 00 03 04 F0 02 00 1B [00/01]. */
+    fun spatialSoundSwitchPacket(enabled: Boolean): ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_GAME_MODE,
+        payload = byteArrayOf(GameModeFeature.FREE4_SPATIAL_SOUND.toByte(), if (enabled) 0x01 else 0x00)
+    )
+
+    /** Set dual-device connection: AA 09 00 00 03 04 F0 02 00 11 [00/01]. */
+    fun dualDeviceConnectionPacket(enabled: Boolean): ByteArray = OppoPackets.buildPacket(
+        cmd = Cmd.SET_GAME_MODE,
+        payload = byteArrayOf(GameModeFeature.DUAL_DEVICE_CONNECTION.toByte(), if (enabled) 0x01 else 0x00)
+    )
+
+    /**
+     * Batch parameter query (fixed hex blob).
+     * Cmd=0x010D, contains multiple param IDs including 0x28 (game mode).
+     * Has built-in wake weight, no need for preceding 0x0106.
+     */
+    val QUERY_STATUS: ByteArray = byteArrayOf(
+        0xAA.toByte(), 0x13, 0x00, 0x00, 0x0D, 0x01, 0x00, 0x0C, 0x00,
+        0x0B, 0x05, 0x04, 0x0B, 0x11, 0x13, 0x18, 0x06, 0x1B, 0x1C, 0x27, 0x28
+    )
 }
 
 /**
@@ -424,91 +565,124 @@ object BatteryParser {
     }
 }
 
+object SpatialAudioParser {
+    fun parseModeNotify(packet: ByteArray): Int? {
+        if (packet.size < 10 || packet[0] != 0xAA.toByte()) return null
+        val cmd = (packet[4].toInt() and 0xFF) or ((packet[5].toInt() and 0xFF) shl 8)
+        if (cmd != Cmd.SPATIAL_AUDIO_NOTIFY) return null
+        val payLen = (packet[7].toInt() and 0xFF) or ((packet[8].toInt() and 0xFF) shl 8)
+        if (payLen < 1 || packet.size < 9 + payLen) return null
+        val mode = packet[9].toInt() and 0xFF
+        return mode.takeIf { it in SpatialAudioMode.OFF..SpatialAudioMode.HEAD_TRACKING }
+    }
+
+    fun parseSetResponseStatus(packet: ByteArray): Int? {
+        if (packet.size < 10 || packet[0] != 0xAA.toByte()) return null
+        val cmd = (packet[4].toInt() and 0xFF) or ((packet[5].toInt() and 0xFF) shl 8)
+        if (cmd != Cmd.SET_SPATIAL_AUDIO_RESPONSE) return null
+        val payLen = (packet[7].toInt() and 0xFF) or ((packet[8].toInt() and 0xFF) shl 8)
+        if (payLen < 1 || packet.size < 9 + payLen) return null
+        return packet[9].toInt() and 0xFF
+    }
+
+    fun parseSpatialSoundSwitchSetResponse(packet: ByteArray): Boolean? {
+        if (packet.size < 11 || packet[0] != 0xAA.toByte()) return null
+        val cmd = (packet[4].toInt() and 0xFF) or ((packet[5].toInt() and 0xFF) shl 8)
+        if (cmd != Cmd.SET_SPATIAL_SOUND_SWITCH_RESPONSE) return null
+        val payLen = (packet[7].toInt() and 0xFF) or ((packet[8].toInt() and 0xFF) shl 8)
+        if (payLen < 2 || packet.size < 9 + payLen) return null
+        val feature = packet[9].toInt() and 0xFF
+        if (feature != GameModeFeature.FREE4_SPATIAL_SOUND) return null
+        return when (packet[10].toInt() and 0xFF) {
+            0x00 -> false
+            0x01 -> true
+            else -> null
+        }
+    }
+}
+
+/**
+ * Parser for the EQ preset, handling both:
+ *  - cmd 0x0504 (unsolicited change notification, payload `[preset]`)
+ *  - cmd 0x810F (response to [Cmd.QUERY_EQ_PRESET], payload `[status, preset]`)
+ *
+ * Buds push 0x0504 whenever EQ changes but don't push initial state on connect,
+ * so we query 0x010F at connect time and parse the 0x810F response here.
+ */
+object EqPresetParser {
+    fun parse(data: ByteArray): Int? {
+        if (data.size < 10 || data[0] != 0xAA.toByte()) return null
+        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
+        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
+        return when (cmd) {
+            Cmd.EQ_PRESET_NOTIFY -> {
+                if (payLen < 1) return null
+                data[9].toInt() and 0xFF
+            }
+            Cmd.EQ_PRESET_RESPONSE -> {
+                if (payLen < 2 || data.size < 11) return null
+                // payload[0] = status (0 on success), payload[1] = preset
+                data[10].toInt() and 0xFF
+            }
+            else -> null
+        }
+    }
+}
+
+/** Parser for active wearing-detection reports (Cmd=0x0204, payload type=0x02). */
+object WearStatusParser {
+    fun parse(data: ByteArray): WearStatus? {
+        if (data.size < 9) return null
+        if (data[0] != 0xAA.toByte()) return null
+
+        val cmdLow = data[4].toInt() and 0xFF
+        val cmdHigh = data[5].toInt() and 0xFF
+        val cmd = cmdLow or (cmdHigh shl 8)
+        if (cmd != Cmd.ANC_MODE_NOTIFY) return null
+
+        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
+        val payloadStart = 9
+        if (data.size < payloadStart + payLen || payLen < 2) return null
+
+        val reportType = data[payloadStart].toInt() and 0xFF
+        if (reportType != 0x02) return null
+
+        val count = data[payloadStart + 1].toInt() and 0xFF
+        if (payLen < 2 + count * 2) return null
+
+        var left: WearState? = null
+        var right: WearState? = null
+        var case: WearState? = null
+
+        for (j in 0 until count) {
+            val idx = payloadStart + 2 + j * 2
+            if (idx + 1 >= data.size) break
+            val component = data[idx].toInt() and 0xFF
+            val state = WearState.fromValue(data[idx + 1].toInt() and 0xFF) ?: continue
+            when (component) {
+                WearComponent.LEFT -> left = state
+                WearComponent.RIGHT -> right = state
+                WearComponent.CASE -> case = state
+            }
+        }
+
+        return WearStatus(left, right, case).takeIf {
+            it.left != null || it.right != null || it.case != null
+        }
+    }
+}
+
 /**
  * Parser for OPPO earphone ANC mode response/notification packets.
  *
  * Cmd: 0x810C (mode query response) or 0x0204 (mode change notification)
- * Scan payload for consecutive bytes 01 01 [Val1] [Val2]
- * Val mapping: 0x10 0x00=NC, 0x00 0x01=Transparency, 0x08 0x00=Off, 0x00 0x08=Adaptive
- * For NC mode, Val1 can also be a noise level: 0x80=Smart, 0x40=Light, 0x20=Medium, 0x10=Deep
+ * Scan payload for consecutive bytes 01 01 [Val1] with optional [Val2].
+ * Val mapping: 0x08 0x00=Off, 0x02/0x80/0x40/0x20/0x10 0x00=NC,
+ * 0x00 0x01/0x02=Transparency, 0x00 0x08=Adaptive.
  */
 object AncModeParser {
 
-    data class AncResult(val mode: NoiseControlMode, val noiseLevel: Int? = null)
-
-    /**
-     * 按机型索引表解析。[indexToName] 来自白名单 `noiseReductionMode` 的 protocolIndex，
-     * 回报值是位图（低字节在前），取最低置位的那一位查表。
-     * 表为空时回退到静态字节表 [parse]。
-     */
-    fun parse(
-        data: ByteArray,
-        indexToName: Map<Int, String>,
-        isLegacyAnc: Boolean = false,
-    ): AncResult? {
-        if (indexToName.isEmpty()) return parse(data, isLegacyAnc)
-        val payload = ancPayloadWindow(data) ?: return null
-        val (val1, val2) = payload
-
-        val bitmap = val1 or (val2 shl 8)
-        for (index in 0 until 16) {
-            if ((bitmap and (1 shl index)) == 0) continue
-            val name = indexToName[index] ?: continue
-            val mode = when (name) {
-                AncKeys.OFF -> NoiseControlMode.OFF
-                AncKeys.TRANSPARENCY -> NoiseControlMode.TRANSPARENCY
-                AncKeys.ADAPTIVE -> NoiseControlMode.ADAPTIVE
-                else -> NoiseControlMode.NOISE_CANCELLATION
-            }
-            val level = when (name) {
-                AncKeys.SMART -> NoiseLevel.SMART
-                AncKeys.LIGHT -> NoiseLevel.LIGHT
-                AncKeys.MEDIUM -> NoiseLevel.MEDIUM
-                AncKeys.DEEP -> NoiseLevel.DEEP
-                else -> null
-            }
-            return AncResult(mode, level)
-        }
-        return null
-    }
-
-    /**
-     * 静态字节表解析（白名单未命中时的回退）。
-     * [isLegacyAnc] 为真时交换降噪/通透语义 —— 老机型（NC 落在位图 idx0 且无子模式）
-     * 的位排布与现代机型相反。
-     */
-    @JvmOverloads
-    fun parse(data: ByteArray, isLegacyAnc: Boolean = false): AncResult? {
-        val payload = ancPayloadWindow(data) ?: return null
-        val (val1, val2) = payload
-
-        val result = when {
-            val1 == 0x10 && val2 == 0x00 -> AncResult(NoiseControlMode.NOISE_CANCELLATION)
-            val1 == 0x00 && val2 == 0x01 -> AncResult(NoiseControlMode.TRANSPARENCY)
-            val1 == 0x08 && val2 == 0x00 -> AncResult(NoiseControlMode.OFF)
-            val1 == 0x00 && val2 == 0x08 -> AncResult(NoiseControlMode.ADAPTIVE)
-            val2 == 0x00 && val1 in NoiseLevel.ALL ->
-                AncResult(NoiseControlMode.NOISE_CANCELLATION, noiseLevel = val1)
-            else -> null
-        } ?: return null
-
-        return if (isLegacyAnc) result.copy(mode = swapLegacy(result.mode)) else result
-    }
-
-    /** 老机型降噪 ↔ 通透互换（关闭/自适应不变）。 */
-    private fun swapLegacy(mode: NoiseControlMode): NoiseControlMode = when (mode) {
-        NoiseControlMode.NOISE_CANCELLATION -> NoiseControlMode.TRANSPARENCY
-        NoiseControlMode.TRANSPARENCY -> NoiseControlMode.NOISE_CANCELLATION
-        else -> mode
-    }
-
-    /**
-     * 定位 payload 中的 `01 01 [Val1] [Val2]` 窗口，返回后两字节。
-     *
-     * Val2 可能不存在：ANC 位图只在位号 ≥ 8 时才占第二字节，低位模式（关闭/降噪/
-     * 通透等）的 payload 只有 `01 01 [bitmap]` 三字节。缺失时按 0 处理。
-     */
-    private fun ancPayloadWindow(data: ByteArray): Pair<Int, Int>? {
+    fun parse(data: ByteArray, implementation: AncImplementation = AncImplementation.STANDARD): NoiseControlMode? {
         if (data.size < 9) return null
         if (data[0] != 0xAA.toByte()) return null
 
@@ -523,149 +697,80 @@ object AncModeParser {
 
         if (data.size < payloadStart + payLen) return null
 
-        // For 0x0204, only process ANC-related eventCodes (0x03=mode change, 0x04=fit detection)
+        // For 0x0204, skip if this is a battery report (type=0x01) or button report (type=0x02)
         if (cmd == Cmd.ANC_MODE_NOTIFY && payLen > 0) {
             val reportType = data[payloadStart].toInt() and 0xFF
-            if (reportType != 0x03 && reportType != 0x04) return null
+            if (reportType == 0x01 || reportType == 0x02) return null
         }
 
+        // Scan for pattern: 01 01 [Val1] with optional [Val2]
         val payloadEnd = minOf(payloadStart + payLen, data.size)
         for (i in payloadStart until payloadEnd - 2) {
-            if (data[i] != 0x01.toByte() || data[i + 1] != 0x01.toByte()) continue
-            val val1 = data[i + 2].toInt() and 0xFF
-            val val2 = if (i + 3 < payloadEnd) data[i + 3].toInt() and 0xFF else 0
-            return val1 to val2
+            if (data[i] == 0x01.toByte() && data[i + 1] == 0x01.toByte()) {
+                val val1 = data[i + 2].toInt() and 0xFF
+                val val2 = if (i + 3 < payloadEnd) data[i + 3].toInt() and 0xFF else 0x00
+
+                return when {
+                    val1 == 0x08 && val2 == 0x00 -> NoiseControlMode.OFF
+                    val1 == 0x02 && val2 == 0x00 -> {
+                        if (implementation == AncImplementation.COMPATIBLE) NoiseControlMode.OFF
+                        else NoiseControlMode.NOISE_CANCELLATION
+                    }
+                    val1 == 0x80 && val2 == 0x00 -> NoiseControlMode.NOISE_CANCELLATION_SMART
+                    val1 == 0x40 && val2 == 0x00 -> NoiseControlMode.NOISE_CANCELLATION_LIGHT
+                    val1 == 0x20 && val2 == 0x00 -> NoiseControlMode.NOISE_CANCELLATION_MEDIUM
+                    val1 == 0x10 && val2 == 0x00 -> NoiseControlMode.NOISE_CANCELLATION_DEEP
+                    val1 == 0x00 && val2 == 0x01 -> NoiseControlMode.TRANSPARENCY
+                    val1 == 0x00 && val2 == 0x02 -> NoiseControlMode.TRANSPARENCY
+                    val1 == 0x01 && val2 == 0x00 -> {
+                        if (implementation == AncImplementation.COMPATIBLE) NoiseControlMode.NOISE_CANCELLATION
+                        else NoiseControlMode.OFF
+                    }
+                    val1 == 0x04 && val2 == 0x00 -> NoiseControlMode.TRANSPARENCY
+                    val1 == 0x00 && val2 == 0x08 -> NoiseControlMode.ADAPTIVE
+                    else -> null
+                }
+            }
         }
         return null
     }
-
-    /** Legacy wrapper returning only the mode (backward compat for callers that don't need noise level). */
-    fun parseMode(data: ByteArray): NoiseControlMode? = parse(data)?.mode
 }
 
 /**
- * 解析 0x8103 productId 响应，返回 6 位大写 hex（与白名单 `id` 字段对应）。
- * payload 格式：[status(1)][productId(3B 小端)]，status 非 0 或长度不符视为无效。
+ * Parser for Transparency vocal enhancement status.
+ *
+ * Status can appear in 0x0404 echoes or 0x0204 notifications. The payload may be
+ * plain 01 01 00 [01/02] or wrapped like 00 03 01 01 00 [01/02].
  */
-object ProductIdParser {
-    fun parse(data: ByteArray): String? {
+object TransparencyVocalEnhancementParser {
+
+    fun parse(data: ByteArray): Boolean? {
         if (data.size < 9) return null
         if (data[0] != 0xAA.toByte()) return null
 
-        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
-        if (cmd != Cmd.PRODUCT_ID_RESPONSE) return null
+        val cmdLow = data[4].toInt() and 0xFF
+        val cmdHigh = data[5].toInt() and 0xFF
+        val cmd = cmdLow or (cmdHigh shl 8)
+        if (cmd != Cmd.SET_ANC && cmd != Cmd.ANC_MODE_NOTIFY) return null
 
         val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
         val payloadStart = 9
-        if (payLen != 4 || data.size < payloadStart + payLen) return null
-        if ((data[payloadStart].toInt() and 0xFF) != 0x00) return null
+        if (data.size < payloadStart + payLen) return null
 
-        val id = (data[payloadStart + 1].toInt() and 0xFF) or
-                ((data[payloadStart + 2].toInt() and 0xFF) shl 8) or
-                ((data[payloadStart + 3].toInt() and 0xFF) shl 16)
-        return "%06X".format(id)
-    }
-}
-
-/**
- * EQ status and device-side preset parsers.
- *
- * 0x810F/0x0504 payload: [status][eqId].
- * 0x8122 payload: [status][count] followed by entries formatted as
- * [selected][min][max][eqId][nameLength][name UTF-8][frequencyCount]
- * and frequency/gain triples ([frequency LE uint16][gain signed byte]).
- */
-object EqParser {
-
-    data class DevicePreset(
-        val id: Int,
-        val name: String,
-        val selected: Boolean,
-        val minValue: Int = -6,
-        val maxValue: Int = 6,
-        val frequencies: List<Int> = emptyList(),
-        val gains: List<Int> = emptyList(),
-    )
-
-    fun parseCurrent(data: ByteArray): Int? {
-        if (data.size < 11 || data[0] != 0xAA.toByte()) return null
-        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
-        if (cmd != Cmd.EQ_RESPONSE && cmd != Cmd.EQ_NOTIFY) return null
-
-        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
-        if (payLen < 2 || data.size < 9 + payLen) return null
-        if ((data[9].toInt() and 0xFF) != 0) return null
-        return data[10].toInt() and 0xFF
-    }
-
-    fun parseAll(data: ByteArray): List<DevicePreset> {
-        if (data.size < 11 || data[0] != 0xAA.toByte()) return emptyList()
-        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
-        if (cmd != (Cmd.QUERY_EQ_ALL or 0x8000)) return emptyList()
-
-        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
-        val payloadStart = 9
-        val payloadEnd = payloadStart + payLen
-        if (payLen < 2 || data.size < payloadEnd) return emptyList()
-        if ((data[payloadStart].toInt() and 0xFF) != 0) return emptyList()
-
-        val count = data[payloadStart + 1].toInt() and 0xFF
-        var position = payloadStart + 2
-        val result = mutableListOf<DevicePreset>()
-        var parsedCount = 0
-        while (parsedCount < count && position + 5 <= payloadEnd) {
-
-            val selected = data[position].toInt() and 0xFF != 0
-            val minValue = data[position + 1].toInt()
-            val maxValue = data[position + 2].toInt()
-            val eqId = data[position + 3].toInt() and 0xFF
-            val nameLength = data[position + 4].toInt() and 0xFF
-            position += 5
-            if (position + nameLength > payloadEnd) break
-
-            val name = data.copyOfRange(position, position + nameLength)
-                .toString(Charsets.UTF_8)
-                .trim()
-            position += nameLength
-            if (position >= payloadEnd) break
-
-            val frequencyCount = data[position].toInt() and 0xFF
-            position += 1
-            val frequencyBytes = frequencyCount * 3
-            if (position + frequencyBytes > payloadEnd) break
-
-            val frequencies = ArrayList<Int>(frequencyCount)
-            val gains = ArrayList<Int>(frequencyCount)
-            repeat(frequencyCount) { index ->
-                val offset = position + index * 3
-                frequencies += (data[offset].toInt() and 0xFF) or
-                        ((data[offset + 1].toInt() and 0xFF) shl 8)
-                gains += data[offset + 2].toInt()
+        val payloadEnd = minOf(payloadStart + payLen, data.size)
+        for (i in payloadStart until payloadEnd - 3) {
+            if (data[i] == 0x01.toByte() &&
+                data[i + 1] == 0x01.toByte() &&
+                data[i + 2] == 0x00.toByte()
+            ) {
+                return when (data[i + 3].toInt() and 0xFF) {
+                    0x01 -> false
+                    0x02 -> true
+                    else -> null
+                }
             }
-            position += frequencyBytes
-
-            result += DevicePreset(
-                id = eqId,
-                name = name,
-                selected = selected,
-                minValue = minValue,
-                maxValue = maxValue,
-                frequencies = frequencies,
-                gains = gains,
-            )
-            parsedCount++
         }
-        return result
-    }
-
-    /** Distinguishes a valid `0x8122` response with zero entries from an unrelated packet. */
-    fun isAllResponse(data: ByteArray): Boolean {
-        if (data.size < 11 || data[0] != 0xAA.toByte()) return false
-        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
-        if (cmd != (Cmd.QUERY_EQ_ALL or 0x8000)) return false
-        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
-        return payLen >= 2 && data.size >= 9 + payLen &&
-                (data[9].toInt() and 0xFF) == 0
+        return null
     }
 }
 
@@ -677,18 +782,8 @@ object GameModeParser {
     data class Status(
         val mainEnabled: Boolean?,
         val lowLatencyEnabled: Boolean?,
-        val autoPlayPause: Boolean? = null,
-        val dualDevice: Boolean? = null,
-        val spatialSound: Boolean? = null
+        val dualDeviceConnectionEnabled: Boolean? = null
     )
-
-    fun parseForFeature(data: ByteArray, featureId: Int): Boolean? {
-        val status = parseStatus(data) ?: return null
-        return when (featureId) {
-            GameModeFeature.LOW_LATENCY -> status.lowLatencyEnabled
-            else -> status.mainEnabled
-        }
-    }
 
     fun parseStatus(data: ByteArray): Status? {
         if (data.size < 9) return null
@@ -709,22 +804,18 @@ object GameModeParser {
 
         var mainEnabled: Boolean? = null
         var lowLatencyEnabled: Boolean? = null
-        var autoPlayPause: Boolean? = null
-        var dualDevice: Boolean? = null
-        var spatialSound: Boolean? = null
+        var dualDeviceConnectionEnabled: Boolean? = null
         for (i in payloadStart until minOf(payloadStart + payLen - 1, data.size - 1)) {
             val value = data[i + 1].toInt() and 0xFF
             if (value != 0x00 && value != 0x01) continue
             when (data[i].toInt() and 0xFF) {
                 GameModeFeature.MAIN -> mainEnabled = value == 0x01
                 GameModeFeature.LOW_LATENCY -> lowLatencyEnabled = value == 0x01
-                BatchParamId.AUTO_PLAY_PAUSE -> autoPlayPause = value == 0x01
-                BatchParamId.DUAL_DEVICE -> dualDevice = value == 0x01
-                BatchParamId.SPATIAL_SOUND -> spatialSound = value == 0x01
+                GameModeFeature.DUAL_DEVICE_CONNECTION -> dualDeviceConnectionEnabled = value == 0x01
             }
         }
-        return if (mainEnabled != null || lowLatencyEnabled != null || autoPlayPause != null || dualDevice != null || spatialSound != null) {
-            Status(mainEnabled, lowLatencyEnabled, autoPlayPause, dualDevice, spatialSound)
+        return if (mainEnabled != null || lowLatencyEnabled != null || dualDeviceConnectionEnabled != null) {
+            Status(mainEnabled, lowLatencyEnabled, dualDeviceConnectionEnabled)
         } else {
             null
         }
@@ -739,9 +830,7 @@ object GameModeParser {
 
         var mainEnabled: Boolean? = null
         var lowLatencyEnabled: Boolean? = null
-        var autoPlayPause: Boolean? = null
-        var dualDevice: Boolean? = null
-        var spatialSound: Boolean? = null
+        var dualDeviceConnectionEnabled: Boolean? = null
         for (j in 0 until count) {
             val index = payloadStart + 2 + j * 2
             val featureId = data[index].toInt() and 0xFF
@@ -749,44 +838,27 @@ object GameModeParser {
             when (featureId) {
                 GameModeFeature.MAIN -> mainEnabled = enabled
                 GameModeFeature.LOW_LATENCY -> lowLatencyEnabled = enabled
-                BatchParamId.AUTO_PLAY_PAUSE -> autoPlayPause = enabled
-                BatchParamId.DUAL_DEVICE -> dualDevice = enabled
-                BatchParamId.SPATIAL_SOUND -> spatialSound = enabled
+                GameModeFeature.DUAL_DEVICE_CONNECTION -> dualDeviceConnectionEnabled = enabled
             }
         }
-        return if (mainEnabled != null || lowLatencyEnabled != null || autoPlayPause != null || dualDevice != null || spatialSound != null) {
-            Status(mainEnabled, lowLatencyEnabled, autoPlayPause, dualDevice, spatialSound)
+        return if (mainEnabled != null || lowLatencyEnabled != null || dualDeviceConnectionEnabled != null) {
+            Status(mainEnabled, lowLatencyEnabled, dualDeviceConnectionEnabled)
         } else {
             null
         }
     }
 }
 
-object SpatialAudioParser {
-    fun parseModeNotify(packet: ByteArray): Int? {
-        if (packet.size < 10 || packet[0] != 0xAA.toByte()) return null
-        val cmd = (packet[4].toInt() and 0xFF) or ((packet[5].toInt() and 0xFF) shl 8)
-        if (cmd != Cmd.SPATIAL_AUDIO_NOTIFY) return null
-        val payLen = (packet[7].toInt() and 0xFF) or ((packet[8].toInt() and 0xFF) shl 8)
-        if (payLen < 1 || packet.size < 9 + payLen) return null
-        val mode = packet[9].toInt() and 0xFF
-        return mode.takeIf { it in SpatialAudioMode.OFF..SpatialAudioMode.HEAD_TRACKING }
-    }
-
-    fun parseSetResponseStatus(packet: ByteArray): Int? {
-        if (packet.size < 10 || packet[0] != 0xAA.toByte()) return null
-        val cmd = (packet[4].toInt() and 0xFF) or ((packet[5].toInt() and 0xFF) shl 8)
-        if (cmd != Cmd.SET_SPATIAL_AUDIO_RESPONSE) return null
-        val payLen = (packet[7].toInt() and 0xFF) or ((packet[8].toInt() and 0xFF) shl 8)
-        if (payLen < 1 || packet.size < 9 + payLen) return null
-        return packet[9].toInt() and 0xFF
-    }
-}
-
 object SwitchFeatureSetParser {
     data class Result(
         val status: Int,
-        val value: Int?
+        val value: Int?,
+        val featureId: Int? = null
+    )
+
+    private data class FeatureValue(
+        val featureId: Int,
+        val value: Int
     )
 
     fun parse(data: ByteArray): Result? {
@@ -803,115 +875,70 @@ object SwitchFeatureSetParser {
         if (payLen <= 0 || data.size < payloadStart + payLen) return null
 
         val status = data[payloadStart].toInt() and 0xFF
-        val value = if (payLen > 1) data[payloadStart + 1].toInt() and 0xFF else null
-        return Result(status, value)
+        val featureValue = findSwitchFeatureValue(data, payloadStart, payLen)
+        val value = featureValue?.value ?: if (payLen > 1) data[payloadStart + 1].toInt() and 0xFF else null
+        return Result(status, value, featureValue?.featureId)
     }
-}
 
-/** 已连接设备信息（来自耳机 0x0204 eventCode=0x06 主动上报）。 */
-@Parcelize
-data class ConnectedDevice(
-    val mac: String,
-    val connected: Boolean,
-    val active: Boolean,
-    val name: String
-) : Parcelable
-
-/** 解析 0x0204 主动上报中的已连接设备信息（eventCode=0x06, MultiConnectInformations）。 */
-object ConnectedDevicesParser {
-    private const val EVENT_CODE = 0x06
-
-    /**
-     * 从原始外层包解析已连接设备列表。
-     * payload 格式: [0x06] [Count] [Device1] [Device2] ...
-     * 每台设备: [MAC 6B LE] [ProfileFlags 1B] [ConnState 1B] [IsActive 1B] [NameLen 1B] [Name UTF-8]
-     */
-    fun parse(data: ByteArray): List<ConnectedDevice>? {
-        if (data.size < 9) return null
-        if (data[0] != 0xAA.toByte()) return null
-
-        val cmdLow = data[4].toInt() and 0xFF
-        val cmdHigh = data[5].toInt() and 0xFF
-        val cmd = cmdLow or (cmdHigh shl 8)
-        if (cmd != Cmd.ANC_MODE_NOTIFY) return null // 0x0204
-
-        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
-        val payloadStart = 9
-        if (data.size < payloadStart + payLen) return null
-        if (payLen < 2) return null
-
-        val eventCode = data[payloadStart].toInt() and 0xFF
-        if (eventCode != EVENT_CODE) return null
-
-        val count = data[payloadStart + 1].toInt() and 0xFF
-        val devices = mutableListOf<ConnectedDevice>()
-        var i = payloadStart + 2
-
-        for (d in 0 until count) {
-            if (i + 11 > data.size) break
-            val macBytes = data.sliceArray(i until i + 6)
-            val mac = macBytes.reversed().joinToString(":") { "%02X".format(it) }
-            i += 6
-            i += 1 // profileFlags
-            val connectionState = data[i].toInt() and 0xFF
-            i += 1
-            val isActive = data[i].toInt() and 0xFF == 0x01
-            i += 1
-            val nameLen = data[i].toInt() and 0xFF
-            i += 1
-            val name = if (nameLen > 0 && i + nameLen <= data.size) {
-                data.sliceArray(i until i + nameLen).decodeToString()
-            } else ""
-            i += nameLen
-
-            devices.add(ConnectedDevice(
-                mac = mac,
-                connected = connectionState == 0x02,
-                active = isActive,
-                name = name
-            ))
+    private fun findSwitchFeatureValue(data: ByteArray, payloadStart: Int, payLen: Int): FeatureValue? {
+        val payloadEnd = minOf(payloadStart + payLen, data.size)
+        for (i in payloadStart until payloadEnd - 1) {
+            val featureId = data[i].toInt() and 0xFF
+            val value = data[i + 1].toInt() and 0xFF
+            if (featureId in setOf(
+                    GameModeFeature.MAIN,
+                    GameModeFeature.LOW_LATENCY,
+                    GameModeFeature.DUAL_DEVICE_CONNECTION,
+                ) && (value == 0x00 || value == 0x01)
+            ) {
+                return FeatureValue(featureId, value)
+            }
         }
-        return devices
-    }
-}
-
-/** 解析 0x8200 通知能力响应，返回耳机支持的 eventCode 列表。 */
-object BroadcastCodesParser {
-    fun parse(data: ByteArray): List<Int>? {
-        if (data.size < 9) return null
-        if (data[0] != 0xAA.toByte()) return null
-
-        val cmdLow = data[4].toInt() and 0xFF
-        val cmdHigh = data[5].toInt() and 0xFF
-        val cmd = cmdLow or (cmdHigh shl 8)
-        if (cmd != Cmd.BROADCAST_CODES_RESPONSE) return null
-
-        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
-        val payloadStart = 9
-        if (data.size < payloadStart + payLen || payLen < 2) return null
-
-        val status = data[payloadStart].toInt() and 0xFF
-        if (status != 0x00) return null
-
-        val count = data[payloadStart + 1].toInt() and 0xFF
-        if (payLen < 2 + count) return null
-
-        return (0 until count).mapNotNull { i ->
-            val idx = payloadStart + 2 + i
-            if (idx < data.size) data[idx].toInt() and 0xFF else null
-        }
+        return null
     }
 }
 
 /**
- * 解析智能降噪模式下耳机主动推送的当前自动应用降噪等级通知。
+ * Parser for the bud's "supported notification IDs" response (cmd 0x8200), the
+ * reply to [Enums.QUERY_NOTIFICATION_SUPPORT]. Payload: `[status, count, id1, …]`.
+ * Returns the raw advertised ID bytes; the caller picks which to subscribe to via
+ * [Enums.registerMultiNotification]. The ID→feature mapping is the same across
+ * OPPO buds, so subscribing the advertised list (minus the 0xFx debug channels)
+ * enables the smart-mode current-strength notify (0x0204 type 03 key 04) read by
+ * [SmartAncLevelParser] without hardcoding per-model IDs.
+ */
+object NotificationSupportParser {
+    fun parse(data: ByteArray): ByteArray? {
+        if (data.size < 9) return null
+        if (data[0] != 0xAA.toByte()) return null
+        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
+        if (cmd != Cmd.NOTIFICATION_SUPPORT_RESPONSE) return null
+        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
+        val payloadStart = 9
+        if (data.size < payloadStart + payLen) return null
+        if (payLen < 2) return null
+        val count = data[payloadStart + 1].toInt() and 0xFF
+        val idsStart = payloadStart + 2
+        val idsEnd = minOf(idsStart + count, payloadStart + payLen, data.size)
+        if (idsEnd <= idsStart) return null
+        return data.copyOfRange(idsStart, idsEnd)
+    }
+}
+
+/**
+ * Parser for the noise-mode notification (cmd 0x0204 type 0x03) the bud pushes
+ * once subscribed. We only care about **key 0x04** = the noise-reduction level
+ * that smart mode (智能切换) is currently auto-applying, so the UI can show it
+ * while the user is on the Smart sub-mode (e.g. "当前: 中度降噪").
  *
- * cmd 0x0204, type 0x03, key 0x04。
- * bitmap 中 bit 4 = 深度, bit 5 = 中度, bit 6 = 轻度。
- * 返回 [NoiseLevel] 常量，或 null（非智能等级通知）。
+ * Payload shape: `03 <key> 01 <bitmap bytes>`. The bitmap uses the same bit
+ * positions as the SET command: bit 4 = 深度, 5 = 中度, 6 = 轻度. Key 0x01
+ * (the user-selected mode) is ignored here — that already flows through
+ * [AncModeParser].
  */
 object SmartAncLevelParser {
-    fun parse(data: ByteArray): Int? {
+    /** Returns the current smart-applied NC level, or null if not a key-0x04 notify. */
+    fun parse(data: ByteArray): NoiseControlMode? {
         if (data.size < 9) return null
         if (data[0] != 0xAA.toByte()) return null
         val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
@@ -919,9 +946,9 @@ object SmartAncLevelParser {
         val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
         val payloadStart = 9
         if (data.size < payloadStart + payLen || payLen < 4) return null
-        if ((data[payloadStart].toInt() and 0xFF) != 0x03) return null
-        if ((data[payloadStart + 1].toInt() and 0xFF) != 0x04) return null
-        if ((data[payloadStart + 2].toInt() and 0xFF) != 0x01) return null
+        if ((data[payloadStart].toInt() and 0xFF) != 0x03) return null       // report type 03
+        if ((data[payloadStart + 1].toInt() and 0xFF) != 0x04) return null   // key 04 = smart-applied
+        if ((data[payloadStart + 2].toInt() and 0xFF) != 0x01) return null   // bitmap encoding
 
         val bitmapStart = payloadStart + 3
         val bitmapEnd = payloadStart + payLen
@@ -932,9 +959,9 @@ object SmartAncLevelParser {
                 if ((b and (1 shl n)) == 0) continue
                 val bit = (i - bitmapStart) * 8 + n
                 return when (bit) {
-                    4 -> NoiseLevel.DEEP
-                    5 -> NoiseLevel.MEDIUM
-                    6 -> NoiseLevel.LIGHT
+                    4 -> NoiseControlMode.NOISE_CANCELLATION_DEEP
+                    5 -> NoiseControlMode.NOISE_CANCELLATION_MEDIUM
+                    6 -> NoiseControlMode.NOISE_CANCELLATION_LIGHT
                     else -> null
                 }
             }

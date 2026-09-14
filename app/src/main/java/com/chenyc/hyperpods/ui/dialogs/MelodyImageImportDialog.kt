@@ -18,10 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -39,8 +38,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.chenyc.hyperpods.R
-import com.chenyc.hyperpods.pods.PodImageSlot
-import com.chenyc.hyperpods.pods.PodImageStore
+import com.chenyc.hyperpods.config.PodImageResource
 import com.chenyc.hyperpods.utils.MelodyImageCandidate
 import com.chenyc.hyperpods.utils.RootManager
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -50,75 +48,70 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/**
- * 从欢律（com.heytap.headset）导入官方机型图片。
- *
- * 欢律连接过耳机后会把该型号的图片缓存到私有目录，这里经 root 读出来直接
- * 写进 [PodImageStore]，省去用户自己找图。需要 root；无 root 时给出提示。
- */
 @Composable
 internal fun MelodyImageImportDialog(
     show: Boolean,
+    currentAddress: String,
+    currentName: String,
     onDismissRequest: () -> Unit,
-    onImported: () -> Unit,
+    onImport: (String, String, Map<PodImageResource, ByteArray>) -> Unit,
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
     var candidates by remember(show) { mutableStateOf<List<MelodyImageCandidate>>(emptyList()) }
-    var selected by remember(show) { mutableStateOf<MelodyImageCandidate?>(null) }
-    var hasRoot by remember(show) { mutableStateOf(true) }
+    var selectedCandidate by remember(show) { mutableStateOf<MelodyImageCandidate?>(null) }
+    var hasRootAccess by remember(show) { mutableStateOf(true) }
     var loading by remember(show) { mutableStateOf(false) }
     var importing by remember(show) { mutableStateOf(false) }
-    var failed by remember(show) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(show) {
         if (!show) return@LaunchedEffect
         loading = true
-        failed = false
-        hasRoot = withContext(Dispatchers.IO) { RootManager.hasRootAccess() }
-        candidates = if (hasRoot) {
+        hasRootAccess = withContext(Dispatchers.IO) { RootManager.hasRootAccess() }
+        candidates = if (hasRootAccess) {
             withContext(Dispatchers.IO) { RootManager.scanMelodyImageCandidates() }
         } else {
             emptyList()
         }
-        selected = candidates.firstOrNull()
+        selectedCandidate = candidates.firstOrNull()
         loading = false
     }
 
     OverlayDialog(
         title = stringResource(R.string.import_melody_images),
+        summary = stringResource(R.string.import_melody_images_summary),
         show = show,
         onDismissRequest = onDismissRequest,
     ) {
         Text(
             text = stringResource(R.string.import_melody_images_hint),
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.body2,
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         )
-
-        when {
-            loading -> Row(
+        if (loading) {
+            Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 InfiniteProgressIndicator()
             }
-
-            !hasRoot -> Text(
+        } else if (!hasRootAccess) {
+            Text(
                 text = stringResource(R.string.import_melody_images_root_required),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
             )
-
-            candidates.isEmpty() -> Text(
+        } else if (candidates.isEmpty()) {
+            Text(
                 text = stringResource(R.string.import_melody_images_empty),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
             )
-
-            else -> LazyColumn(
+        } else {
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 320.dp)
@@ -126,60 +119,47 @@ internal fun MelodyImageImportDialog(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(candidates, key = { it.imageDir }) { candidate ->
-                    CandidateRow(
+                    MelodyImageCandidateRow(
                         candidate = candidate,
-                        selected = candidate.imageDir == selected?.imageDir,
-                        onClick = { selected = candidate },
+                        selected = candidate.imageDir == selectedCandidate?.imageDir,
+                        onClick = { selectedCandidate = candidate },
                     )
                 }
             }
         }
 
-        if (failed) {
-            Text(
-                text = stringResource(R.string.import_melody_images_failed),
-                color = MiuixTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            )
-        }
-
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             TextButton(
                 text = stringResource(R.string.cancel),
                 onClick = onDismissRequest,
                 modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(4.dp))
             TextButton(
                 text = stringResource(R.string.import_melody_images_action),
-                enabled = selected != null && !importing,
                 onClick = {
-                    val candidate = selected ?: return@TextButton
+                    val candidate = selectedCandidate ?: return@TextButton
+                    if (importing) return@TextButton
                     importing = true
-                    failed = false
                     scope.launch {
-                        val ok = withContext(Dispatchers.IO) {
-                            // 欢律的 img_left/img_right 是以佩戴者视角命名的，与本模块
-                            // 超级岛左右耳槽位一致，直接对应即可。
-                            val sources = mapOf(
-                                PodImageSlot.HOME_IMAGE to candidate.boxPath,
-                                PodImageSlot.ISLAND_LEFT to candidate.leftPath,
-                                PodImageSlot.ISLAND_RIGHT to candidate.rightPath,
+                        val images: Map<PodImageResource, ByteArray> = withContext(Dispatchers.IO) {
+                            val paths: Map<PodImageResource, String> = mapOf(
+                                PodImageResource.BOX to candidate.boxPath,
+                                PodImageResource.LEFT to candidate.rightPath,
+                                PodImageResource.RIGHT to candidate.leftPath,
                             )
-                            val loaded = sources.mapNotNull { (slot, path) ->
-                                RootManager.readMelodyImage(path)
-                                    ?.takeIf { it.isNotEmpty() }
-                                    ?.let { slot to it }
-                            }
-                            if (loaded.size != sources.size) return@withContext false
-                            loaded.all { (slot, bytes) -> PodImageStore.save(context, slot, bytes) }
+                            paths.mapNotNull { (resource, path) ->
+                                RootManager.readMelodyImage(path)?.takeIf { it.isNotEmpty() }?.let { bytes ->
+                                    resource to bytes
+                                }
+                            }.toMap()
                         }
                         importing = false
-                        if (ok) {
-                            onImported()
-                            onDismissRequest()
-                        } else {
-                            failed = true
+                        if (images.size == PodImageResource.entries.size) {
+                            onImport(currentAddress, currentName, images)
                         }
                     }
                 },
@@ -191,39 +171,46 @@ internal fun MelodyImageImportDialog(
 }
 
 @Composable
-private fun CandidateRow(
+private fun MelodyImageCandidateRow(
     candidate: MelodyImageCandidate,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val preview = remember(candidate.imageDir) {
+    val previewPainter = remember(candidate.imageDir) {
         BitmapFactory.decodeByteArray(candidate.boxBytes, 0, candidate.boxBytes.size)
-    }?.let { BitmapPainter(it.asImageBitmap()) } ?: painterResource(R.drawable.img_box)
+    }?.let { bitmap -> BitmapPainter(bitmap.asImageBitmap()) }
+        ?: painterResource(R.drawable.img_box)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (selected) MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)
-                else Color.Transparent
-            )
+            .background(if (selected) MiuixTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
-            painter = preview,
+            painter = previewPainter,
             contentDescription = candidate.label,
-            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)),
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(10.dp)),
             contentScale = ContentScale.Fit,
         )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = candidate.label, color = MiuixTheme.colorScheme.onSurface)
-        }
-        if (selected) {
-            Text(text = "✓", color = MiuixTheme.colorScheme.primary)
+            Text(
+                text = candidate.label,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.headline1,
+            )
+            Text(
+                text = candidate.imageDir,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.body2,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
     }
 }

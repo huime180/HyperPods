@@ -6,9 +6,11 @@
 
     <queries>
         <package android:name="com.heytap.headset" />
+        <package android:name="com.android.settings" />
     </queries>
 
     <application
+        android:name=".HyperPodsApp"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -17,14 +19,27 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HyperPods">
 
+        <activity-alias
+            android:name=".LauncherActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <activity android:name=".MainActivity"
             android:launchMode="singleTask"
-            android:windowSoftInputMode="adjustNothing"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS" />
             </intent-filter>
         </activity>
         <activity android:name=".PopupActivity"
@@ -37,19 +52,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        <activity android:name=".ConnectionPopupActivity"
-            android:theme="@style/Theme.HyperPods.Popup"
-            android:taskAffinity=""
-            android:excludeFromRecents="true"
-            android:launchMode="singleTop"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
-            android:exported="true" />
-        <!-- 跨进程供图：被 hook 的系统进程读取当前配置档的岛图/通知图 -->
         <provider
-            android:name=".pods.PodImageProvider"
-            android:authorities="com.chenyc.hyperpods.assets"
-            android:exported="true" />
-
+            android:name=".config.PodImageProvider"
+            android:authorities="com.chenyc.hyperpods.podimages"
+            android:exported="true"
+            android:grantUriPermissions="false" />
         <!-- Set as Xposed Module -->
         <meta-data
             android:name="xposedmodule"
@@ -63,7 +70,7 @@
         <!-- The minimum Xposed version number -->
         <meta-data
             android:name="xposedminversion"
-            android:value="102" />
+            android:value="101" />
         <meta-data
             android:name="xposedscope"
             android:resource="@array/xposedscope" />

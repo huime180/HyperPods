@@ -8,16 +8,12 @@
 -allowaccessmodification
 -overloadaggressively
 -renamesourcefileattribute SourceFile
--keepattributes RuntimeVisibleAnnotations,RuntimeInvisibleAnnotations,InnerClasses,EnclosingMethod,Signature
 
-# Keep libxposed entry point. The class name is loaded from META-INF/xposed/java_init.list.
+# Keep Xposed entry point
 -keep class com.chenyc.hyperpods.hook.HookEntry { *; }
 
-# Hook classes run inside host processes and are reached from HookEntry at runtime.
+# Keep all hooker classes (referenced by name in Xposed framework)
 -keep class com.chenyc.hyperpods.hook.** { *; }
 
-# Parcelable/data classes are shared through broadcast extras across processes.
+# Keep Parcelable data classes (used in broadcast extras)
 -keep class com.chenyc.hyperpods.utils.miuiStrongToast.data.** { *; }
-
-# ConnectedDevice is sent via putParcelableArrayListExtra in broadcasts.
--keep class com.chenyc.hyperpods.pods.ConnectedDevice { *; }

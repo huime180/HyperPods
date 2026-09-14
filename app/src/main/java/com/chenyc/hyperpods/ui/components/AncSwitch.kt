@@ -7,11 +7,11 @@ import android.graphics.drawable.BitmapDrawable
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,10 +33,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.chenyc.hyperpods.R
 import com.chenyc.hyperpods.pods.NoiseControlMode
+import com.chenyc.hyperpods.pods.isNoiseCancellation
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.SinkFeedback
 import top.yukonga.miuix.kmp.utils.pressable
@@ -47,52 +50,223 @@ private const val ANIM_DURATION = 300
 fun AncSwitch(
     ancStatus: NoiseControlMode,
     onAncModeChange: (NoiseControlMode) -> Unit,
+    smartAncLevel: NoiseControlMode? = null,
     compact: Boolean = false,
-    adaptiveModeEnabled: Boolean = true
+    adaptiveModeEnabled: Boolean = true,
+    transparencyVocalEnhancement: Boolean = false,
+    onTransparencyVocalEnhancementChange: ((Boolean) -> Unit)? = null
 ) {
     val verticalPadding = if (compact) 8.dp else 16.dp
-    Row(
+    val tabMinWidth = 0.dp
+    val tabMaxWidth = if (compact) 72.dp else 98.dp
+    val tabHeight = if (compact) 38.dp else 45.dp
+    val tabSpacing = if (compact) 4.dp else 9.dp
+    val tabOuterPadding = if (compact) 8.dp else 12.dp
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = verticalPadding),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = verticalPadding)
     ) {
-        AncButton(
-            offIconRes = R.drawable.ic_openanc_off,
-            onIconRes = R.drawable.ic_openanc_on,
-            label = stringResource(R.string.noise_cancellation_title),
-            isSelected = ancStatus == NoiseControlMode.NOISE_CANCELLATION,
-            onClick = { onAncModeChange(NoiseControlMode.NOISE_CANCELLATION) },
-            modifier = Modifier.weight(1f),
-            compact = compact
-        )
-        // Adaptive模式按钮：仅当设置中启用Adaptive模式时显示
-        if (adaptiveModeEnabled) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             AncButton(
-                offIconRes = R.drawable.ic_adaptive_off,
-                onIconRes = R.drawable.ic_adaptive_on,
-                label = stringResource(R.string.adaptive_title),
-                isSelected = ancStatus == NoiseControlMode.ADAPTIVE,
-                onClick = { onAncModeChange(NoiseControlMode.ADAPTIVE) },
-                modifier = Modifier.weight(1f)
+                offIconRes = R.drawable.ic_openanc_off,
+                onIconRes = R.drawable.ic_openanc_on,
+                label = stringResource(R.string.noise_cancellation_title),
+                isSelected = ancStatus.isNoiseCancellation(),
+                onClick = { onAncModeChange(NoiseControlMode.NOISE_CANCELLATION) },
+                modifier = Modifier.weight(1f),
+                compact = compact
+            )
+            // Adaptive模式按钮：仅当设置中启用Adaptive模式时显示
+            if (adaptiveModeEnabled) {
+                AncButton(
+                    offIconRes = R.drawable.ic_adaptive_off,
+                    onIconRes = R.drawable.ic_adaptive_on,
+                    label = stringResource(R.string.adaptive_title),
+                    isSelected = ancStatus == NoiseControlMode.ADAPTIVE,
+                    onClick = { onAncModeChange(NoiseControlMode.ADAPTIVE) },
+                    modifier = Modifier.weight(1f),
+                    compact = compact
+                )
+            }
+            AncButton(
+                offIconRes = R.drawable.ic_transparent_off,
+                onIconRes = R.drawable.ic_transparent_on,
+                label = stringResource(R.string.transparency_title),
+                isSelected = ancStatus == NoiseControlMode.TRANSPARENCY,
+                onClick = { onAncModeChange(NoiseControlMode.TRANSPARENCY) },
+                modifier = Modifier.weight(1f),
+                compact = compact
+            )
+            AncButton(
+                offIconRes = R.drawable.ic_closeanc_off,
+                onIconRes = R.drawable.ic_closeanc_on,
+                label = stringResource(R.string.off),
+                isSelected = ancStatus == NoiseControlMode.OFF,
+                onClick = { onAncModeChange(NoiseControlMode.OFF) },
+                modifier = Modifier.weight(1f),
+                compact = compact
             )
         }
-        AncButton(
-            offIconRes = R.drawable.ic_transparent_off,
-            onIconRes = R.drawable.ic_transparent_on,
-            label = stringResource(R.string.transparency_title),
-            isSelected = ancStatus == NoiseControlMode.TRANSPARENCY,
-            onClick = { onAncModeChange(NoiseControlMode.TRANSPARENCY) },
-            modifier = Modifier.weight(1f)
+
+        if (ancStatus.isNoiseCancellation()) {
+            val modes = listOf(
+                NoiseControlMode.NOISE_CANCELLATION_SMART,
+                NoiseControlMode.NOISE_CANCELLATION_LIGHT,
+                NoiseControlMode.NOISE_CANCELLATION_MEDIUM,
+                NoiseControlMode.NOISE_CANCELLATION_DEEP
+            )
+            val isSmart = ancStatus == NoiseControlMode.NOISE_CANCELLATION_SMART
+            val smartLevelIndex = when (smartAncLevel) {
+                NoiseControlMode.NOISE_CANCELLATION_LIGHT -> 1
+                NoiseControlMode.NOISE_CANCELLATION_MEDIUM -> 2
+                NoiseControlMode.NOISE_CANCELLATION_DEEP -> 3
+                else -> null
+            }
+            val smartName = stringResource(R.string.noise_cancellation_smart)
+            val tabs = listOf(
+                smartName,
+                stringResource(R.string.noise_cancellation_light),
+                stringResource(R.string.noise_cancellation_medium),
+                stringResource(R.string.noise_cancellation_deep)
+            )
+
+            AncStrengthTabRow(
+                tabs = tabs,
+                selectedTabIndex = modes.indexOf(ancStatus).takeIf { it >= 0 } ?: 0,
+                assistHighlightedIndex = if (isSmart) smartLevelIndex else null,
+                onTabSelected = { onAncModeChange(modes[it]) },
+                compact = compact,
+                minWidth = tabMinWidth,
+                tabMaxWidth = tabMaxWidth,
+                height = tabHeight,
+                itemSpacing = tabSpacing,
+                outerPadding = tabOuterPadding,
+                topPadding = if (compact) 8.dp else 16.dp
+            )
+        }
+
+        if (ancStatus == NoiseControlMode.TRANSPARENCY && onTransparencyVocalEnhancementChange != null) {
+            val tabs = listOf(
+                stringResource(R.string.transparency_title),
+                stringResource(R.string.transparency_vocal_enhancement)
+            )
+            ResponsiveAncTabRow(
+                tabs = tabs,
+                selectedTabIndex = if (transparencyVocalEnhancement) 1 else 0,
+                onTabSelected = { onTransparencyVocalEnhancementChange(it == 1) },
+                compact = compact,
+                minWidth = tabMinWidth,
+                tabMaxWidth = tabMaxWidth,
+                height = tabHeight,
+                itemSpacing = tabSpacing,
+                outerPadding = tabOuterPadding
+            )
+        }
+    }
+}
+
+@Composable
+private fun AncStrengthTabRow(
+    tabs: List<String>,
+    selectedTabIndex: Int,
+    assistHighlightedIndex: Int?,
+    onTabSelected: (Int) -> Unit,
+    compact: Boolean,
+    minWidth: Dp,
+    tabMaxWidth: Dp,
+    height: Dp,
+    itemSpacing: Dp,
+    outerPadding: Dp,
+    topPadding: Dp
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+            .padding(top = topPadding),
+        contentAlignment = Alignment.Center
+    ) {
+        val rowModifier = Modifier
+            .padding(horizontal = outerPadding)
+            .fillMaxWidth(if (maxWidth >= 480.dp) 0.8f else 1f)
+
+        TabRowWithContour(
+            tabs = tabs.map { "" },
+            selectedTabIndex = selectedTabIndex,
+            onTabSelected = onTabSelected,
+            modifier = rowModifier,
+            minWidth = minWidth,
+            maxWidth = tabMaxWidth,
+            height = height,
+            itemSpacing = itemSpacing
         )
-        AncButton(
-            offIconRes = R.drawable.ic_closeanc_off,
-            onIconRes = R.drawable.ic_closeanc_on,
-            label = stringResource(R.string.off),
-            isSelected = ancStatus == NoiseControlMode.OFF,
-            onClick = { onAncModeChange(NoiseControlMode.OFF) },
-            modifier = Modifier.weight(1f),
-            compact = compact
+
+        Row(
+            modifier = rowModifier.height(height),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                val isSelected = index == selectedTabIndex
+                val isAssistHighlighted = index == assistHighlightedIndex && !isSelected
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(height),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = tab,
+                        fontSize = if (compact) 13.sp else 14.sp,
+                        fontWeight = if (isSelected || isAssistHighlighted) FontWeight.SemiBold else FontWeight.Medium,
+                        color = when {
+                            isSelected -> MiuixTheme.colorScheme.primary
+                            isAssistHighlighted -> MiuixTheme.colorScheme.primary.copy(alpha = 0.72f)
+                            else -> MiuixTheme.colorScheme.onBackground
+                        }
+                    )
+                }
+
+                if (index != tabs.lastIndex) {
+                    Spacer(modifier = Modifier.size(itemSpacing))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResponsiveAncTabRow(
+    tabs: List<String>,
+    selectedTabIndex: Int,
+    onTabSelected: (Int) -> Unit,
+    compact: Boolean,
+    minWidth: Dp,
+    tabMaxWidth: Dp,
+    height: Dp,
+    itemSpacing: Dp,
+    outerPadding: Dp,
+    topPadding: Dp = if (compact) 8.dp else 16.dp
+) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = topPadding),
+        contentAlignment = Alignment.Center
+    ) {
+        TabRowWithContour(
+            tabs = tabs,
+            selectedTabIndex = selectedTabIndex,
+            onTabSelected = onTabSelected,
+            modifier = Modifier
+                .padding(horizontal = outerPadding)
+                .fillMaxWidth(if (maxWidth >= 480.dp) 0.8f else 1f),
+            minWidth = minWidth,
+            maxWidth = tabMaxWidth,
+            height = height,
+            itemSpacing = itemSpacing
         )
     }
 }
@@ -162,19 +336,15 @@ private fun AncButton(
 private fun themedPainterResource(@androidx.annotation.DrawableRes id: Int): Painter {
     val context = LocalContext.current
     val themeConfig = LocalConfiguration.current
-    val sysNightMode = if (isSystemInDarkTheme()) {
-        Configuration.UI_MODE_NIGHT_YES
-    } else {
-        Configuration.UI_MODE_NIGHT_NO
-    }
+    val sysNightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
     val themeNightMode = themeConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK
 
     return if (sysNightMode == themeNightMode) {
         painterResource(id)
     } else {
-        val themedResources = remember(context, themeConfig, themeNightMode) {
+        val themedResources = remember(context, themeNightMode) {
             context.createConfigurationContext(
-                Configuration(themeConfig).apply {
+                Configuration(context.resources.configuration).apply {
                     uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or themeNightMode
                 }
             ).resources

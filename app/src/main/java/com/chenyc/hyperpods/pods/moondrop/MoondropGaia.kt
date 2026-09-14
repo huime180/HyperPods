@@ -242,9 +242,9 @@ object MoondropGaia {
      *
      * 动作 id 取值范围 **0..15**（一个半字节）。**直接观测**到的 6 条（见 [TouchActions.ALL]）：
      * `0` 无、`1` 播放/暂停、`2` 上一曲、`3` 下一曲、`6` 语音助手、`7` 降噪切换。
-     * `4` 音量+ / `5` 音量- 是**推断**：官方 App 的选择器顺序为
+     * `4` 音量+ / `5` 音量- 已在真机确认可用（早期只是按官方 App 选择器顺序推断）：官方 App 的选择器顺序为
      * 播放/暂停、上一曲、下一曲、音量+、音量-、语音助手，而 1/2/3/6 恰好落在这个顺序上；
-     * 表里用 [TouchAction.inferred] = true 标出，UI 文案也带「推断」。
+     * [TouchAction.inferred] 这个标记留给将来仍未确认的取值；当前 8 条都已在真机确认，没有条目再带推断文案。
      * `8..15` 未观测到，一律显示 `未知(0xN)`。
      */
     const val TOUCH_ACTION_NONE = 0x00
@@ -717,7 +717,7 @@ object MoondropGaia {
      * 手势动作表 —— **数据驱动的唯一来源**，新增动作只在这里加一行。
      *
      * ⚠ id 是**半字节（0..15）**：`8..15` 未观测到，由 [matchOrUnknown] 显示为 `未知(0xN)`，
-     *   不会被静默吞掉变成空白。已观测 6 条（0/1/2/3/6/7）+ 推断 2 条（4/5，标 [TouchAction.inferred]）。
+     *   不会被静默吞掉变成空白。8 条（0..7）全部已在真机上确认可用。
      */
     object TouchActions {
 
@@ -729,9 +729,9 @@ object MoondropGaia {
         const val PREVIOUS_TRACK = 0x2
         /** 下一曲（已观测） */
         const val NEXT_TRACK = 0x3
-        /** 音量 + （**推断**：按官方 App 选择器顺序推断，未逐字节确认） */
+        /** 音量 + （真机确认可用） */
         const val VOLUME_UP = 0x4
-        /** 音量 - （**推断**：同上） */
+        /** 音量 - （同上） */
         const val VOLUME_DOWN = 0x5
         /** 语音助手（已观测） */
         const val VOICE_ASSISTANT = 0x6
@@ -747,12 +747,10 @@ object MoondropGaia {
             ),
             TouchAction(NEXT_TRACK, "下一曲", "Next track", "gesture_action_next_track"),
             TouchAction(
-                VOLUME_UP, "音量 +（推断）", "Volume + (inferred)", "gesture_action_volume_up",
-                inferred = true,
+                VOLUME_UP, "音量 +", "Volume +", "gesture_action_volume_up",
             ),
             TouchAction(
-                VOLUME_DOWN, "音量 -（推断）", "Volume - (inferred)", "gesture_action_volume_down",
-                inferred = true,
+                VOLUME_DOWN, "音量 -", "Volume -", "gesture_action_volume_down",
             ),
             TouchAction(
                 VOICE_ASSISTANT, "语音助手", "Voice assistant", "gesture_action_voice_assistant",

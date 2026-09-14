@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Bundle
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.compose.animation.AnimatedContent
@@ -115,6 +116,14 @@ fun MainUI(
     val batteryParams = remember { mutableStateOf(BatteryParams()) }
     val ancMode = remember { mutableStateOf(NoiseControlMode.OFF) }
     val hookConnected = remember { mutableStateOf(false) }
+    // 水月雨线：协议栈跑在被 hook 的蓝牙进程里，应用侧只收广播做镜像
+    // （与上面 hookConnected 那一路同一形态，只是 action 与状态项不同）。
+    val moondropConnected = remember { mutableStateOf(false) }
+    val moondropBattery = remember { mutableStateOf(BatteryParams()) }
+    val moondropAncIndex = remember { mutableStateOf(-1) }
+    val moondropAncIds = remember { mutableStateOf<List<String>>(emptyList()) }
+    val moondropModelName = remember { mutableStateOf("") }
+    val moondropHasAdaptive = remember { mutableStateOf(false) }
     val gameMode = remember { mutableStateOf(false) }
     val hookEqPresetId = remember { mutableStateOf(-1) }
     val hookDeviceEqPresets = remember { mutableStateOf<List<EqDevicePreset>>(emptyList()) }
@@ -248,10 +257,57 @@ fun MainUI(
     val isStandaloneConnected = appConnState == AppRfcommController.ConnectionState.CONNECTED
     val isConnecting = appConnState == AppRfcommController.ConnectionState.CONNECTING
     val isError = appConnState == AppRfcommController.ConnectionState.ERROR
-    val canShowDetailPage = hookConnected.value || isStandaloneConnected
+    val canShowDetailPage = hookConnected.value || isStandaloneConnected || moondropConnected.value
 
-    val displayBattery = if (isStandaloneConnected) appBattery else batteryParams.value
-    val displayAnc = if (isStandaloneConnected) appAnc else ancMode.value
+    /** 水月雨档位标识 → 界面上的降噪模式（抗风噪/人声增强按通透处理，语义最接近）。 */
+    fun moondropUiModeOf(ancId: String?): NoiseControlMode = when (ancId) {
+        "anc" -> NoiseControlMode.NOISE_CANCELLATION
+        "transparent", "live", "anti_wind" -> NoiseControlMode.TRANSPARENCY
+        "adaptive" -> NoiseControlMode.ADAPTIVE
+        else -> NoiseControlMode.OFF
+    }
+
+    /** 反向：界面模式 → 档位下标（找不到返回 -1，调用方不发命令）。 */
+    fun moondropAncIndexOf(mode: NoiseControlMode): Int {
+        val wanted = moondropAncIds.value
+        return wanted.indexOfFirst { moondropUiModeOf(it) == mode }
+    }
+
+    /**
+     * 由能力包构造水月雨的功能档。
+     *
+     * OppoPods 的功能页显隐本来就由 DeviceProfile 的可见位驱动，所以这里把
+     * 「水月雨这台耳机有什么」翻译成同一份配置档，首页/详情页就会随之切换，
+     * 不需要给界面加一套并行的 if 分支。
+     */
+    fun moondropProfileOf(caps: Bundle?): DeviceProfile = DeviceProfile(
+        id = "moondrop",
+        name = moondropModelName.value,
+        // GAIA 侧没有 OPPO 的「降噪深度」「游戏模式」「自动播放暂停」「自定义 EQ」这些开关
+        adaptiveVisible = caps?.getBoolean("hasAdaptive") == true,
+        gameModeVisible = false,
+        noiseLevelVisible = false,
+        autoPlayPauseVisible = false,
+        dualDeviceVisible = caps?.getBoolean("hasDualConnection") == true,
+        connectedDevicesVisible = false,
+        // 空间音频：型号可能支持，但界面这一轮还没接（接了再放开，避免点不动）
+        spatialAudioVisible = false,
+        spatialSoundVisible = false,
+        eqPresets = emptyList(),
+        customEqVisible = false,
+        modelId = "moondrop",
+    )
+
+    val displayBattery = when {
+        moondropConnected.value -> moondropBattery.value
+        isStandaloneConnected -> appBattery
+        else -> batteryParams.value
+    }
+    val displayAnc = when {
+        moondropConnected.value -> moondropUiModeOf(moondropAncIds.value.getOrNull(moondropAncIndex.value))
+        isStandaloneConnected -> appAnc
+        else -> ancMode.value
+    }
     val displayGameMode = if (isStandaloneConnected) appGameMode else gameMode.value
     val displayEqPresets = if (isStandaloneConnected) {
         appEqPresets
@@ -281,6 +337,7 @@ fun MainUI(
     val displayConnectedDevices = if (isStandaloneConnected) appConnectedDevices else hookConnectedDevices.value
     val displayConnectedDevicesReceived = if (isStandaloneConnected) appConnectedDevicesReceived else hookConnectedDevicesReceived.value
     val displayTitle = when {
+        moondropConnected.value -> mainTitle.value
         hookConnected.value -> mainTitle.value
         isStandaloneConnected -> appDeviceName
         isConnecting -> stringResource(R.string.connecting)
@@ -398,6 +455,45 @@ fun MainUI(
                         }
                     }
 
+                    // ── 水月雨线（协议栈在被 hook 的蓝牙进程里，应用侧只做镜像）──
+
+                    HyperPodsAction.PODS_CONNECTED -> {
+                        moondropConnected.value = true
+                        val name = p1.getStringExtra(HyperPodsAction.EXTRA_DEVICE_NAME)
+                        mainTitle.value = name ?: ""
+                        Log.i("HyperPods", "moondrop pod connected: $name")
+                    }
+
+                    HyperPodsAction.PODS_DISCONNECTED -> {
+                        moondropConnected.value = false
+                        moondropBattery.value = BatteryParams()
+                        moondropAncIndex.value = -1
+                        moondropAncIds.value = emptyList()
+                        mainTitle.value = ""
+                        // 换回本机档，避免把水月雨的能力档留给下一台 OPPO 设备
+                        activeProfile.value = DeviceProfileStore.resolveProfile(context, prefs)
+                    }
+
+                    HyperPodsAction.BATTERY_CHANGED -> {
+                        p1.batteryStatusCompat()?.let { moondropBattery.value = it }
+                    }
+
+                    HyperPodsAction.ANC_CHANGED -> {
+                        moondropAncIndex.value = p1.getIntExtra(HyperPodsAction.EXTRA_STATUS, -1)
+                        p1.getStringArrayListExtra(HyperPodsAction.EXTRA_ANC_IDS)?.let {
+                            moondropAncIds.value = it
+                        }
+                    }
+
+                    // 能力到位就换档：首页与详情页的功能区随这台耳机实际具备的能力收窄/展开
+                    HyperPodsAction.CAPABILITIES_CHANGED -> {
+                        moondropModelName.value =
+                            p1.getStringExtra(HyperPodsAction.EXTRA_MODEL_NAME).orEmpty()
+                        val caps = p1.getBundleExtra(HyperPodsAction.EXTRA_CAPS_BUNDLE)
+                        moondropHasAdaptive.value = caps?.getBoolean("hasAdaptive") == true
+                        activeProfile.value = moondropProfileOf(caps)
+                    }
+
                     HyperPodsAction.ACTION_BT_LOG_ENTRY -> {
                         val isSend = p1.getBooleanExtra(HyperPodsAction.EXTRA_BT_LOG_IS_SEND, false)
                         val hex = p1.getStringExtra(HyperPodsAction.EXTRA_BT_LOG_HEX) ?: return
@@ -426,6 +522,12 @@ fun MainUI(
             addAction(HyperPodsAction.ACTION_PODS_CONNECTED)
             addAction(HyperPodsAction.ACTION_PODS_DISCONNECTED)
             addAction(HyperPodsAction.ACTION_BT_LOG_ENTRY)
+            // 水月雨线
+            addAction(HyperPodsAction.PODS_CONNECTED)
+            addAction(HyperPodsAction.PODS_DISCONNECTED)
+            addAction(HyperPodsAction.BATTERY_CHANGED)
+            addAction(HyperPodsAction.ANC_CHANGED)
+            addAction(HyperPodsAction.CAPABILITIES_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 
         context.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_UI_INIT).apply {
@@ -434,6 +536,10 @@ fun MainUI(
         context.sendBroadcast(Intent(HyperPodsAction.ACTION_REFRESH_STATUS).apply {
             setPackage("com.android.bluetooth")
             putExtra(HyperPodsAction.EXTRA_ALLOW_RFCOMM_RECONNECT, true)
+        })
+        // 水月雨的请求走同一进程、另一个 action：让它重放全量状态（能力/电量/降噪）
+        context.sendBroadcast(Intent(HyperPodsAction.UI_INIT).apply {
+            setPackage("com.android.bluetooth")
         })
 
         onDispose {
@@ -445,6 +551,20 @@ fun MainUI(
     }
 
     fun setAncMode(mode: NoiseControlMode) {
+        if (moondropConnected.value) {
+            // 水月雨侧线上传的是「档位下标」，不是 OPPO 那套 1/2/3/4 语义，必须反查
+            val index = moondropAncIndexOf(mode)
+            if (index < 0) {
+                Log.w("HyperPods", "moondrop anc $mode unsupported by this model, ignored")
+                return
+            }
+            context.sendBroadcast(Intent(HyperPodsAction.ANC_SELECT).apply {
+                setPackage("com.android.bluetooth")
+                putExtra(HyperPodsAction.EXTRA_STATUS, index)
+            })
+            moondropAncIndex.value = index
+            return
+        }
         if (isStandaloneConnected) {
             appController.setANCMode(mode)
             return
@@ -635,6 +755,10 @@ fun MainUI(
                 setPackage("com.android.bluetooth")
                 putExtra(HyperPodsAction.EXTRA_ALLOW_RFCOMM_RECONNECT, true)
             })
+        } else if (moondropConnected.value) {
+            context.sendBroadcast(Intent(HyperPodsAction.UI_INIT).apply {
+                setPackage("com.android.bluetooth")
+            })
         }
     }
 
@@ -794,7 +918,11 @@ fun MainUI(
                             spatialSound = displaySpatialSound,
                             onSpatialSoundChange = { setSpatialSound(it) },
                             spatialSoundVisible = activeProfile.value.spatialSoundVisible,
-                            adaptiveModeEnabled = activeProfile.value.adaptiveVisible,
+                            adaptiveModeEnabled = if (moondropConnected.value) {
+                                moondropHasAdaptive.value
+                            } else {
+                                activeProfile.value.adaptiveVisible
+                            },
                             gameModeVisible = activeProfile.value.gameModeVisible,
                             noiseLevelVisible = activeProfile.value.noiseLevelVisible,
                             noiseLevel = displayNoiseLevel,

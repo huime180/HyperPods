@@ -107,4 +107,21 @@ object HyperPodsAction {
     const val EXTRA_GESTURE_PAYLOAD = "gesture_payload"
     const val EXTRA_GESTURE_SLOT = "gesture_slot"
     const val EXTRA_GESTURE_EAR = "gesture_ear"
+
+    /**
+     * CAPABILITIES_CHANGED 携带的能力包（Bundle）。
+     *
+     * 应用侧要按「这台耳机到底有什么」决定显示哪些功能页/控件，所以能力必须一起发过来；
+     * 键名见 MoondropController.publishCapabilities()。
+     */
+    const val EXTRA_CAPS_BUNDLE = "caps_bundle"
+    /** 型号中文名（String），用于标题与能力页展示。 */
+    const val EXTRA_MODEL_NAME = "model_name"
+    /**
+     * 降噪档位标识列表（StringArrayList，值为 MOONDROP 侧 AncMode.id）。
+     *
+     * 应用侧用它把「第几个档位」翻译成界面上的 OFF / 降噪 / 通透 / 自适应，
+     * 也用它把用户点选的模式反查回档位下标再发 ANC_SELECT。
+     */
+    const val EXTRA_ANC_IDS = "anc_ids"
 }

@@ -26,6 +26,7 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.PodParams
@@ -295,10 +296,15 @@ object MoondropController {
     }
 
     private fun publishAnc() {
-        if (ancIndex < 0) return
+        // 档位表为空 = 还没探测出 ANC 路径，此时不发布（免得界面显示一个假档位）
+        if (ancModes.isEmpty()) return
+        val ids = ArrayList<String>(ancModes.size)
+        ancModes.forEach { ids.add(it.id) }
         CONSUMERS.forEach { pkg ->
             sendTo(pkg, HyperPodsAction.ANC_CHANGED) { i ->
-                i.withDevice().putExtra(HyperPodsAction.EXTRA_STATUS, ancIndex)
+                i.withDevice()
+                    .putExtra(HyperPodsAction.EXTRA_STATUS, ancIndex)
+                    .putStringArrayListExtra(HyperPodsAction.EXTRA_ANC_IDS, ids)
             }
         }
     }
@@ -368,11 +374,25 @@ object MoondropController {
 
     private fun publishCapabilities() {
         val caps = capabilities
+        val bundle = Bundle().apply {
+            putBoolean(CAP_PROBED, caps.probed)
+            putBoolean(CAP_GAIN, caps.hasGain)
+            putBoolean(CAP_LED, caps.hasLed)
+            putBoolean(CAP_PROMPT_TONE, caps.hasPromptTone)
+            putBoolean(CAP_PROMPT_VOLUME, caps.hasPromptVolume)
+            putBoolean(CAP_LHDC, caps.hasLhdc)
+            putBoolean(CAP_DUAL_CONNECTION, caps.hasDualConnection)
+            putBoolean(CAP_GESTURES, caps.hasGestures)
+            putBoolean(CAP_LOW_LATENCY, caps.hasLowLatency)
+            // 自适应档位看档位表，不看位图：有的机型位图里有 ANC 但只有开关两档
+            putBoolean(CAP_ADAPTIVE, ancModes.contains(AncMode.ADAPTIVE))
+            putBoolean(CAP_SPATIAL, caps.hasSpatial)
+        }
         CONSUMERS.forEach { pkg ->
             sendTo(pkg, HyperPodsAction.CAPABILITIES_CHANGED) { i ->
                 i.withDevice()
-                    .putExtra(HyperPodsAction.EXTRA_STATUS, if (caps.probed) 1 else 0)
-                    .putExtra(HyperPodsAction.EXTRA_ENABLED, caps.hasLowLatency)
+                    .putExtra(HyperPodsAction.EXTRA_CAPS_BUNDLE, bundle)
+                    .putExtra(HyperPodsAction.EXTRA_MODEL_NAME, model.nameZh)
             }
         }
     }
@@ -386,6 +406,19 @@ object MoondropController {
     private const val PKG_MILINK = "com.milink.service"
     private const val PKG_XIAOMI_BLUETOOTH = "com.xiaomi.bluetooth"
     private const val PKG_SETTINGS = "com.android.settings"
+
+    // 能力包的键名：应用侧从 Bundle 里按这些键读取（见 HyperPodsAction.EXTRA_CAPS_BUNDLE）
+    private const val CAP_PROBED = "probed"
+    private const val CAP_GAIN = "hasGain"
+    private const val CAP_LED = "hasLed"
+    private const val CAP_PROMPT_TONE = "hasPromptTone"
+    private const val CAP_PROMPT_VOLUME = "hasPromptVolume"
+    private const val CAP_LHDC = "hasLhdc"
+    private const val CAP_DUAL_CONNECTION = "hasDualConnection"
+    private const val CAP_GESTURES = "hasGestures"
+    private const val CAP_LOW_LATENCY = "hasLowLatency"
+    private const val CAP_ADAPTIVE = "hasAdaptive"
+    private const val CAP_SPATIAL = "hasSpatial"
 
     /** 本模块自己的包名（详情页要从这里取数）。 */
     private val PKG_APP = com.chenyc.hyperpods.BuildConfig.APPLICATION_ID

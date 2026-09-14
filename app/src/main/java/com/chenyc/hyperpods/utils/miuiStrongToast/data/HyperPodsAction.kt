@@ -93,4 +93,11 @@ object HyperPodsAction {
     const val EXTRA_GESTURE_PAYLOAD = "gesture_payload"
     const val EXTRA_GESTURE_SLOT = "gesture_slot"
     const val EXTRA_GESTURE_EAR = "gesture_ear"
+
+    /** CAPABILITIES_CHANGED 携带的能力包（Bundle，键名见 MoondropController.publishCapabilities）。 */
+    const val EXTRA_CAPS_BUNDLE = "caps_bundle"
+    /** 型号中文名（String）。 */
+    const val EXTRA_MODEL_NAME = "model_name"
+    /** 降噪档位标识列表（StringArrayList，值为水月雨侧 AncMode.id），供界面把下标翻回模式。 */
+    const val EXTRA_ANC_IDS = "anc_ids"
 }

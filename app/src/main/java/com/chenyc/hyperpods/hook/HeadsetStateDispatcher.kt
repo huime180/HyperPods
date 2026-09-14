@@ -171,7 +171,7 @@ object HeadsetStateDispatcher : HookContext() {
                 MoondropController.handleUIEvent(intent, ctx)
             }
         }
-        context.registerReceiver(receiver, IntentFilter().apply { MOONDROP_CONTROL_ACTIONS.forEach(::addAction) }, Context.RECEIVER_EXPORTED)
+        context.registerReceiver(receiver, IntentFilter().apply { MOONDROP_CONTROL_ACTIONS.forEach { addAction(it) } }, Context.RECEIVER_EXPORTED)
         podControlContext = context.applicationContext ?: context
         podControlReceiver = receiver
     }

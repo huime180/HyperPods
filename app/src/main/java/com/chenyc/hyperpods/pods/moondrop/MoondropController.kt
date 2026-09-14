@@ -350,9 +350,12 @@ object MoondropController {
     }
 
     private fun publishGesture() {
-        val conf = gestureConf ?: return
+        // 内部保存的是裸 IntArray；线上载荷要按 GestureConf 编码（每字节高 4 位左耳、低 4 位右耳），
+        // 所以这里包一层再取 toPayload()，而不是把内部数组直接当载荷发出去。
+        val slots = gestureConf ?: return
+        val payload = MoondropGaia.GestureConf(slots.copyOf()).toPayload()
         sendTo(PKG_SETTINGS, HyperPodsAction.GESTURE_CHANGED) { i ->
-            i.withDevice().putExtra(HyperPodsAction.EXTRA_GESTURE_PAYLOAD, conf.toPayload())
+            i.withDevice().putExtra(HyperPodsAction.EXTRA_GESTURE_PAYLOAD, payload)
         }
     }
 
@@ -379,16 +382,21 @@ object MoondropController {
         Log.d(TAG, "GAIA $direction $hex $decoded")
     }
 
-    private companion object {
-        /** 水月雨状态的目标进程（应用进程也要收，详情页要从这里取数）。 */
-        val CONSUMERS = listOf(PKG_SETTINGS, PKG_MILINK, PKG_APP)
+    private const val PKG_BLUETOOTH = "com.android.bluetooth"
+    private const val PKG_MILINK = "com.milink.service"
+    private const val PKG_XIAOMI_BLUETOOTH = "com.xiaomi.bluetooth"
+    private const val PKG_SETTINGS = "com.android.settings"
 
-        const val PKG_BLUETOOTH = "com.android.bluetooth"
-        const val PKG_MILINK = "com.milink.service"
-        const val PKG_XIAOMI_BLUETOOTH = "com.xiaomi.bluetooth"
-        const val PKG_SETTINGS = "com.android.settings"
-        val PKG_APP = com.chenyc.hyperpods.BuildConfig.APPLICATION_ID
-    }
+    /** 本模块自己的包名（详情页要从这里取数）。 */
+    private val PKG_APP = com.chenyc.hyperpods.BuildConfig.APPLICATION_ID
+
+    /**
+     * 水月雨状态的目标进程。
+     *
+     * 声明顺序不能挪到上面几个常量之前：object 的成员按声明顺序初始化，
+     * 提前引用会拿到未初始化值。
+     */
+    private val CONSUMERS = listOf(PKG_SETTINGS, PKG_MILINK, PKG_APP)
 
     // 连接
 

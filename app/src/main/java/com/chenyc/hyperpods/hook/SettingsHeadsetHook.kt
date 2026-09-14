@@ -55,6 +55,9 @@ object SettingsHeadsetHook : HookContext() {
         hookServiceProxy()
         hookBatteryView()
         hookFragmentState()
+        // 原生「耳机按键配置」页（MiuiHeadsetKeyConfigFragment）的水月雨手势接管：
+        // 只在这套原生 UI 上补「单击」两组、把长按拆成「长按1秒 / 长按3秒」，读写都走本模块广播。
+        NativeGestureKeyConfig.install(this)
     }
 
     private fun hookActivityEntry() {

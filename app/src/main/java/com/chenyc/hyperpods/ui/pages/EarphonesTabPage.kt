@@ -1,5 +1,7 @@
 package com.chenyc.hyperpods.ui.pages
 
+import com.chenyc.hyperpods.ui.MoondropControls
+
 import android.bluetooth.BluetoothDevice
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,6 +34,7 @@ internal fun EarphonesTabPage(
     onGameModeChange: (Boolean) -> Unit,
     spatialAudioMode: Int,
     onSpatialAudioModeChange: (Int) -> Unit,
+    moondrop: MoondropControls,
     equalizerVisible: Boolean,
     dualDeviceSupported: Boolean,
     onOpenEqualizer: () -> Unit,
@@ -77,6 +80,7 @@ internal fun EarphonesTabPage(
                 onGameModeChange = onGameModeChange,
                 spatialAudioMode = spatialAudioMode,
                 onSpatialAudioModeChange = onSpatialAudioModeChange,
+                moondrop = moondrop,
                 equalizerVisible = equalizerVisible,
                 dualDeviceSupported = dualDeviceSupported,
                 onOpenEqualizer = onOpenEqualizer,

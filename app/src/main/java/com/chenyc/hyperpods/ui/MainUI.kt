@@ -1,5 +1,9 @@
 package com.chenyc.hyperpods.ui
 
+import com.chenyc.hyperpods.ui.pages.GesturePage
+
+import com.chenyc.hyperpods.ui.MoondropControls
+
 import android.os.Bundle
 
 import android.annotation.SuppressLint
@@ -89,6 +93,7 @@ sealed interface Screen : NavKey {
     data object Theme : Screen
     data object Equalizer : Screen
     data object RfcommDebug : Screen
+    data object Gesture : Screen
 }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -125,6 +130,16 @@ fun MainUI(
     val moondropModelName = remember { mutableStateOf("") }
     // 能力包：决定耳机页上显示哪些水月雨功能项（显示项随耳机切换）
     val moondropCaps = remember { mutableStateOf<Bundle?>(null) }
+    val moondropGainIndex = remember { mutableStateOf(0) }
+    val moondropGainLabels = remember { mutableStateOf<List<String>>(emptyList()) }
+    val moondropLedOn = remember { mutableStateOf(false) }
+    val moondropPromptToneOn = remember { mutableStateOf(false) }
+    val moondropPromptVolumeRaw = remember { mutableStateOf(0) }
+    val moondropLhdcOn = remember { mutableStateOf(false) }
+    val moondropDualConnectionOn = remember { mutableStateOf(false) }
+    val moondropPromptVolumeLabels = remember { (0..10).map { "${it * 10}%" } }
+    // 手势配置：5 字节，每字节高 4 位左耳、低 4 位右耳；null = 还没读到
+    val moondropGestureConf = remember { mutableStateOf<IntArray?>(null) }
     val gameMode = remember { mutableStateOf(false) }
     val transparencyVocalEnhancement = remember { mutableStateOf(false) }
     val dualDeviceConnection = remember { mutableStateOf(false) }
@@ -184,6 +199,56 @@ fun MainUI(
         "adaptive" -> NoiseControlMode.ADAPTIVE
         else -> NoiseControlMode.OFF
     }
+
+    /** 水月雨的命令统一以广播发回协议栈所在的进程（com.android.bluetooth）。 */
+    fun moondropSend(action: String, configure: (Intent) -> Unit = {}) {
+        context.sendBroadcast(Intent(action).apply {
+            setPackage("com.android.bluetooth")
+            configure(this)
+        })
+    }
+
+    /** 耳机页的水月雨功能项：能力位、当前值与命令回调打包成一个载体透传给详情页。 */
+    val moondropControls = MoondropControls(
+        connected = moondropConnected.value,
+        caps = moondropCaps.value,
+        gainLabels = moondropGainLabels.value,
+        gainIndex = moondropGainIndex.value,
+        onGainChange = { index ->
+            moondropSend(HyperPodsAction.GAIN_SELECT) {
+                it.putExtra(HyperPodsAction.EXTRA_STATUS, index)
+            }
+        },
+        ledOn = moondropLedOn.value,
+        onLedChange = { on ->
+            moondropSend(HyperPodsAction.LED_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
+        },
+        promptToneOn = moondropPromptToneOn.value,
+        onPromptToneChange = { on ->
+            moondropSend(HyperPodsAction.PROMPT_TONE_SELECT) {
+                it.putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
+        },
+        promptVolumeLabels = moondropPromptVolumeLabels,
+        promptVolumeIndex = (moondropPromptVolumeRaw.value / 10).coerceIn(0, 10),
+        onPromptVolumeChange = { step ->
+            // 界面按 10% 一档；协议侧收的是 0..100 原始百分比
+            moondropSend(HyperPodsAction.PROMPT_VOLUME_SELECT) {
+                it.putExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, (step * 10).coerceIn(0, 100))
+            }
+        },
+        lhdcOn = moondropLhdcOn.value,
+        onLhdcChange = { on ->
+            moondropSend(HyperPodsAction.LHDC_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
+        },
+        dualConnectionOn = moondropDualConnectionOn.value,
+        onDualConnectionChange = { on ->
+            moondropSend(HyperPodsAction.DUAL_CONNECTION_SELECT) {
+                it.putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
+        },
+        onOpenGesture = { backStack.add(Screen.Gesture) }
+    )
 
     /** 反向：界面模式 → 档位下标（找不到返回 -1，调用方不发命令）。 */
     fun moondropAncIndexOf(mode: NoiseControlMode): Int =
@@ -281,10 +346,43 @@ fun MainUI(
                         }
                     }
 
+                    HyperPodsAction.GAIN_CHANGED ->
+                        moondropGainIndex.value =
+                            p1.getIntExtra(HyperPodsAction.EXTRA_STATUS, 0).coerceAtLeast(0)
+
+                    HyperPodsAction.LED_CHANGED ->
+                        moondropLedOn.value = p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.PROMPT_TONE_CHANGED ->
+                        moondropPromptToneOn.value =
+                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.PROMPT_VOLUME_CHANGED ->
+                        moondropPromptVolumeRaw.value =
+                            p1.getIntExtra(HyperPodsAction.EXTRA_PROMPT_VOLUME_RAW, 0).coerceAtLeast(0)
+
+                    HyperPodsAction.LHDC_CHANGED ->
+                        moondropLhdcOn.value = p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.DUAL_CONNECTION_CHANGED ->
+                        moondropDualConnectionOn.value =
+                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.GESTURE_CHANGED -> {
+                        // 内部按字节保存；界面按半字节取某一耳
+                        p1.getByteArrayExtra(HyperPodsAction.EXTRA_GESTURE_PAYLOAD)?.let { bytes ->
+                            moondropGestureConf.value = IntArray(bytes.size) { i ->
+                                bytes[i].toInt() and 0xFF
+                            }
+                        }
+                    }
+
                     HyperPodsAction.CAPABILITIES_CHANGED -> {
                         moondropModelName.value =
                             p1.getStringExtra(HyperPodsAction.EXTRA_MODEL_NAME).orEmpty()
-                        moondropCaps.value = p1.getBundleExtra(HyperPodsAction.EXTRA_CAPS_BUNDLE)
+                        val caps = p1.getBundleExtra(HyperPodsAction.EXTRA_CAPS_BUNDLE)
+                        moondropCaps.value = caps
+                        moondropGainLabels.value = caps?.getStringArrayList("gainLabels") ?: emptyList()
                     }
 
                     HyperPodsAction.ACTION_PODS_ANC_CHANGED -> {
@@ -441,6 +539,13 @@ fun MainUI(
             addAction(HyperPodsAction.PODS_DISCONNECTED)
             addAction(HyperPodsAction.BATTERY_CHANGED)
             addAction(HyperPodsAction.ANC_CHANGED)
+            addAction(HyperPodsAction.GAIN_CHANGED)
+            addAction(HyperPodsAction.LED_CHANGED)
+            addAction(HyperPodsAction.PROMPT_TONE_CHANGED)
+            addAction(HyperPodsAction.PROMPT_VOLUME_CHANGED)
+            addAction(HyperPodsAction.LHDC_CHANGED)
+            addAction(HyperPodsAction.DUAL_CONNECTION_CHANGED)
+            addAction(HyperPodsAction.GESTURE_CHANGED)
             addAction(HyperPodsAction.CAPABILITIES_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 
@@ -759,6 +864,7 @@ fun MainUI(
                 onGameModeChange = { setGameMode(it) },
                 spatialAudioMode = spatialAudioMode.value,
                 onSpatialAudioModeChange = { setSpatialAudioMode(it) },
+                moondrop = moondropControls,
                 equalizerVisible = displayCapabilities.eqPresets.isNotEmpty() ||
                     displayCapabilities.customEqSupported,
                 dualDeviceSupported = displayCapabilities.dualDeviceSupported,
@@ -860,6 +966,38 @@ fun MainUI(
                 onSavePodImageBytes = { address, name, images -> savePodImageBytes(address, name, images) },
             )
         }
+        entry<Screen.Gesture> {
+            val gestureScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
+
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = stringResource(R.string.moondrop_gesture),
+                        largeTitle = stringResource(R.string.moondrop_gesture),
+                        scrollBehavior = gestureScrollBehavior,
+                        navigationIcon = {
+                            IconButton(onClick = { backStack.removeLast() }) {
+                                Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
+                            }
+                        }
+                    )
+                }
+            ) { padding ->
+                GesturePage(
+                    modifier = Modifier.overScrollVertical(),
+                    contentPadding = padding,
+                    conf = moondropGestureConf.value,
+                    onSelect = { slot, ear, actionId ->
+                        moondropSend(HyperPodsAction.GESTURE_SELECT) {
+                            it.putExtra(HyperPodsAction.EXTRA_GESTURE_SLOT, slot)
+                            it.putExtra(HyperPodsAction.EXTRA_GESTURE_EAR, ear)
+                            it.putExtra(HyperPodsAction.EXTRA_STATUS, actionId)
+                        }
+                    }
+                )
+            }
+        }
+
         entry<Screen.About> {
             val aboutScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 

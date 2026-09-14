@@ -35,6 +35,7 @@ import com.chenyc.hyperpods.pods.WearStatus
 import com.chenyc.hyperpods.ui.components.AncSwitch
 import com.chenyc.hyperpods.ui.components.PodStatus
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
+import com.chenyc.hyperpods.ui.MoondropControls
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -67,6 +68,7 @@ fun PodDetailPage(
     spatialAudioSupported: Boolean = false,
     spatialSoundSupported: Boolean = false,
     adaptiveModeEnabled: Boolean = true,
+    moondrop: MoondropControls = MoondropControls(),
     equalizerVisible: Boolean = false,
     dualDeviceSupported: Boolean = false,
     onOpenEqualizer: () -> Unit = {},
@@ -302,6 +304,70 @@ private fun LazyListScope.podControlItems(
                     summary = stringResource(if (dualDeviceConnection) R.string.enabled else R.string.off),
                     checked = dualDeviceConnection,
                     onCheckedChange = onDualDeviceConnectionChange
+                )
+            }
+
+            // ---- 水月雨（GAIA）功能项：直接摆在耳机页上，不做二级页 ----
+            // 每一项都由能力位决定是否出现；值由蓝牙进程广播而来，命令广播回去。
+            if (moondrop.promptToneVisible) {
+                SwitchPreference(
+                    title = stringResource(R.string.moondrop_prompt_tone),
+                    checked = moondrop.promptToneOn,
+                    onCheckedChange = moondrop.onPromptToneChange
+                )
+            }
+            if (moondrop.promptVolumeVisible) {
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.moondrop_prompt_volume),
+                    items = moondrop.promptVolumeLabels,
+                    selectedIndex = moondrop.promptVolumeIndex.coerceIn(0, moondrop.promptVolumeLabels.size - 1),
+                    onSelectedIndexChange = moondrop.onPromptVolumeChange
+                )
+            }
+            if (moondrop.gainVisible) {
+                // 档位名来自型号档案（低/中/高），部分机型是反向映射，所以只按索引走
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.moondrop_gain),
+                    items = moondrop.gainLabels,
+                    selectedIndex = moondrop.gainIndex.coerceIn(0, moondrop.gainLabels.size - 1),
+                    onSelectedIndexChange = moondrop.onGainChange
+                )
+            }
+            if (moondrop.ledVisible) {
+                SwitchPreference(
+                    title = stringResource(R.string.moondrop_led),
+                    checked = moondrop.ledOn,
+                    onCheckedChange = moondrop.onLedChange
+                )
+            }
+            if (moondrop.lhdcVisible) {
+                // LHDC 与双设备连接在芯片侧互斥，提示写在副标题里
+                SwitchPreference(
+                    title = stringResource(R.string.moondrop_lhdc),
+                    summary = stringResource(R.string.moondrop_lhdc_summary),
+                    checked = moondrop.lhdcOn,
+                    onCheckedChange = moondrop.onLhdcChange
+                )
+            }
+            if (moondrop.dualConnectionVisible) {
+                SwitchPreference(
+                    title = stringResource(R.string.dual_device_connection),
+                    summary = stringResource(R.string.moondrop_dual_summary),
+                    checked = moondrop.dualConnectionOn,
+                    onCheckedChange = moondrop.onDualConnectionChange
+                )
+            }
+            if (moondrop.gestureVisible) {
+                BasicComponent(
+                    title = stringResource(R.string.moondrop_gesture),
+                    summary = stringResource(R.string.moondrop_gesture_summary),
+                    onClick = moondrop.onOpenGesture,
+                    endActions = {
+                        Icon(
+                            imageVector = MiuixIcons.Basic.ArrowRight,
+                            contentDescription = null,
+                        )
+                    },
                 )
             }
         }

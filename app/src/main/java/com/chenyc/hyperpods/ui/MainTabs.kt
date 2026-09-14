@@ -1,5 +1,7 @@
 package com.chenyc.hyperpods.ui
 
+import com.chenyc.hyperpods.ui.MoondropControls
+
 import android.bluetooth.BluetoothDevice
 import android.content.res.Configuration
 import android.net.Uri
@@ -91,6 +93,7 @@ internal fun MainTabsScaffold(
     onGameModeChange: (Boolean) -> Unit,
     spatialAudioMode: Int,
     onSpatialAudioModeChange: (Int) -> Unit,
+    moondrop: MoondropControls,
     equalizerVisible: Boolean,
     dualDeviceSupported: Boolean,
     onOpenEqualizer: () -> Unit,
@@ -235,7 +238,9 @@ internal fun MainTabsScaffold(
                         onGameModeChange = onGameModeChange,
                         spatialAudioMode = spatialAudioMode,
                         onSpatialAudioModeChange = onSpatialAudioModeChange,
-                        equalizerVisible = equalizerVisible,
+                        moondrop = moondrop,
+                        moondrop = moondrop,
+            equalizerVisible = equalizerVisible,
                         dualDeviceSupported = dualDeviceSupported,
                         onOpenEqualizer = onOpenEqualizer,
                         displayDualDeviceConnection = displayDualDeviceConnection,
@@ -397,6 +402,7 @@ private fun EarphonesTabShell(
     onGameModeChange: (Boolean) -> Unit,
     spatialAudioMode: Int,
     onSpatialAudioModeChange: (Int) -> Unit,
+    moondrop: MoondropControls,
     equalizerVisible: Boolean,
     dualDeviceSupported: Boolean,
     onOpenEqualizer: () -> Unit,
@@ -462,6 +468,7 @@ private fun EarphonesTabShell(
             onGameModeChange = onGameModeChange,
             spatialAudioMode = spatialAudioMode,
             onSpatialAudioModeChange = onSpatialAudioModeChange,
+            moondrop = moondrop,
             equalizerVisible = equalizerVisible,
             dualDeviceSupported = dualDeviceSupported,
             onOpenEqualizer = onOpenEqualizer,

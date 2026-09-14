@@ -139,4 +139,14 @@
     <string name="restart_scope_success">Scope restarted</string>
     <string name="restart_scope_failed">Root restart failed</string>
     <string name="anc_implementation">ANC Compatibility Mode</string>
+    <string name="moondrop_gain">DAC Gain</string>
+    <string name="moondrop_led">Indicator Light</string>
+    <string name="moondrop_prompt_tone">Prompt Tone</string>
+    <string name="moondrop_prompt_volume">Prompt Tone Volume</string>
+    <string name="moondrop_lhdc">LHDC High-Res Audio</string>
+    <string name="moondrop_lhdc_summary">Turning this on turns off dual connection</string>
+    <string name="moondrop_dual_summary">Turning this on turns off LHDC</string>
+    <string name="moondrop_gesture">Gesture Controls</string>
+    <string name="moondrop_gesture_summary">Tap and long-press actions, per ear</string>
+    <string name="moondrop_gesture_not_synced">Gesture configuration not synced yet</string>
 </resources>

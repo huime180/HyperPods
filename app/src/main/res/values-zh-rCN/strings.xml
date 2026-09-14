@@ -140,4 +140,14 @@
     <string name="restart_scope_success">作用域已重启</string>
     <string name="restart_scope_failed">Root 重启失败</string>
     <string name="anc_implementation">ANC 兼容模式</string>
+    <string name="moondrop_gain">增益</string>
+    <string name="moondrop_led">指示灯</string>
+    <string name="moondrop_prompt_tone">提示音</string>
+    <string name="moondrop_prompt_volume">提示音音量</string>
+    <string name="moondrop_lhdc">LHDC 高清音频</string>
+    <string name="moondrop_lhdc_summary">开启会关闭双设备连接</string>
+    <string name="moondrop_dual_summary">开启会关闭 LHDC</string>
+    <string name="moondrop_gesture">手势控制</string>
+    <string name="moondrop_gesture_summary">左右耳的单击与长按动作</string>
+    <string name="moondrop_gesture_not_synced">尚未同步到手势配置</string>
 </resources>

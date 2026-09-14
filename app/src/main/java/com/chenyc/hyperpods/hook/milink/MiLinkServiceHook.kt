@@ -19,6 +19,7 @@ import com.chenyc.hyperpods.hook.callMethod
 import com.chenyc.hyperpods.hook.getObjectField
 import com.chenyc.hyperpods.hook.setObjectField
 import com.chenyc.hyperpods.pods.RfcommController
+import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
 import com.chenyc.hyperpods.pods.detectDeviceCapabilities
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.HyperPodsAction
@@ -195,6 +196,11 @@ object MiLinkServiceHook : HookContext() {
             addAction(HyperPodsAction.ACTION_PODS_GAME_MODE_CHANGED)
             addAction(HyperPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED)
             addAction(HyperPodsAction.ACTION_CONFIG_CHANGED)
+            // 水月雨线
+            addAction(HyperPodsAction.PODS_CONNECTED)
+            addAction(HyperPodsAction.PODS_DISCONNECTED)
+            addAction(HyperPodsAction.BATTERY_CHANGED)
+            addAction(HyperPodsAction.ANC_CHANGED)
         }
         context?.registerReceiver(object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -232,6 +238,36 @@ object MiLinkServiceHook : HookContext() {
                         saveState(context)
                         notifyHeadsetPropertyChanged(lastAncBatteryController, currentBluetoothDevice(), 10)
                     }
+                    // ---- 水月雨线 ----
+                    // 状态字段与 OPPO 侧共用（融合设备中心只认这一份），
+                    // 所以水月雨的档位要先翻译成 HyperOS 那套 1/2/3/4 语义。
+                    HyperPodsAction.PODS_CONNECTED -> {
+                        currentAddress = intent.getStringExtra(HyperPodsAction.EXTRA_MAC) ?: currentAddress
+                        currentName = intent.getStringExtra(HyperPodsAction.EXTRA_DEVICE_NAME) ?: currentName
+                    }
+                    HyperPodsAction.PODS_DISCONNECTED -> {
+                        currentAddress = intent.getStringExtra(HyperPodsAction.EXTRA_MAC) ?: currentAddress
+                        currentProductId = null
+                    }
+                    HyperPodsAction.BATTERY_CHANGED -> {
+                        currentAddress = intent.getStringExtra(HyperPodsAction.EXTRA_MAC) ?: currentAddress
+                        currentBattery = intent.batteryStatusCompat() ?: currentBattery
+                        saveState(context)
+                    }
+                    HyperPodsAction.ANC_CHANGED -> {
+                        currentAddress = intent.getStringExtra(HyperPodsAction.EXTRA_MAC) ?: currentAddress
+                        val ids = intent.getStringArrayListExtra(HyperPodsAction.EXTRA_ANC_IDS)
+                        val index = intent.getIntExtra(HyperPodsAction.EXTRA_STATUS, -1)
+                        currentAnc = when (ids?.getOrNull(index)) {
+                            "anc" -> 2
+                            "transparent", "live", "anti_wind" -> 3
+                            "adaptive" -> 4
+                            else -> 1
+                        }
+                        saveState(context)
+                        notifyHeadsetPropertyChanged(lastAncBatteryController, currentBluetoothDevice(), 10)
+                    }
+
                     HyperPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED -> {
                         currentAddress = intent.getStringExtra("address") ?: currentAddress
                         currentSpatialAudioMode = intent.getIntExtra("mode", currentSpatialAudioMode)

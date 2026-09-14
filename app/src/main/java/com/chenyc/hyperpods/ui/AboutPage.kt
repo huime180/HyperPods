@@ -387,9 +387,8 @@ fun MoreSettingsPage(
     lhdcVisible: Boolean = false,
     lhdcOn: Boolean = false,
     onLhdcChange: (Boolean) -> Unit = {},
-    lowLatencyVisible: Boolean = false,
-    lowLatencyOn: Boolean = false,
-    onLowLatencyChange: (Boolean) -> Unit = {}
+    lhdcSummary: String = "",
+    dualDeviceSummaryMoondrop: String = ""
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize().scrollEndHaptic(),
@@ -414,7 +413,9 @@ fun MoreSettingsPage(
                 if (dualDeviceVisible) {
                     SwitchPreference(
                         title = stringResource(R.string.dual_device),
-                        summary = stringResource(R.string.dual_device_summary),
+                        summary = dualDeviceSummaryMoondrop.ifEmpty {
+                            stringResource(R.string.dual_device_summary)
+                        },
                         checked = dualDevice,
                         onCheckedChange = onDualDeviceChange
                     )
@@ -453,15 +454,9 @@ fun MoreSettingsPage(
                 if (lhdcVisible) {
                     SwitchPreference(
                         title = stringResource(R.string.moondrop_lhdc),
+                        summary = lhdcSummary,
                         checked = lhdcOn,
                         onCheckedChange = onLhdcChange
-                    )
-                }
-                if (lowLatencyVisible) {
-                    SwitchPreference(
-                        title = stringResource(R.string.moondrop_low_latency),
-                        checked = lowLatencyOn,
-                        onCheckedChange = onLowLatencyChange
                     )
                 }
                 if (connectedDevicesVisible) {

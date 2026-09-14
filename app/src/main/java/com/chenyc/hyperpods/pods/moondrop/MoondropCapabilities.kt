@@ -26,14 +26,6 @@ data class MoondropCapabilities(
      * 也不做型号档案标记）。
      */
     val hasGestures: Boolean = false,
-    /**
-     * 低延迟模式。
-     *
-     * 这是 **HyperOS 系统侧功能**（系统蓝牙设备详情页的「低延迟」开关），
-     * 不是 GAIA 命令；因此不依赖能力位图，而是由系统 A2DP 会话是否存在低延迟
-     * 配置能力决定（见 LowLatencyBridge）。
-     */
-    val hasLowLatency: Boolean = false,
     /** 探测是否已经完成（避免 UI 在探测中途闪来闪去） */
     val probed: Boolean = false,
 ) {
@@ -47,7 +39,6 @@ data class MoondropCapabilities(
             hasHeadTracking == other.hasHeadTracking && hasPromptTone == other.hasPromptTone &&
             hasPromptVolume == other.hasPromptVolume && hasLhdc == other.hasLhdc &&
             hasDualConnection == other.hasDualConnection && hasGestures == other.hasGestures &&
-            hasLowLatency == other.hasLowLatency &&
             probed == other.probed
     }
 

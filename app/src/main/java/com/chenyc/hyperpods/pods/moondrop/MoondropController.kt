@@ -99,7 +99,6 @@ object MoondropController {
     @Volatile private var lhdcConfirmed: Boolean? = null
     @Volatile private var activeCodec = ""
     @Volatile private var dualConnectionOn: Boolean? = null
-    @Volatile private var lowLatencyOn: Boolean? = null
     /**
      * 手势配置（TOUCHV2）的 5 个字节（顺序见 [MoondropGaia.GestureSlot]）；null = 还没读到过。
      *
@@ -185,8 +184,6 @@ object MoondropController {
                 setLhdc(intent.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false))
             HyperPodsAction.DUAL_CONNECTION_SELECT ->
                 setDualConnection(intent.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false))
-            HyperPodsAction.LOW_LATENCY_SELECT ->
-                onLowLatencyChanged(intent.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false))
 
             // 原生耳机页的手势卡片：改某个槽位、某只耳的动作
             HyperPodsAction.GESTURE_SELECT -> {
@@ -378,15 +375,6 @@ object MoondropController {
         }
     }
 
-    private fun publishLowLatency() {
-        val on = lowLatencyOn ?: return
-        CONSUMERS.forEach { pkg ->
-            sendTo(pkg, HyperPodsAction.LOW_LATENCY_CHANGED) { i ->
-                i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
-            }
-        }
-    }
-
     private fun publishCapabilities() {
         val caps = capabilities
         val bundle = Bundle().apply {
@@ -398,7 +386,6 @@ object MoondropController {
             putBoolean(CAP_LHDC, caps.hasLhdc)
             putBoolean(CAP_DUAL_CONNECTION, caps.hasDualConnection)
             putBoolean(CAP_GESTURES, caps.hasGestures)
-            putBoolean(CAP_LOW_LATENCY, caps.hasLowLatency)
             // 自适应档位看档位表，不看位图：有的机型位图里有 ANC 但只有开关两档
             putBoolean(CAP_ADAPTIVE, ancModes.contains(AncMode.ADAPTIVE))
             putBoolean(CAP_SPATIAL, caps.hasSpatial)
@@ -434,7 +421,6 @@ object MoondropController {
     private const val CAP_LHDC = "hasLhdc"
     private const val CAP_DUAL_CONNECTION = "hasDualConnection"
     private const val CAP_GESTURES = "hasGestures"
-    private const val CAP_LOW_LATENCY = "hasLowLatency"
     private const val CAP_ADAPTIVE = "hasAdaptive"
     private const val CAP_SPATIAL = "hasSpatial"
     private const val CAP_GAIN_LABELS = "gainLabels"
@@ -1052,6 +1038,13 @@ object MoondropController {
      *      见 [reprobeSystemCodec]。
      */
     fun setLhdc(on: Boolean) {
+        // LHDC 与双设备连接在芯片侧是二选一：同时开会导致其中一个静默失效。
+        // 用户开一个就先把另一个关掉，并让它各自广播新状态，界面不会出现两个都亮着的假象。
+        if (on && dualConnectionOn == true) {
+            Log.i(TAG, "LHDC on while dual connection is on: turning dual connection off first")
+            setDualConnection(false)
+        }
+
         val lastConfirmed = lhdcConfirmed
         lhdcOn = on
         Log.i(TAG, "setLhdc($on): optimistic; lastConfirmed=$lastConfirmed")
@@ -1125,6 +1118,12 @@ object MoondropController {
     }
 
     fun setDualConnection(on: Boolean) {
+        // 与 LHDC 互斥，理由同 setLhdc
+        if (on && lhdcOn == true) {
+            Log.i(TAG, "dual connection on while LHDC is on: turning LHDC off first")
+            setLhdc(false)
+        }
+
         scope.launch { write(MoondropGaia.dualConnectionSet(on)); delay(500); refreshDualConnection(); }
     }
 
@@ -1179,11 +1178,6 @@ object MoondropController {
     }
 
     /** 由系统侧（低延迟开关）回调进来。 */
-    fun onLowLatencyChanged(on: Boolean) {
-        lowLatencyOn = on
-        publishLowLatency()
-    }
-
     // 响应分发（除了唤醒 request()，还要处理主动通知）
 
     private fun dispatch(f: MoondropGaia.Frame) {

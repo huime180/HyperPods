@@ -138,7 +138,6 @@ fun MainUI(
     val moondropPromptVolumeRaw = remember { mutableStateOf(0) }
     val moondropLhdcOn = remember { mutableStateOf(false) }
     val moondropDualConnectionOn = remember { mutableStateOf(false) }
-    val moondropLowLatencyOn = remember { mutableStateOf(false) }
     // 能力包：决定「更多设置」里显示哪些水月雨项（显示项随耳机切换）
     val moondropCaps = remember { mutableStateOf<Bundle?>(null) }
     val moondropPromptVolumeLabels = remember { (0..10).map { "${it * 10}%" } }
@@ -530,10 +529,6 @@ fun MainUI(
                         moondropDualConnectionOn.value =
                             p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
 
-                    HyperPodsAction.LOW_LATENCY_CHANGED ->
-                        moondropLowLatencyOn.value =
-                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
-
                     HyperPodsAction.CAPABILITIES_CHANGED -> {
                         moondropModelName.value =
                             p1.getStringExtra(HyperPodsAction.EXTRA_MODEL_NAME).orEmpty()
@@ -584,7 +579,6 @@ fun MainUI(
             addAction(HyperPodsAction.PROMPT_VOLUME_CHANGED)
             addAction(HyperPodsAction.LHDC_CHANGED)
             addAction(HyperPodsAction.DUAL_CONNECTION_CHANGED)
-            addAction(HyperPodsAction.LOW_LATENCY_CHANGED)
         }, Context.RECEIVER_EXPORTED)
 
         context.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_UI_INIT).apply {
@@ -636,9 +630,6 @@ fun MainUI(
 
     fun setMoondropDualConnection(on: Boolean) =
         moondropSend(HyperPodsAction.DUAL_CONNECTION_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
-
-    fun setMoondropLowLatency(on: Boolean) =
-        moondropSend(HyperPodsAction.LOW_LATENCY_SELECT) { it.putExtra(HyperPodsAction.EXTRA_ENABLED, on) }
 
     fun setAncMode(mode: NoiseControlMode) {
         if (moondropConnected.value) {
@@ -1374,6 +1365,7 @@ fun MainUI(
                     autoPlayPause = displayAutoPlayPause,
                     onAutoPlayPauseChange = { setAutoPlayPause(it) },
                     // 水月雨接上时，双设备连接走它自己的命令与状态；OPPO 侧保持原样
+                    dualDeviceSummaryMoondrop = stringResource(R.string.moondrop_dual_summary),
                     dualDeviceVisible = if (moondropConnected.value) {
                         moondropCap("hasDualConnection")
                     } else {
@@ -1406,11 +1398,9 @@ fun MainUI(
                     promptVolumeIndex = (moondropPromptVolumeRaw.value / 10).coerceIn(0, 10),
                     onPromptVolumeChange = { setMoondropPromptVolumeStep(it) },
                     lhdcVisible = moondropConnected.value && moondropCap("hasLhdc"),
+                    lhdcSummary = stringResource(R.string.moondrop_lhdc_summary),
                     lhdcOn = moondropLhdcOn.value,
                     onLhdcChange = { setMoondropLhdc(it) },
-                    lowLatencyVisible = moondropConnected.value && moondropCap("hasLowLatency"),
-                    lowLatencyOn = moondropLowLatencyOn.value,
-                    onLowLatencyChange = { setMoondropLowLatency(it) }
                 )
             }
         }

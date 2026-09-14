@@ -212,6 +212,15 @@ fun MainUI(
     val moondropControls = MoondropControls(
         connected = moondropConnected.value,
         caps = moondropCaps.value,
+        ancIds = moondropAncIds.value,
+        ancIndex = moondropAncIndex.value,
+        onAncChange = { index ->
+            // 线上传的是档位下标（不是 OPPO 的 1/2/3/4 语义），直接回传下标
+            moondropSend(HyperPodsAction.ANC_SELECT) {
+                it.putExtra(HyperPodsAction.EXTRA_STATUS, index)
+            }
+            moondropAncIndex.value = index
+        },
         gainLabels = moondropGainLabels.value,
         gainIndex = moondropGainIndex.value,
         onGainChange = { index ->

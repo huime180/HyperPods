@@ -367,3 +367,113 @@ private fun themedPainterResource(@androidx.annotation.DrawableRes id: Int): Pai
         }
     }
 }
+
+/** 降噪族的档位 id：主排点「降噪」时，这些档位都算命中。 */
+private val ANC_NC_FAMILY = listOf("anc", "anti_wind", "adaptive")
+
+/** 通透族的档位 id（人声通透也属于通透）。 */
+private val ANC_TRANSPARENCY_FAMILY = listOf("transparent", "live")
+
+/** 档位 id → 文案。表里没有的 id 回落到 id 本身，绝不静默吞掉。 */
+@Composable
+private fun ancIdLabel(id: String): String = when (id) {
+    "off" -> stringResource(R.string.off)
+    "anc" -> stringResource(R.string.anc_basic_title)
+    "anti_wind" -> stringResource(R.string.anc_anti_wind_title)
+    "adaptive" -> stringResource(R.string.adaptive_title)
+    "transparent" -> stringResource(R.string.transparency_title)
+    "live" -> stringResource(R.string.anc_live_title)
+    else -> id
+}
+
+/**
+ * 水月雨（GAIA）的降噪选择器。
+ *
+ * 为什么不复用 [AncSwitch]：它的选项是 OPPO 那套固定的四档
+ * （降噪 / 自适应 / 通透 / 关闭），而水月雨的档位是**型号相关**的 ——
+ * 例如布丁是「关闭 / 基本降噪 / 抗风噪 / 自适应 / 通透」五档，
+ * 用四档枚举表达必然丢档（抗风噪一度被错误地并进通透）。
+ *
+ * 因此这里完全按探测到的档位表渲染：蓝牙进程把 MoondropGaia.AncMode 的 id 列表广播过来，
+ * 有几个档就画几个，界面不做任何型号猜测。降噪族按 OPPO 那套分层呈现 ——
+ * 主排选「降噪」，再在子排里选具体是哪一种。
+ */
+@Composable
+fun MoondropAncSwitch(
+    ancIds: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    compact: Boolean = false
+) {
+    val current = ancIds.getOrNull(selectedIndex)
+    val ncId = ANC_NC_FAMILY.firstOrNull { it in ancIds }
+    val transparencyId = ANC_TRANSPARENCY_FAMILY.firstOrNull { it in ancIds }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = if (compact) 8.dp else 16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (ncId != null) {
+                AncButton(
+                    offIconRes = R.drawable.ic_openanc_off,
+                    onIconRes = R.drawable.ic_openanc_on,
+                    label = stringResource(R.string.noise_cancellation_title),
+                    isSelected = current in ANC_NC_FAMILY,
+                    onClick = { onSelect(ancIds.indexOf(ncId)) },
+                    modifier = Modifier.weight(1f),
+                    compact = compact
+                )
+            }
+            if (transparencyId != null) {
+                AncButton(
+                    offIconRes = R.drawable.ic_transparent_off,
+                    onIconRes = R.drawable.ic_transparent_on,
+                    label = stringResource(R.string.transparency_title),
+                    isSelected = current in ANC_TRANSPARENCY_FAMILY,
+                    onClick = { onSelect(ancIds.indexOf(transparencyId)) },
+                    modifier = Modifier.weight(1f),
+                    compact = compact
+                )
+            }
+            if ("off" in ancIds) {
+                AncButton(
+                    offIconRes = R.drawable.ic_closeanc_off,
+                    onIconRes = R.drawable.ic_closeanc_on,
+                    label = stringResource(R.string.off),
+                    isSelected = current == "off",
+                    onClick = { onSelect(ancIds.indexOf("off")) },
+                    modifier = Modifier.weight(1f),
+                    compact = compact
+                )
+            }
+        }
+
+        // 降噪族子档：只在当前处于降噪族、且设备确实提供多于一种降噪时出现
+        val ncVariants = ANC_NC_FAMILY.filter { it in ancIds }
+        if (current in ANC_NC_FAMILY && ncVariants.size > 1) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ncVariants.forEach { id ->
+                    AncButton(
+                        offIconRes = if (id == "adaptive") R.drawable.ic_adaptive_off else R.drawable.ic_openanc_off,
+                        onIconRes = if (id == "adaptive") R.drawable.ic_adaptive_on else R.drawable.ic_openanc_on,
+                        label = ancIdLabel(id),
+                        isSelected = current == id,
+                        onClick = { onSelect(ancIds.indexOf(id)) },
+                        modifier = Modifier.weight(1f),
+                        compact = true
+                    )
+                }
+            }
+        }
+    }
+}

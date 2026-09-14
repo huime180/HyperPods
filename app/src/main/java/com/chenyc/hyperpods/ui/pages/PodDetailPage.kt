@@ -33,6 +33,7 @@ import com.chenyc.hyperpods.config.ConfigManager
 import com.chenyc.hyperpods.pods.NoiseControlMode
 import com.chenyc.hyperpods.pods.WearStatus
 import com.chenyc.hyperpods.ui.components.AncSwitch
+import com.chenyc.hyperpods.ui.components.MoondropAncSwitch
 import com.chenyc.hyperpods.ui.components.PodStatus
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
 import com.chenyc.hyperpods.ui.MoondropControls
@@ -241,14 +242,24 @@ private fun LazyListScope.podControlItems(
         Card(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
         ) {
-            AncSwitch(
-                ancStatus = ancMode,
-                onAncModeChange = onAncModeChange,
-                smartAncLevel = smartAncLevel,
-                adaptiveModeEnabled = adaptiveModeEnabled,
-                transparencyVocalEnhancement = transparencyVocalEnhancement,
-                onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
-            )
+            // 水月雨的档位是型号相关的（布丁五档），装不进 OPPO 那套四档枚举，
+            // 所以有档位表时改用它自己的选择器，否则沿用原来的。
+            if (moondrop.ancVisible) {
+                MoondropAncSwitch(
+                    ancIds = moondrop.ancIds,
+                    selectedIndex = moondrop.ancIndex,
+                    onSelect = moondrop.onAncChange
+                )
+            } else {
+                AncSwitch(
+                    ancStatus = ancMode,
+                    onAncModeChange = onAncModeChange,
+                    smartAncLevel = smartAncLevel,
+                    adaptiveModeEnabled = adaptiveModeEnabled,
+                    transparencyVocalEnhancement = transparencyVocalEnhancement,
+                    onTransparencyVocalEnhancementChange = onTransparencyVocalEnhancementChange
+                )
+            }
         }
     }
 

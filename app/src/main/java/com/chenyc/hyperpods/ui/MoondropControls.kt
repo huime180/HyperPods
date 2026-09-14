@@ -17,6 +17,9 @@ import androidx.compose.runtime.Immutable
 class MoondropControls(
     val connected: Boolean = false,
     private val caps: Bundle? = null,
+    val ancIds: List<String> = emptyList(),
+    val ancIndex: Int = -1,
+    val onAncChange: (Int) -> Unit = {},
     val gainLabels: List<String> = emptyList(),
     val gainIndex: Int = 0,
     val onGainChange: (Int) -> Unit = {},
@@ -35,6 +38,9 @@ class MoondropControls(
 ) {
     /** 设备是否具备某能力；没探测到就不显示对应控件。 */
     fun supports(key: String): Boolean = caps?.getBoolean(key) ?: false
+
+    /** 降噪档位表来自设备探测结果；空表说明还没探到，此时沿用 OPPO 那套控件。 */
+    val ancVisible get() = connected && ancIds.isNotEmpty()
 
     val gainVisible get() = connected && supports(KEY_GAIN) && gainLabels.isNotEmpty()
     val ledVisible get() = connected && supports(KEY_LED)

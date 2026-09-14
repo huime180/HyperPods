@@ -149,4 +149,7 @@
     <string name="moondrop_gesture">Gesture Controls</string>
     <string name="moondrop_gesture_summary">Tap and long-press actions, per ear</string>
     <string name="moondrop_gesture_not_synced">Gesture configuration not synced yet</string>
+    <string name="anc_basic_title">Basic</string>
+    <string name="anc_anti_wind_title">Anti-wind</string>
+    <string name="anc_live_title">Live</string>
 </resources>

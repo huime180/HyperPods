@@ -150,4 +150,7 @@
     <string name="moondrop_gesture">手势控制</string>
     <string name="moondrop_gesture_summary">左右耳的单击与长按动作</string>
     <string name="moondrop_gesture_not_synced">尚未同步到手势配置</string>
+    <string name="anc_basic_title">基本</string>
+    <string name="anc_anti_wind_title">抗风噪</string>
+    <string name="anc_live_title">人声通透</string>
 </resources>

@@ -14,6 +14,7 @@ import android.media.MediaRoute2Info
 import android.media.MediaRouter2
 import android.media.RouteDiscoveryPreference
 import android.os.SystemClock
+import com.chenyc.hyperpods.pods.PodCatalog
 import com.chenyc.hyperpods.hook.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -499,6 +500,12 @@ object RfcommController {
     }
 
     fun connectPod(context: Context, device: BluetoothDevice, prefs: SharedPreferences, appRequested: Boolean = false) {
+        // 兜底拦截：水月雨设备不走这条线（GAIA 的 UUID 与通道都不同），
+        // 走这里只会连不上、还会把「连接失败」弹到界面上。任何调用方误入都拦在这。
+        if (PodCatalog.moondropModelOf(device.name, device.address) != null) {
+            Log.d(TAG, "skip RFCOMM connect: ${device.address} is a MOONDROP device")
+            return
+        }
         connectionJob?.cancel()
         reconnectJob?.cancel()
         readerJob?.cancel()

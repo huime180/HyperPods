@@ -1485,17 +1485,67 @@ fun MainUI(
         entryProvider = entryProvider
     )
 
-    NavDisplay(
-        entries = entries,
-        onBack = {
-            if (backStack.size > 1) {
-                backStack.removeLast()
-            } else {
-                (context as? Activity)?.finish()
+    // 一级页底栏：模块 / 耳机 / 设置。
+    // 二级页（均衡器、配置档、手势控制、调试等）不显示底栏，避免在二级页里再切换一级页。
+    val currentRootTab = when (backStack.last()) {
+        Screen.Home -> RootTab.PODS
+        Screen.Settings -> RootTab.MODULE
+        Screen.About -> RootTab.SETTINGS
+        else -> null
+    }
+
+    fun openRootTab(tab: RootTab) {
+        // 切一级页就重置返回栈：一级页之间是平级关系，不该互相压栈
+        backStack.clear()
+        backStack.add(
+            when (tab) {
+                RootTab.PODS -> Screen.Home
+                RootTab.MODULE -> Screen.Settings
+                RootTab.SETTINGS -> Screen.About
+            }
+        )
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.weight(1f)) {
+            NavDisplay(
+                entries = entries,
+                onBack = {
+                    if (backStack.size > 1) {
+                        backStack.removeLast()
+                    } else {
+                        (context as? Activity)?.finish()
+                    }
+                }
+            )
+        }
+        if (currentRootTab != null) {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = currentRootTab == RootTab.PODS,
+                    onClick = { openRootTab(RootTab.PODS) },
+                    icon = Icons.Rounded.Headset,
+                    label = stringResource(R.string.tab_pods)
+                )
+                NavigationBarItem(
+                    selected = currentRootTab == RootTab.MODULE,
+                    onClick = { openRootTab(RootTab.MODULE) },
+                    icon = Icons.Rounded.Extension,
+                    label = stringResource(R.string.tab_module)
+                )
+                NavigationBarItem(
+                    selected = currentRootTab == RootTab.SETTINGS,
+                    onClick = { openRootTab(RootTab.SETTINGS) },
+                    icon = Icons.Rounded.Settings,
+                    label = stringResource(R.string.tab_settings)
+                )
             }
         }
-    )
+    }
 }
+
+/** 一级页（底栏三页）。二级页用 [Screen] 表示。 */
+enum class RootTab { PODS, MODULE, SETTINGS }
 
 @Composable
 fun ConnectingPage() {

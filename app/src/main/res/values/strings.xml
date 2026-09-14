@@ -166,4 +166,9 @@
     <string name="moondrop_prompt_volume">Prompt Tone Volume</string>
     <string name="moondrop_lhdc">LHDC High-Res Audio</string>
     <string name="moondrop_low_latency">Low Latency</string>
+    <string name="tab_pods">Earbuds</string>
+    <string name="tab_module">Module</string>
+    <string name="tab_settings">Settings</string>
+    <string name="gesture_title">Gesture Controls</string>
+    <string name="gesture_not_synced">Gesture configuration not synced yet</string>
 </resources>

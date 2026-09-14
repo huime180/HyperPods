@@ -167,4 +167,9 @@
     <string name="moondrop_prompt_volume">提示音音量</string>
     <string name="moondrop_lhdc">LHDC 高清音频</string>
     <string name="moondrop_low_latency">低延迟</string>
+    <string name="tab_pods">耳机</string>
+    <string name="tab_module">模块</string>
+    <string name="tab_settings">设置</string>
+    <string name="gesture_title">手势控制</string>
+    <string name="gesture_not_synced">尚未同步到手势配置</string>
 </resources>

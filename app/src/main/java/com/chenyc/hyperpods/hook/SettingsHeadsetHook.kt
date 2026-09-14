@@ -58,6 +58,9 @@ object SettingsHeadsetHook : HookContext() {
         // 原生「耳机按键配置」页（MiuiHeadsetKeyConfigFragment）的水月雨手势接管：
         // 只在这套原生 UI 上补「单击」两组、把长按拆成「长按1秒 / 长按3秒」，读写都走本模块广播。
         NativeGestureKeyConfig.install(this)
+        // 原生「蓝牙设置里的耳机设备页」整页重定向到模块耳机页（只对受管设备生效，
+        // 防死循环与降级策略见 HeadsetPageRedirectHook 的文件头）。
+        HeadsetPageRedirectHook.install(this)
     }
 
     private fun hookActivityEntry() {

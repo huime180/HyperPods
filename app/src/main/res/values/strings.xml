@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">HyperPods</string>
-    <string name="app_subtitle">OPPO / MOONDROP Earphones for HyperOS</string>
     <string name="pod_info">Pod Info</string>
     <string name="about">About HyperPods</string>
     <string name="about_project_home">Project Home</string>
@@ -12,8 +11,6 @@
     <string name="based_on">Based on</string>
     <string name="game_mode">Game Mode</string>
     <string name="game_mode_summary">Low latency audio mode</string>
-    <string name="enable_game_mode">Enable Game Mode</string>
-    <string name="disable_game_mode">Disable Game Mode</string>
     <string name="auto_game_mode">Auto-enable game mode on connect</string>
     <string name="milink_card_features">Interconnect card</string>
     <string name="milink_card_features_summary">Add supported features to the interconnect card</string>
@@ -31,8 +28,6 @@
     <string name="eq_delete_title">Delete preset?</string>
     <string name="eq_delete_confirm">Delete “%1$s”?</string>
     <string name="eq_add">Add equalizer</string>
-    <string name="eq_edit">Edit equalizer</string>
-    <string name="eq_close">Close</string>
     <string name="eq_recommended">Recommended</string>
     <string name="eq_custom">Custom</string>
     <string name="eq_add_summary">Create a custom equalizer preset</string>
@@ -60,12 +55,10 @@
     <string name="noise_cancellation_deep">Deep</string>
     <string name="transparency_title">Transparency</string>
     <string name="transparency_vocal_enhancement">Vocal Enhancement</string>
-    <string name="transparency_vocal_enhancement_summary">Enhance voices in Transparency mode</string>
     <string name="adaptive_title">Adaptive</string>
     <string name="pod_case">Case</string>
     <string name="batt_left_pod">Left</string>
     <string name="batt_right_pod">Right</string>
-    <string name="waiting_for_pod">Waiting for OPPO Earphones Connection...</string>
     <string name="select_device">Select Bluetooth Device</string>
     <string name="no_paired_devices">No paired devices found</string>
     <string name="bluetooth_disabled">Please enable Bluetooth</string>
@@ -74,9 +67,7 @@
     <string name="input_mac_title">Enter Device MAC Address</string>
     <string name="connect">Connect</string>
     <string name="cancel">Cancel</string>
-    <string name="connecting">Connecting...</string>
     <string name="connect_failed">Connection failed. Please make sure the device is nearby and powered on.</string>
-    <string name="retry">Retry</string>
     <string name="bt_permission_required">Bluetooth permission is required to discover earphones.</string>
     <string name="grant_permission">Grant Permission</string>
     <string name="more">More</string>
@@ -135,9 +126,6 @@
     <string name="log_level_debug">Debug</string>
     <string name="hide_desktop_icon">Hide Desktop Icon</string>
     <string name="hide_desktop_icon_summary">Hide the launcher icon; open from module manager after hiding</string>
-    <string name="cycle_anc">Cycle ANC</string>
-    <string name="adaptive_mode">Adaptive Mode</string>
-    <string name="adaptive_mode_summary">Enable Adaptive noise control mode for compatible earphones</string>
     <string name="island_mode">Super Island</string>
     <string name="island_mode_summary">Choose which battery island is displayed</string>
     <string name="island_mode_none">none</string>
@@ -151,12 +139,10 @@
     <string name="island_show_timing_in_case">When put in case</string>
     <string name="fake_device_id">Fake earphone model</string>
     <string name="fake_device_id_summary">Empty value falls back to 01010607.</string>
-    <string name="notification_btn_disconnect">Disconnect</string>
     <string name="restart_scope_title">Restart Scope</string>
     <string name="restart_scope_summary">Select apps to restart with root.</string>
     <string name="restart_scope_success">Scope restarted</string>
     <string name="restart_scope_failed">Root restart failed</string>
-    <string name="anc_implementation">ANC Compatibility Mode</string>
     <string name="moondrop_gain">DAC Gain</string>
     <string name="moondrop_led">Indicator Light</string>
     <string name="moondrop_prompt_tone">Prompt Tone</string>

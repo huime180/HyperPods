@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">HyperPods</string>
-    <string name="app_subtitle">OPPO / 水月雨耳机适配 HyperOS</string>
     <string name="pod_info">耳机信息</string>
     <string name="about">关于 HyperPods</string>
     <string name="about_project_home">项目主页</string>
@@ -13,8 +12,6 @@
     <string name="based_on">基于</string>
     <string name="game_mode">游戏模式</string>
     <string name="game_mode_summary">低延迟音频模式</string>
-    <string name="enable_game_mode">打开游戏模式</string>
-    <string name="disable_game_mode">关闭游戏模式</string>
     <string name="auto_game_mode">连接时自动开启游戏模式</string>
     <string name="milink_card_features">互联卡片</string>
     <string name="milink_card_features_summary">在互联卡片添加支持的功能</string>
@@ -32,8 +29,6 @@
     <string name="eq_delete_title">删除预设</string>
     <string name="eq_delete_confirm">确定删除“%1$s”吗？</string>
     <string name="eq_add">添加均衡器</string>
-    <string name="eq_edit">编辑均衡器</string>
-    <string name="eq_close">关闭</string>
     <string name="eq_recommended">推荐</string>
     <string name="eq_custom">自定义</string>
     <string name="eq_add_summary">创建一个自定义均衡器预设</string>
@@ -61,12 +56,10 @@
     <string name="noise_cancellation_deep">深度</string>
     <string name="transparency_title">通透</string>
     <string name="transparency_vocal_enhancement">人声增强</string>
-    <string name="transparency_vocal_enhancement_summary">在通透模式下增强人声</string>
     <string name="adaptive_title">自适应</string>
     <string name="pod_case">耳机盒</string>
     <string name="batt_left_pod">左</string>
     <string name="batt_right_pod">右</string>
-    <string name="waiting_for_pod">等待 OPPO 耳机连接...</string>
     <string name="select_device">选择蓝牙设备</string>
     <string name="no_paired_devices">未找到已配对的设备</string>
     <string name="bluetooth_disabled">请开启蓝牙</string>
@@ -75,9 +68,7 @@
     <string name="input_mac_title">输入设备 MAC 地址</string>
     <string name="connect">连接</string>
     <string name="cancel">取消</string>
-    <string name="connecting">连接中...</string>
     <string name="connect_failed">连接失败，请确认设备已开机且在附近。</string>
-    <string name="retry">重试</string>
     <string name="bt_permission_required">需要蓝牙权限才能发现耳机。</string>
     <string name="grant_permission">授予权限</string>
     <string name="more">更多</string>
@@ -136,9 +127,6 @@
     <string name="log_level_debug">调试</string>
     <string name="hide_desktop_icon">隐藏桌面图标</string>
     <string name="hide_desktop_icon_summary">隐藏启动器图标；隐藏后请从模块管理器打开</string>
-    <string name="cycle_anc">切换降噪</string>
-    <string name="adaptive_mode">自适应模式</string>
-    <string name="adaptive_mode_summary">为兼容耳机启用自适应降噪模式，关闭后将隐藏该选项并禁用相关音频处理</string>
     <string name="island_mode">超级岛</string>
     <string name="island_mode_summary">选择要显示的电量超级岛</string>
     <string name="island_mode_none">不显示</string>
@@ -152,12 +140,10 @@
     <string name="island_show_timing_in_case">放回盒中时</string>
     <string name="fake_device_id">伪装耳机型号</string>
     <string name="fake_device_id_summary">留空时默认使用 01010607</string>
-    <string name="notification_btn_disconnect">断开连接</string>
     <string name="restart_scope_title">重启作用域</string>
     <string name="restart_scope_summary">选择要通过 root 重启的作用域软件。</string>
     <string name="restart_scope_success">作用域已重启</string>
     <string name="restart_scope_failed">Root 重启失败</string>
-    <string name="anc_implementation">ANC 兼容模式</string>
     <string name="moondrop_gain">增益</string>
     <string name="moondrop_led">指示灯</string>
     <string name="moondrop_prompt_tone">提示音</string>

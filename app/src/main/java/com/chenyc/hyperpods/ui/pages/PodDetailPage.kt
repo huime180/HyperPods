@@ -513,14 +513,15 @@ private fun ConfirmSwitchRow(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            // 用 spacedBy(20.dp) 而不是 SpaceBetween + Spacer：本文件的 import 里没有
+            // Spacer / Modifier.width，两枚等宽按钮 + 20dp 间隔的视觉效果完全一样，少引两个符号。
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             TextButton(
                 text = stringResource(R.string.cancel),
                 onClick = { pending = null },
                 modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.width(20.dp))
             TextButton(
                 text = stringResource(R.string.conflict_switch),
                 onClick = {

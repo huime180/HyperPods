@@ -57,6 +57,11 @@ object HyperPodsAction {
     const val PROMPT_VOLUME_CHANGED = "chen.action.hyperpods.moondrop.prompt_volume_changed"
     const val LHDC_CHANGED = "chen.action.hyperpods.moondrop.lhdc_changed"
     const val DUAL_CONNECTION_CHANGED = "chen.action.hyperpods.moondrop.dual_connection_changed"
+    // 空间音频 / 头部追踪：水月雨 GAIA 的 feature 18（见 MoondropGaia.F_SPATIAL_AUDIO）。
+    // 这两项**只走水月雨这条线**：OPPO 的空间音频是 milink 链路，走它自己的
+    // ACTION_SPATIAL_AUDIO_SET / ACTION_PODS_SPATIAL_AUDIO_CHANGED，两套互不相干。
+    const val SPATIAL_AUDIO_CHANGED = "chen.action.hyperpods.moondrop.spatial_audio_changed"
+    const val HEAD_TRACKING_CHANGED = "chen.action.hyperpods.moondrop.head_tracking_changed"
     // 低延迟是**系统侧 A2DP 特性**（不是耳机厂商协议命令），状态由蓝牙进程广播、界面只发选择
     const val LOW_LATENCY_CHANGED = "chen.action.hyperpods.moondrop.low_latency_changed"
     const val GESTURE_CHANGED = "chen.action.hyperpods.moondrop.gesture_changed"
@@ -72,6 +77,10 @@ object HyperPodsAction {
     const val PROMPT_VOLUME_SELECT = "chen.action.hyperpods.moondrop.prompt_volume_select"
     const val LHDC_SELECT = "chen.action.hyperpods.moondrop.lhdc_select"
     const val DUAL_CONNECTION_SELECT = "chen.action.hyperpods.moondrop.dual_connection_select"
+    // 空间音频开关与头部追踪各一条 SELECT（界面 → 蓝牙进程的协议栈）；
+    // payload 取值 0/1 与指示灯同口径，命令号集中在 MoondropGaia，UI 侧不写数字。
+    const val SPATIAL_AUDIO_SELECT = "chen.action.hyperpods.moondrop.spatial_audio_select"
+    const val HEAD_TRACKING_SELECT = "chen.action.hyperpods.moondrop.head_tracking_select"
     const val LOW_LATENCY_SELECT = "chen.action.hyperpods.moondrop.low_latency_select"
     const val REQUEST_CAPABILITIES = "chen.action.hyperpods.moondrop.request_capabilities"
     const val REQUEST_BATTERY = "chen.action.hyperpods.moondrop.request_battery"

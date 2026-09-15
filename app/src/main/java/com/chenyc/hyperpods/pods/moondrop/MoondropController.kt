@@ -100,6 +100,16 @@ object MoondropController {
     @Volatile private var activeCodec = ""
     @Volatile private var dualConnectionOn: Boolean? = null
     /**
+     * 空间音频开关（GAIA feature 18 / cmd 1）；null = 还没读到。
+     *
+     * ⚠ **待真机确认**：命令号与 payload 只取自 PROTOCOL.md 的 feature 18 表
+     * （`1/2` = 开关、`3/4` = 头动追踪，payload `0`=关 / `1`=开，与指示灯同口径）。
+     * 那张表自己就被标为「未接线 / 未验证」，本模块也尚未在支持空间音频的机型上跑过读写。
+     */
+    @Volatile private var spatialOn: Boolean? = null
+    /** 头部追踪开关（同一 feature 18 的 cmd 3）；null = 还没读到。⚠ 待真机确认，理由同 [spatialOn]。 */
+    @Volatile private var headTrackingOn: Boolean? = null
+    /**
      * 手势配置（TOUCHV2）的 5 个字节（顺序见 [MoondropGaia.GestureSlot]）；null = 还没读到过。
      *
      * ⚠ 每个字节**打包双耳**：高 4 位 = 左耳动作 id，低 4 位 = 右耳动作 id
@@ -192,6 +202,11 @@ object MoondropController {
                 setLhdc(intent.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false))
             HyperPodsAction.DUAL_CONNECTION_SELECT ->
                 setDualConnection(intent.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false))
+            // 空间音频与头部追踪是同一 feature(18) 的两组命令，各走各的 SELECT
+            HyperPodsAction.SPATIAL_AUDIO_SELECT ->
+                setSpatial(intent.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false))
+            HyperPodsAction.HEAD_TRACKING_SELECT ->
+                setHeadTracking(intent.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false))
 
             // 原生耳机页的手势卡片：改某个槽位、某只耳的动作
             HyperPodsAction.GESTURE_SELECT -> {
@@ -250,6 +265,8 @@ object MoondropController {
         publishPromptVolume()
         publishLhdc()
         publishDualConnection()
+        publishSpatial()
+        publishHeadTracking()
         publishGesture()
     }
 
@@ -413,6 +430,35 @@ object MoondropController {
         }
     }
 
+    /**
+     * 空间音频 / 头部追踪的状态回灌。
+     *
+     * 只发「应用 + 设置页」两处（与 [publishGesture] 同一目标集）：这两项是水月雨的
+     * feature 18，而融合设备中心（milink）那条空间音频是 **OPPO 专有链路**
+     * （ACTION_SPATIAL_AUDIO_SET / ACTION_PODS_SPATIAL_AUDIO_CHANGED），
+     * 两边状态各走各的，绝不能把水月雨的 0/1 灌进 OPPO 的模式机里。
+     *
+     * 读到过值才发（null 直接返回）：界面默认按「关」保守呈现，不猜成已开启。
+     */
+    private fun publishSpatial() {
+        val on = spatialOn ?: return
+        listOf(PKG_SETTINGS, PKG_APP).forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.SPATIAL_AUDIO_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
+        }
+    }
+
+    /** 头部追踪状态回灌；目标集与理由同 [publishSpatial]。 */
+    private fun publishHeadTracking() {
+        val on = headTrackingOn ?: return
+        listOf(PKG_SETTINGS, PKG_APP).forEach { pkg ->
+            sendTo(pkg, HyperPodsAction.HEAD_TRACKING_CHANGED) { i ->
+                i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
+        }
+    }
+
     private fun publishGesture() {
         // 内部保存的是裸 IntArray；线上载荷要按 GestureConf 编码（每字节高 4 位左耳、低 4 位右耳），
         // 所以这里包一层再取 toPayload()，而不是把内部数组直接当载荷发出去。
@@ -443,6 +489,8 @@ object MoondropController {
             // 自适应档位看档位表，不看位图：有的机型位图里有 ANC 但只有开关两档
             putBoolean(CAP_ADAPTIVE, ancModes.contains(AncMode.ADAPTIVE))
             putBoolean(CAP_SPATIAL, caps.hasSpatial)
+            // 头部追踪与空间音频对称：同一 feature(18) 的另一组命令，界面据此单独显隐
+            putBoolean(CAP_HEAD_TRACKING, caps.hasHeadTracking)
             // 界面要显示档位名与音量上限，能力位本身不够
             putStringArrayList(CAP_GAIN_LABELS, ArrayList(model.dc.gainLabels))
             putInt(CAP_PROMPT_VOLUME_MAX, model.features.promptVolumeMax)
@@ -477,6 +525,7 @@ object MoondropController {
     private const val CAP_GESTURES = "hasGestures"
     private const val CAP_ADAPTIVE = "hasAdaptive"
     private const val CAP_SPATIAL = "hasSpatial"
+    private const val CAP_HEAD_TRACKING = "hasHeadTracking"
     private const val CAP_GAIN_LABELS = "gainLabels"
     private const val CAP_PROMPT_VOLUME_MAX = "promptVolumeMax"
 
@@ -855,6 +904,10 @@ object MoondropController {
             if (capabilities.hasPromptTone || capabilities.hasPromptVolume) refreshPromptVoice()
             if (capabilities.hasLhdc) refreshLhdc()
             if (capabilities.hasDualConnection) refreshDualConnection()
+            // 空间音频与头部追踪各自用自己的能力位门控 —— 老机型位图里没有 feature 18，
+            // 发了也只会白等一次超时（与指示灯/LHDC 同一条规矩）
+            if (capabilities.hasSpatial) refreshSpatial()
+            if (capabilities.hasHeadTracking) refreshHeadTracking()
             // 手势：一次读回 5 个槽位的整份配置（能力位图门控，与其它功能同一套写法）
             if (capabilities.hasGestures) refreshGestures()
         }

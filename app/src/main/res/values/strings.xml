@@ -163,7 +163,7 @@
     <string name="moondrop_prompt_volume">Prompt Tone Volume</string>
     <string name="moondrop_lhdc">LHDC</string>
     <string name="moondrop_lhdc_summary">High-quality audio experience</string>
-    <string name="conflict_lhdc_dual_title">LHDC and Dual Connection can't be enabled together</string>
+    <string name="conflict_lhdc_dual_title">LHDC and Dual Connection cannot be enabled together</string>
     <string name="conflict_switch">Switch</string>
     <string name="moondrop_dual_summary">Keep two devices connected at the same time</string>
     <string name="moondrop_lhdc_dialog_summary">Enabling it uses the LHDC high-quality codec and turns off dual connection.</string>

@@ -101,11 +101,6 @@ object MiBluetoothToastHook : HookContext() {
                     context.resources.getString(miheadset_notification_Disconnect),
                     PendingIntent.getBroadcast(context, 0, intent, 201326592)
                 )
-                // 循环切换降噪模式，指定 package 确保广播路由到 com.android.bluetooth 进程
-                val ancCycleIntent = Intent(HyperPodsAction.ACTION_CYCLE_ANC)
-                ancCycleIntent.setPackage("com.android.bluetooth")
-                ancCycleIntent.setIdentifier("BTHeadset$address")
-                ancCycleIntent.putExtra("device_name", alias ?: bluetoothDevice.name ?: "")
                 val moduleContext = context.createPackageContext(
                     "com.chenyc.hyperpods", Context.CONTEXT_IGNORE_SECURITY
                 )
@@ -165,18 +160,14 @@ object MiBluetoothToastHook : HookContext() {
 
 
                     textButton {
+                        // 只保留「断开连接」这一个按钮（用户明确要求）。
+                        // 文案取**系统自带**的 miheadset_notification_Disconnect，而不是模块自己的
+                        // R.string.*：注入进程里 createPackageContext 读的是磁盘上的模块 APK 资源，
+                        // 若该进程还跑着旧 dex（更新模块后没重启作用域），数字资源 ID 就会与新资源错位，
+                        // 按钮上会冒出别的字符串（实测出现过「右耳图片」「选择点击…」）。
+                        // 系统字符串与注入进程同源，不存在这个错位。
                         addActionInfo {
-                            val ancLabel = moduleContext.getString(R.string.cycle_anc)
-                            val ancAction = Notification.Action.Builder(
-                                Icon.createWithResource(context, android.R.drawable.ic_lock_silent_mode),
-                                ancLabel,
-                                PendingIntent.getBroadcast(context, 1, ancCycleIntent, 201326592)
-                            ).build()
-                            action = createAction("key_anc_cycle", ancAction)
-                            actionTitle = ancLabel
-                        }
-                        addActionInfo {
-                            val disconnectLabel = moduleContext.getString(R.string.notification_btn_disconnect)
+                            val disconnectLabel = context.resources.getString(miheadset_notification_Disconnect)
                             val disconnectIntent = Intent("com.android.bluetooth.headset.notification").apply {
                                 putExtra("btData", bundle)
                                 putExtra("disconnect", "1")

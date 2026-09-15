@@ -145,6 +145,10 @@
     <string name="restart_scope_failed">Root restart failed</string>
     <string name="moondrop_gain">DAC Gain</string>
     <string name="moondrop_led">Indicator Light</string>
+    <!-- 快捷控制折叠组（ui/components/QuickControls.kt） -->
+    <string name="quick_controls">Quick controls</string>
+    <string name="quick_controls_expand">Expand quick controls</string>
+    <string name="quick_controls_collapse">Collapse quick controls</string>
     <string name="moondrop_prompt_tone">Prompt Tone</string>
     <string name="moondrop_prompt_volume">Prompt Tone Volume</string>
     <string name="moondrop_lhdc">LHDC</string>

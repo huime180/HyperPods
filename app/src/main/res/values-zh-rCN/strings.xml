@@ -164,6 +164,8 @@
     <string name="moondrop_prompt_volume">提示音音量</string>
     <string name="moondrop_lhdc">LHDC</string>
     <string name="moondrop_lhdc_summary">提供高品质音频体验</string>
+    <string name="conflict_lhdc_dual_title">LHDC 与双设备连接不能同时开启</string>
+    <string name="conflict_switch">切换</string>
     <string name="moondrop_dual_summary">同时保持两台设备连接</string>
     <string name="moondrop_lhdc_dialog_summary">开启后使用 LHDC 高品质编码，会关闭双设备连接。</string>
     <string name="moondrop_dual_dialog_summary">开启后同时保持两台设备连接，会关闭 LHDC。</string>

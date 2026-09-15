@@ -502,26 +502,32 @@ private fun ConfirmSwitchRow(
         checked = checked,
         onCheckedChange = { pending = it },
     )
+    // 弹窗版式与 MiuixMoondrop（应用侧那份）一致：**满宽**两枚等宽 TextButton，
+    // 确认键用 primary 色，标题讲清「互斥」这件事而不是重复开关名 ——
+    // 原来右对齐挤两个小字按钮，点起来也别扭。
     OverlayDialog(
-        title = title,
+        title = stringResource(R.string.conflict_lhdc_dual_title),
         summary = dialogSummary,
         show = pending != null,
         onDismissRequest = { pending = null },
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.End,
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             TextButton(
                 text = stringResource(R.string.cancel),
                 onClick = { pending = null },
+                modifier = Modifier.weight(1f),
             )
+            Spacer(Modifier.width(20.dp))
             TextButton(
-                text = stringResource(R.string.confirm),
+                text = stringResource(R.string.conflict_switch),
                 onClick = {
                     pending?.let(onCheckedChange)
                     pending = null
                 },
+                modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.textButtonColorsPrimary(),
             )
         }

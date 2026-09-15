@@ -159,14 +159,21 @@ object MiBluetoothToastHook : HookContext() {
                     }
 
 
-                    textButton {
-                        // 只保留「断开连接」这一个按钮（用户明确要求）。
-                        // 文案取**系统自带**的 miheadset_notification_Disconnect，而不是模块自己的
-                        // R.string.*：注入进程里 createPackageContext 读的是磁盘上的模块 APK 资源，
-                        // 若该进程还跑着旧 dex（更新模块后没重启作用域），数字资源 ID 就会与新资源错位，
-                        // 按钮上会冒出别的字符串（实测出现过「右耳图片」「选择点击…」）。
-                        // 系统字符串与注入进程同源，不存在这个错位。
+                    // 「断开连接」挂在**模板动作栏**（param_v2.actions）上，而不是 textButton：
+                    // textButton 是内容下方**独立一整行**的胶囊按钮区，只剩一个按钮时会被系统拉满
+                    // 整行（上游原本并排着「切换降噪」+「断开连接」，去掉前者后就撑开了 —— 用户反馈
+                    // 太大）。actions 里的动作跟正文属同一块卡片布局，由系统按内容宽度排在行尾，
+                    // 不再独占一行；type = 2 是「文字按钮」（ActionInfo 注释：0 圆形 / 1 进度 /
+                    // 2 文字，库的 getType() 也是「无图标 + 有标题 = 2」），这样「断开连接」文案仍然
+                    // 显示，不会退化成只剩一个图标。
+                    actions {
                         addActionInfo {
+                            type = 2
+                            // 文案取**系统自带**的 miheadset_notification_Disconnect，而不是模块自己的
+                            // R.string.*：注入进程里 createPackageContext 读的是磁盘上的模块 APK 资源，
+                            // 若该进程还跑着旧 dex（更新模块后没重启作用域），数字资源 ID 就会与新资源错位，
+                            // 按钮上会冒出别的字符串（实测出现过「右耳图片」「选择点击…」）。
+                            // 系统字符串与注入进程同源，不存在这个错位。
                             val disconnectLabel = context.resources.getString(miheadset_notification_Disconnect)
                             val disconnectIntent = Intent("com.android.bluetooth.headset.notification").apply {
                                 putExtra("btData", bundle)

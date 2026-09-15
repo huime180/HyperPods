@@ -38,6 +38,16 @@ class MoondropControls(
     val onLowLatencyChange: (Boolean) -> Unit = {},
     val dualConnectionOn: Boolean = false,
     val onDualConnectionChange: (Boolean) -> Unit = {},
+    /**
+     * 空间音频 / 头部追踪：GAIA feature 18 的两组命令（命令号见 MoondropGaia）。
+     *
+     * 取值口径 `0`=关 / `1`=开（与指示灯一致）；**未读到就是 false** ——
+     * 界面按「关」保守呈现，不猜成已开启（默认值即 false，无需额外区分三态）。
+     */
+    val spatialOn: Boolean = false,
+    val onSpatialChange: (Boolean) -> Unit = {},
+    val headTrackingOn: Boolean = false,
+    val onHeadTrackingChange: (Boolean) -> Unit = {},
     val onOpenGesture: () -> Unit = {}
 ) {
     /** 设备是否具备某能力；没探测到就不显示对应控件。 */
@@ -67,6 +77,8 @@ class MoondropControls(
         const val KEY_LHDC = "hasLhdc"
         const val KEY_LOW_LATENCY = "hasLowLatency"
         const val KEY_DUAL_CONNECTION = "hasDualConnection"
+        const val KEY_SPATIAL = "hasSpatial"
+        const val KEY_HEAD_TRACKING = "hasHeadTracking"
         const val KEY_GESTURES = "hasGestures"
     }
 }

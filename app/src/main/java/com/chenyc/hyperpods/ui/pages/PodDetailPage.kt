@@ -395,6 +395,27 @@ private fun LazyListScope.podControlItems(
                     onCheckedChange = moondrop.onDualConnectionChange,
                 )
             }
+            // 空间音频 / 头部追踪：水月雨 feature 18 的两行开关，各自由能力位
+            // （hasSpatial / hasHeadTracking）决定是否出现。**未读到时按「关」保守呈现**
+            // （载体里的默认值就是 false，不猜成已开启）。
+            // 注意：上面由 spatialAudioSupported 门控的那个下拉是 **OPPO 专有**的一条，
+            // 走 milink 链路，与这里的水月雨两行互不影响，不要合并。
+            if (moondrop.spatialVisible) {
+                SwitchPreference(
+                    title = stringResource(R.string.moondrop_spatial_audio),
+                    summary = stringResource(R.string.moondrop_spatial_audio_summary),
+                    checked = moondrop.spatialOn,
+                    onCheckedChange = moondrop.onSpatialChange,
+                )
+            }
+            if (moondrop.headTrackingVisible) {
+                SwitchPreference(
+                    title = stringResource(R.string.moondrop_head_tracking),
+                    summary = stringResource(R.string.moondrop_head_tracking_summary),
+                    checked = moondrop.headTrackingOn,
+                    onCheckedChange = moondrop.onHeadTrackingChange,
+                )
+            }
             if (moondrop.gestureVisible) {
                 BasicComponent(
                     title = stringResource(R.string.moondrop_gesture),

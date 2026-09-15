@@ -169,6 +169,11 @@
     <string name="moondrop_dual_summary">同时保持两台设备连接</string>
     <string name="moondrop_lhdc_dialog_summary">开启后使用 LHDC 高品质编码，会关闭双设备连接。</string>
     <string name="moondrop_dual_dialog_summary">开启后同时保持两台设备连接，会关闭 LHDC。</string>
+    <!-- 水月雨 GAIA feature 18：空间音频开关与头部追踪（命令号待真机确认，UI 只看能力位） -->
+    <string name="moondrop_spatial_audio">空间音频</string>
+    <string name="moondrop_spatial_audio_summary">开启或关闭空间音频（仅支持的机型）</string>
+    <string name="moondrop_head_tracking">头部追踪</string>
+    <string name="moondrop_head_tracking_summary">开启空间音频后跟随头部转动（仅支持的机型）</string>
     <string name="moondrop_gesture">手势控制</string>
     <string name="moondrop_gesture_summary">设置单击 / 双击 / 三击与两档长按、左右耳各自的动作</string>
     <string name="moondrop_gesture_not_synced">尚未同步到手势配置</string>

@@ -168,6 +168,11 @@
     <string name="moondrop_dual_summary">Keep two devices connected at the same time</string>
     <string name="moondrop_lhdc_dialog_summary">Enabling it uses the LHDC high-quality codec and turns off dual connection.</string>
     <string name="moondrop_dual_dialog_summary">Enabling it keeps two devices connected at the same time and turns off LHDC.</string>
+    <!-- 水月雨 GAIA feature 18：空间音频开关与头部追踪（命令号待真机确认，UI 只看能力位） -->
+    <string name="moondrop_spatial_audio">Spatial Audio</string>
+    <string name="moondrop_spatial_audio_summary">Turn spatial audio on or off (supported models only)</string>
+    <string name="moondrop_head_tracking">Head Tracking</string>
+    <string name="moondrop_head_tracking_summary">Follow head movement while spatial audio is on (supported models only)</string>
     <string name="moondrop_gesture">Gesture Controls</string>
     <string name="moondrop_gesture_summary">Single / double / triple tap and two long-press slots, per ear</string>
     <string name="moondrop_gesture_not_synced">Gesture configuration not synced yet</string>

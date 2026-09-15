@@ -41,6 +41,8 @@ object HeadsetStateDispatcher : HookContext() {
         HyperPodsAction.PROMPT_VOLUME_SELECT,
         HyperPodsAction.LHDC_SELECT,
         HyperPodsAction.DUAL_CONNECTION_SELECT,
+        HyperPodsAction.SPATIAL_AUDIO_SELECT,
+        HyperPodsAction.HEAD_TRACKING_SELECT,
         HyperPodsAction.GESTURE_SELECT,
         HyperPodsAction.CODEC_CHANGED
     )

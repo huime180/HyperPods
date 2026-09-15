@@ -1042,6 +1042,52 @@ object MoondropController {
     }
 
     /**
+     * 读空间音频开关（feature 18 / cmd 1）。
+     *
+     * payload 按与指示灯同一套口径落地：`0`=关 / `1`=开（见 [spatialOn]）。
+     * ⚠ **待真机确认**：读不到就保持 null（不发广播），界面按「关」保守呈现。
+     */
+    suspend fun refreshSpatial() {
+        val on = spatialReadLock.withLock { readState(MoondropGaia.spatialGet()) } ?: return
+        spatialOn = on
+        publishSpatial()
+    }
+
+    /**
+     * 读头部追踪开关（同一 feature 18 的 cmd 3）。
+     *
+     * 与 [refreshSpatial] 分成两个函数（而不是读一次把两条都发）：两者有各自的能力位，
+     * 谁支持就只读谁，不必为了一个开关多等一次超时。⚠ 待真机确认，理由同 [spatialOn]。
+     */
+    suspend fun refreshHeadTracking() {
+        val on = spatialReadLock.withLock { readState(MoondropGaia.headTrackingGet()) } ?: return
+        headTrackingOn = on
+        publishHeadTracking()
+    }
+
+    /**
+     * 读一条开关命令并把 payload 首字节解释成 `0/1`；超时 / 空包返回 null。
+     *
+     * 调用方必须持有 [spatialReadLock] —— 见那把锁的说明。
+     */
+    private suspend fun readState(pkt: ByteArray): Boolean? {
+        val p = request(pkt, ANC_TIMEOUT_MS) ?: return null
+        if (p.isEmpty()) return null
+        return (p[0].toInt() and 0xFF) == 1
+    }
+
+    /**
+     * 空间音频 / 头部追踪的读取锁。
+     *
+     * 为什么需要：GAIA 没有序列号，[request] 的等待表**只按 feature 建键**（见 [responses]），
+     * 而 feature 18 上有 cmd 1（开关）与 cmd 3（头部追踪）两条命令。UI_INIT 有多个发送点
+     * （打开界面、切页、30s 轮询），两次 refresh 完全可能并发：那时一条命令的回包会唤醒
+     * **另一条命令**的等待者，把空间音频的值当成头部追踪的值发到界面上。
+     * 加锁把这两条读串行化即可 —— 不改 [request] 的键结构（那会牵动其它功能）。
+     */
+    private val spatialReadLock = Mutex()
+
+    /**
      * 读手势配置（TOUCHV2 cmd 2）。
      *
      * 固件只提供「整份 5 字节配置」的读写 —— 既没有单槽位读、也没有按耳读：
@@ -1234,6 +1280,34 @@ object MoondropController {
     }
 
     /**
+     * 写空间音频开关（feature 18 / cmd 2），payload `0`=关 / `1`=开（与 [setLed] 同口径）。
+     *
+     * 与 [setLed]/[setGain] 同一套写法：写完 delay 后回读，再把**设备读回来的值**发出去，
+     * 不做乐观更新 —— 界面不会出现「拨了但设备没接受」的假状态。
+     * 能力位为假时直接放弃：老机型没有这个 feature，发下去只会白等一次超时。
+     *
+     * ⚠ **待真机确认**：本模块从未在支持空间音频的水月雨机型上验证过这条写入；
+     * 若真机写不动，先看 [refreshSpatial] 的回读值，再回看 PROTOCOL.md feature 18 那张表。
+     */
+    fun setSpatial(on: Boolean) {
+        if (!capabilities.hasSpatial) return
+        scope.launch { write(MoondropGaia.spatialSet(if (on) 1 else 0)); delay(300); refreshSpatial() }
+    }
+
+    /**
+     * 写头部追踪开关（同一 feature 18 的 cmd 4），payload 同样 `0/1`。
+     *
+     * 门控与写法同 [setSpatial]：只有 [MoondropCapabilities.hasHeadTracking] 为真才下发。
+     * ⚠ **待真机确认**，理由同 [setSpatial]。
+     */
+    fun setHeadTracking(on: Boolean) {
+        if (!capabilities.hasHeadTracking) return
+        scope.launch {
+            write(MoondropGaia.headTrackingSet(if (on) 1 else 0)); delay(300); refreshHeadTracking()
+        }
+    }
+
+    /**
      * 写「某只手势的某只耳朵」的动作 —— **只改该字节里的那一个半字节**。
      *
      * ⚠ **必须下发完整 5 字节**（见 [MoondropGaia.touchV2SetConf]）：固件把 5 个字节当作一份
@@ -1341,6 +1415,19 @@ object MoondropController {
             MoondropGaia.F_ONEBRINGTWO -> if (f.command == MoondropGaia.C_OBT_GET_STATE && f.payload.isNotEmpty()) {
                 dualConnectionOn = (f.payload[0].toInt() and 0xFF) == 1
                 publishDualConnection()
+            }
+            // SPATIAL_AUDIO(18)：开关与头部追踪是同一 feature 的两组命令，按 cmd 分流。
+            // 只认 GET 的回包（与 LED / 双设备连接同一取舍）：SET 的回显形态**待真机确认**，
+            // 状态本来就靠写完回读兜底，不靠回显。
+            MoondropGaia.F_SPATIAL_AUDIO -> when (f.command) {
+                MoondropGaia.C_SPATIAL_GET_STATE -> if (f.payload.isNotEmpty()) {
+                    spatialOn = (f.payload[0].toInt() and 0xFF) == 1
+                    publishSpatial()
+                }
+                MoondropGaia.C_SPATIAL_GET_HEAD_TRACKING -> if (f.payload.isNotEmpty()) {
+                    headTrackingOn = (f.payload[0].toInt() and 0xFF) == 1
+                    publishHeadTracking()
+                }
             }
             MoondropGaia.F_VOICE -> if (f.command == MoondropGaia.C_VOICE_GET_CONF ||
                 f.command == MoondropGaia.C_VOICE_SET_CONF

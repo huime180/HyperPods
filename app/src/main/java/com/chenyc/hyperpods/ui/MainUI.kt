@@ -147,6 +147,9 @@ fun MainUI(
     val moondropLhdcOn = remember { mutableStateOf(false) }
     val moondropLowLatencyOn = remember { mutableStateOf(false) }
     val moondropDualConnectionOn = remember { mutableStateOf(false) }
+    // 空间音频 / 头部追踪（GAIA feature 18）：未读到时按「关」保守呈现，不猜成已开启
+    val moondropSpatialOn = remember { mutableStateOf(false) }
+    val moondropHeadTrackingOn = remember { mutableStateOf(false) }
     // 手势配置：5 字节，每字节高 4 位左耳、低 4 位右耳；null = 还没读到
     val moondropGestureConf = remember { mutableStateOf<IntArray?>(null) }
     // 系统实际协商到的 A2DP 编码（由蓝牙进程读出来广播过来）；空 = 未知，界面不显示这一行
@@ -271,6 +274,19 @@ fun MainUI(
         dualConnectionOn = moondropDualConnectionOn.value,
         onDualConnectionChange = { on ->
             moondropSend(HyperPodsAction.DUAL_CONNECTION_SELECT) {
+                it.putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
+        },
+        // 空间音频与头部追踪都**不乐观更新**：只把选择发给蓝牙进程，等它回读后广播 CHANGED 回灌
+        spatialOn = moondropSpatialOn.value,
+        onSpatialChange = { on ->
+            moondropSend(HyperPodsAction.SPATIAL_AUDIO_SELECT) {
+                it.putExtra(HyperPodsAction.EXTRA_ENABLED, on)
+            }
+        },
+        headTrackingOn = moondropHeadTrackingOn.value,
+        onHeadTrackingChange = { on ->
+            moondropSend(HyperPodsAction.HEAD_TRACKING_SELECT) {
                 it.putExtra(HyperPodsAction.EXTRA_ENABLED, on)
             }
         },
@@ -400,6 +416,14 @@ fun MainUI(
 
                     HyperPodsAction.DUAL_CONNECTION_CHANGED ->
                         moondropDualConnectionOn.value =
+                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.SPATIAL_AUDIO_CHANGED ->
+                        moondropSpatialOn.value =
+                            p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
+
+                    HyperPodsAction.HEAD_TRACKING_CHANGED ->
+                        moondropHeadTrackingOn.value =
                             p1.getBooleanExtra(HyperPodsAction.EXTRA_ENABLED, false)
 
                     HyperPodsAction.GESTURE_CHANGED -> {
@@ -584,6 +608,8 @@ fun MainUI(
             addAction(HyperPodsAction.LHDC_CHANGED)
             addAction(HyperPodsAction.LOW_LATENCY_CHANGED)
             addAction(HyperPodsAction.DUAL_CONNECTION_CHANGED)
+            addAction(HyperPodsAction.SPATIAL_AUDIO_CHANGED)
+            addAction(HyperPodsAction.HEAD_TRACKING_CHANGED)
             addAction(HyperPodsAction.GESTURE_CHANGED)
             addAction(HyperPodsAction.CODEC_CHANGED)
             addAction(HyperPodsAction.CAPABILITIES_CHANGED)

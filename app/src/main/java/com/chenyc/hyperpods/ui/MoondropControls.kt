@@ -66,6 +66,11 @@ class MoondropControls(
     val lhdcVisible get() = connected && supports(KEY_LHDC)
     val lowLatencyVisible get() = connected && supports(KEY_LOW_LATENCY)
     val dualConnectionVisible get() = connected && supports(KEY_DUAL_CONNECTION)
+
+    /** 空间音频 / 头部追踪：各自的能力位（控制器发的 CAP_SPATIAL / CAP_HEAD_TRACKING）。 */
+    val spatialVisible get() = connected && supports(KEY_SPATIAL)
+
+    val headTrackingVisible get() = connected && supports(KEY_HEAD_TRACKING)
     val gestureVisible get() = connected && supports(KEY_GESTURES)
 
     companion object {

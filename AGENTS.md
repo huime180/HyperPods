@@ -12,9 +12,9 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 - `config/`：运行配置（`ConfigManager`）与耳机图片偏好 / 图片提供者（`PodImagePrefs`、`PodImageProvider`）。
 - `hook/`：Xposed 入口 `HookEntry`、`HookContext` 基类，以及面向 `com.android.bluetooth`、
   `com.xiaomi.bluetooth` 的 Hook 适配；`hook/milink/` 是 `com.milink.service`
-  （融合设备中心、空间音频）的适配。**设置进程不在作用域里**：
-  `hook/SettingsHeadsetHook.kt` 与它安装的 `hook/NativeGestureKeyConfig.kt` 仍在树里，
-  但 `HookEntry` 已不再分发设置 hook，二者当前没有调用方（死代码），不要按「设置页被接管」写文档。
+  （融合设备中心、空间音频）的适配。**设置进程不在作用域里**：历史上那套设置页伪装已整体回退、
+  实现文件已从源码树删除，不要按「设置页被接管」写文档，也不要再往 `com.android.settings`
+  发广播 —— 那边没有接收方，只是空转。
 - `pods/`：**双品牌共享**的连接与配置层 —— `PodBrand.kt`（`PodBrand` 枚举 + `PodCatalog`，
   品牌与型号判定的唯一入口）与 OPPO 侧的 `Packets`/`RfcommController`。
 - `pods/moondrop/`：水月雨协议族 —— `MoondropGaia`（帧格式、特性/命令号表、手势动作表）、
@@ -37,16 +37,13 @@ OPPO / 一加（欢律私有 RFCOMM 协议）与水月雨 MOONDROP（GAIA 协议
 - 「**游戏模式**」（低延迟音频）是 **OPPO/欢律私有**协议的设备侧命令（`Packets.kt`，`GameModeFeature.LOW_LATENCY = 0x06`），
   水月雨侧没有对应实现 —— 所以水月雨设备的通知栏弹窗里**不显示**它（`PopupActivity` 的 `showGameMode`），
   只对 OPPO 生效的设置项统一收进 **OPPO 专属设置**二级页。
-- **水月雨的低延迟只有「界面侧」写好了，链路没接通**：它不是厂商协议命令，而是系统侧 A2DP 特性，
-  代码里确实朝「模块真开关」的方向写 —— `PodDetailPage` 渲染 `SwitchPreference`（文案
-  `system_low_latency`），可见性看能力位 `hasLowLatency`（`MoondropControls.KEY_LOW_LATENCY`），
-  拨动发 `LOW_LATENCY_SELECT`、状态等 `LOW_LATENCY_CHANGED` 回灌。但蓝牙进程侧没有接线：
-  `MoondropCapabilities` 没有 `hasLowLatency` 字段，`MoondropController.publishCapabilities()`
-  不发这个键，`HeadsetStateDispatcher.MOONDROP_CONTROL_ACTIONS` 不含 `LOW_LATENCY_SELECT`
-  （该 action 无接收方），`MoondropModelRegistry` 的 `FeatureProfile.lowLatency` 也无人读取。
-  能力位因此恒为 false，耳机页那一行**目前不会显示** —— 不要把它当作可用功能写进 README；
-  系统侧低延迟当前只能走系统蓝牙设置页（模块入口是 `ui/MainUI.kt` 的 `openSystemHeadsetSettings()`）。
-  完整核对见 [docs/BLUETOOTH_SETTINGS_ADAPTATION.md](docs/BLUETOOTH_SETTINGS_ADAPTATION.md) 第 11 节。
+- **水月雨不做低延迟开关**：低延迟不是厂商协议命令，而是系统侧 A2DP 特性，本模块不实现它。
+  界面侧那套半成品（`PodDetailPage` 的 `SwitchPreference`、`MoondropControls.KEY_LOW_LATENCY`、
+  `LOW_LATENCY_SELECT` / `LOW_LATENCY_CHANGED`、`MoondropModelRegistry.FeatureProfile.lowLatency`）
+  因为链路从未接通（能力位恒为 false、action 没有接收方）已**整体删除**，不要再往 README 或文档里
+  写这个开关。系统侧低延迟走系统蓝牙设置页
+  （模块入口是 `ui/MainUI.kt` 的 `openSystemHeadsetSettings()`）。
+  核对记录见 [docs/BLUETOOTH_SETTINGS_ADAPTATION.md](docs/BLUETOOTH_SETTINGS_ADAPTATION.md) 第 11 节。
 
 **`module.prop` 的 `version` / `versionCode` 必须与 `app/build.gradle.kts` 的 `versionName` / `versionCode` 一致 —— `:app:verifyModuleProp`（挂在 `preBuild` 上）会断言，不一致直接构建失败。**
 架构与融合说明见 `docs/FUSION_ARCHITECTURE.md`。

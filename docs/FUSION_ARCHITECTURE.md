@@ -29,8 +29,8 @@
 | 远程设置组 | `hyperpods_settings` |
 
 设置进程（`com.android.settings`）**已经不在作用域里**：`hook/HookEntry.kt` 自 `d66eb86`
-起不再分发设置侧 hook，`com.android.settings` 那条分支被注释掉。`hook/SettingsHeadsetHook.kt`
-与它安装的 `hook/NativeGestureKeyConfig.kt` 仍留在源码树里，但当前**没有调用方**，是死代码；
+起不再分发设置侧 hook，那套实现（`SettingsHeadsetHook` / `NativeGestureKeyConfig`）随后
+**已从源码树删除**；往 `com.android.settings` 发的广播也一并停掉（那边没有接收方）。
 不要按「设置页仍被接管」来描述本项目。
 
 ---
@@ -42,8 +42,8 @@ com.chenyc.hyperpods
 ├─ MainActivity / HyperPodsApp / PopupActivity
 ├─ config/      运行配置（ConfigManager）与耳机图片偏好 / 图片提供者
 ├─ hook/        HookEntry + HookContext + 每个被注入进程一个 HookContext 子类
-│   ├─ milink/  com.milink.service 的适配（设备中心、空间音频）
-│   └─ SettingsHeadsetHook.kt / NativeGestureKeyConfig.kt  设置进程侧的旧实现，已不再分发（死代码）
+│   └─ milink/  com.milink.service 的适配（设备中心、空间音频）；
+│               设置进程不在作用域，设置侧旧实现已整套删除
 ├─ pods/        OPPO 线：Packets（协议包）+ RfcommController（控制器）
 │   ├─ PodBrand.kt                    PodBrand 枚举 + PodCatalog（品牌与型号判定的唯一入口）
 │   └─ moondrop/                     水月雨线：GAIA 协议族
@@ -97,15 +97,15 @@ val brand = PodCatalog.brandOf(context, deviceName, mac)   // OPPO / MOONDROP / 
 - **命令入口**：应用 UI 把命令**广播回本进程**，`HeadsetStateDispatcher` 的接收器按
   `MOONDROP_CONTROL_ACTIONS` 转交 `MoondropController.handleUIEvent`
 
-状态广播的目标包由 `MoondropController` 决定（`CONSUMERS = settings / milink / app`，
-通知类另行发往 `com.xiaomi.bluetooth`）：
+状态广播的目标包由 `MoondropController` 决定（`CONSUMERS = milink / app`，
+通知类另行发往 `com.xiaomi.bluetooth`；设置进程不在作用域，原先发往
+`com.android.settings` 的那几处已删除）：
 
 | 目标包 | 水月雨侧发出的 action |
 |---|---|
 | `com.milink.service` | `BATTERY_CHANGED`、`ANC_CHANGED`、`DUAL_CONNECTION_CHANGED`、`CAPABILITIES_CHANGED` 等 |
 | `com.xiaomi.bluetooth` | `UPDATE_PODS_NOTIFICATION`、`SEND_STRONG_TOAST`、`CANCEL_PODS_NOTIFICATION` |
 | 应用进程 | 上面大部分 + `CAPABILITIES_CHANGED`、`CODEC_CHANGED` |
-| `com.android.settings` | 仍在 `CONSUMERS` 里，代码会照发 `BATTERY_CHANGED` / `ANC_CHANGED` 等；但设置进程已不再被注入（见 §2），这些广播目前**没有接收方**，等于空转 |
 
 **档位语义要翻译**：水月雨线上传的是型号相关的档位下标，而 HyperOS 各处以
 1/2/3/4（关/降噪/通透/自适应）问答，所以界面与融合设备中心两处都要做映射；

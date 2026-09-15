@@ -422,9 +422,6 @@ object MoondropController {
         sendTo(PKG_MILINK, HyperPodsAction.DUAL_CONNECTION_CHANGED) { i ->
             i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
         }
-        sendTo(PKG_SETTINGS, HyperPodsAction.DUAL_CONNECTION_CHANGED) { i ->
-            i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
-        }
         sendTo(PKG_APP, HyperPodsAction.DUAL_CONNECTION_CHANGED) { i ->
             i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
         }
@@ -433,7 +430,7 @@ object MoondropController {
     /**
      * 空间音频 / 头部追踪的状态回灌。
      *
-     * 只发「应用 + 设置页」两处（与 [publishGesture] 同一目标集）：这两项是水月雨的
+     * 只发应用进程一处（与 [publishGesture] 同一目标集）：这两项是水月雨的
      * feature 18，而融合设备中心（milink）那条空间音频是 **OPPO 专有链路**
      * （ACTION_SPATIAL_AUDIO_SET / ACTION_PODS_SPATIAL_AUDIO_CHANGED），
      * 两边状态各走各的，绝不能把水月雨的 0/1 灌进 OPPO 的模式机里。
@@ -442,20 +439,16 @@ object MoondropController {
      */
     private fun publishSpatial() {
         val on = spatialOn ?: return
-        listOf(PKG_SETTINGS, PKG_APP).forEach { pkg ->
-            sendTo(pkg, HyperPodsAction.SPATIAL_AUDIO_CHANGED) { i ->
-                i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
-            }
+        sendTo(PKG_APP, HyperPodsAction.SPATIAL_AUDIO_CHANGED) { i ->
+            i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
         }
     }
 
     /** 头部追踪状态回灌；目标集与理由同 [publishSpatial]。 */
     private fun publishHeadTracking() {
         val on = headTrackingOn ?: return
-        listOf(PKG_SETTINGS, PKG_APP).forEach { pkg ->
-            sendTo(pkg, HyperPodsAction.HEAD_TRACKING_CHANGED) { i ->
-                i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
-            }
+        sendTo(PKG_APP, HyperPodsAction.HEAD_TRACKING_CHANGED) { i ->
+            i.withDevice().putExtra(HyperPodsAction.EXTRA_ENABLED, on)
         }
     }
 
@@ -464,14 +457,11 @@ object MoondropController {
         // 所以这里包一层再取 toPayload()，而不是把内部数组直接当载荷发出去。
         val slots = gestureConf ?: return
         val payload = MoondropGaia.GestureConf(slots.copyOf()).toPayload()
-        // 两个消费方都要发：原生设置页（PKG_SETTINGS）与应用进程（PKG_APP —— 模块自己的
-        // 手势页在那边渲染）。**之前只发了 PKG_SETTINGS**，应用进程永远收不到这条广播，
-        // 于是 App 的手势页一直停在「尚未同步到手势配置」（UI 侧其实一直在等它，见 MainUI 的
-        // GESTURE_CHANGED 分支与 GesturePage 的 conf==null 分支）。
-        listOf(PKG_SETTINGS, PKG_APP).forEach { pkg ->
-            sendTo(pkg, HyperPodsAction.GESTURE_CHANGED) { i ->
-                i.withDevice().putExtra(HyperPodsAction.EXTRA_GESTURE_PAYLOAD, payload)
-            }
+        // 只发应用进程（PKG_APP —— 模块自己的手势页在那边渲染）：设置进程不在作用域里，
+        // 历史上那份发往 com.android.settings 的广播已经没有接收方（见 HookEntry 的说明）。
+        // UI 侧一直在等它，见 MainUI 的 GESTURE_CHANGED 分支与 GesturePage 的 conf==null 分支。
+        sendTo(PKG_APP, HyperPodsAction.GESTURE_CHANGED) { i ->
+            i.withDevice().putExtra(HyperPodsAction.EXTRA_GESTURE_PAYLOAD, payload)
         }
     }
 
@@ -512,7 +502,6 @@ object MoondropController {
     private const val PKG_BLUETOOTH = "com.android.bluetooth"
     private const val PKG_MILINK = "com.milink.service"
     private const val PKG_XIAOMI_BLUETOOTH = "com.xiaomi.bluetooth"
-    private const val PKG_SETTINGS = "com.android.settings"
 
     // 能力包的键名：应用侧从 Bundle 里按这些键读取（见 HyperPodsAction.EXTRA_CAPS_BUNDLE）
     private const val CAP_PROBED = "probed"
@@ -535,10 +524,13 @@ object MoondropController {
     /**
      * 水月雨状态的目标进程。
      *
+     * 不含 `com.android.settings`：设置进程不在作用域里，设置侧 hook 已整体删除，
+     * 发过去没有接收方（空转）。
+     *
      * 声明顺序不能挪到上面几个常量之前：object 的成员按声明顺序初始化，
      * 提前引用会拿到未初始化值。
      */
-    private val CONSUMERS = listOf(PKG_SETTINGS, PKG_MILINK, PKG_APP)
+    private val CONSUMERS = listOf(PKG_MILINK, PKG_APP)
 
     // 连接
 

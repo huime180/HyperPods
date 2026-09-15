@@ -133,8 +133,6 @@ data class FeatureProfile(
     val lhdc: Boolean = false,
     /** 是否展示「双设备连接」 */
     val dualConnection: Boolean = false,
-    /** 是否展示「低延迟模式」 */
-    val lowLatency: Boolean = false,
     // 可覆盖的命令号（默认 = MoondropGaia 中已确认/约定的值）
     val cmdVoiceGetEnable: Int = MoondropGaia.C_VOICE_GET_ENABLE,
     val cmdVoiceSetEnable: Int = MoondropGaia.C_VOICE_SET_ENABLE,
@@ -243,7 +241,7 @@ object MoondropModelRegistry {
             dc = GAIN_IDENTITY,
             features = FeatureProfile(
                 promptTone = true, promptVolume = true,
-                lhdc = true, dualConnection = true, lowLatency = true,
+                lhdc = true, dualConnection = true,
             ),
             singleDeviceBattery = true,
             note = "moondrop-link-desktop 真机验证：电量只回 type 0（单设备）；" +
@@ -268,7 +266,7 @@ object MoondropModelRegistry {
             ),
             features = FeatureProfile(
                 lhdc = true, promptTone = true, promptVolume = true,
-                dualConnection = true, lowLatency = true,
+                dualConnection = true,
             ),
             note = "✅ 2026-09-14 真机抓包确认（84:D9:27:18:6F:2A, FW 3.5.6）：" +
                 "走 RFCOMM/SPP over BR/EDR（**不是** BLE GATT），GAIA 帧前有 4 字节 SPP 头 " +
@@ -455,7 +453,7 @@ object MoondropModelRegistry {
             verified = false,
             anc = anc3Ac(),
             dc = GAIN_IDENTITY,
-            features = FeatureProfile(lhdc = true, dualConnection = true, lowLatency = true),
+            features = FeatureProfile(lhdc = true, dualConnection = true),
         ),
         MoondropModel(
             id = "space_travel_2_ultra",

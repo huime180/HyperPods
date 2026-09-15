@@ -21,13 +21,8 @@ class HookEntry : XposedModule() {
                 loadHook(HeadsetStateDispatcher, param.defaultClassLoader, param.packageName)
                 loadHook(BluetoothUpstreamHeadsetHook(), param.defaultClassLoader, param.packageName)
             }
-            // 原生设置页伪装（SettingsHeadsetHook）跑在 com.android.settings 进程。
-            // 这一行自 b061de2「以 1812z/OppoPods v2.1.0 为基线重建」起被注释掉，导致
-            // 整个设置面（设备页伪装、电量注入、原生 ANC 控件替换）成了死代码，
-            // 而 scope.list / README 早就按「有这一路」写着 —— 两边对不上。
-            // 不再 hook 系统设置：settings 已从 scope.list 移除，而且用户明确要求「保留系统设置原样」。
-            // 需要时把这一行和 scope.list 里的 com.android.settings 一起恢复即可。
-            // "com.android.settings" -> loadHook(SettingsHeadsetHook, param.defaultClassLoader, param.packageName)
+            // 设置进程（com.android.settings）不在作用域里：历史上那套设置页伪装已整体回退，
+            // 分发与实现文件都已删除，不要再按「设置页被接管」理解本模块。
             "com.milink.service" -> loadHook(MiLinkServiceHook, param.defaultClassLoader, param.packageName)
             "com.xiaomi.bluetooth" -> {
                 loadHook(MiBluetoothToastHook, param.defaultClassLoader, param.packageName)

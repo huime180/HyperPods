@@ -35,10 +35,6 @@ abstract class HookContext {
         findClass(className).declaredMethods.first { it.name == methodName && it.parameterTypes.size == paramCount }
             .apply { isAccessible = true }
 
-    fun findConstructorByParamCount(className: String, paramCount: Int): Constructor<*> =
-        findClass(className).declaredConstructors.first { it.parameterTypes.size == paramCount }
-            .apply { isAccessible = true }
-
     fun hookAfter(method: Method, block: HookParam.() -> Unit) {
         module.hook(method).intercept { chain ->
             val result = chain.proceed()

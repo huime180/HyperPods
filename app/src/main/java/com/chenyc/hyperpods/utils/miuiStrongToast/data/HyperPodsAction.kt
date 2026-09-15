@@ -62,8 +62,6 @@ object HyperPodsAction {
     // ACTION_SPATIAL_AUDIO_SET / ACTION_PODS_SPATIAL_AUDIO_CHANGED，两套互不相干。
     const val SPATIAL_AUDIO_CHANGED = "chen.action.hyperpods.moondrop.spatial_audio_changed"
     const val HEAD_TRACKING_CHANGED = "chen.action.hyperpods.moondrop.head_tracking_changed"
-    // 低延迟是**系统侧 A2DP 特性**（不是耳机厂商协议命令），状态由蓝牙进程广播、界面只发选择
-    const val LOW_LATENCY_CHANGED = "chen.action.hyperpods.moondrop.low_latency_changed"
     const val GESTURE_CHANGED = "chen.action.hyperpods.moondrop.gesture_changed"
     const val CODEC_CHANGED = "chen.action.hyperpods.moondrop.codec_changed"
     const val CAPABILITIES_CHANGED = "chen.action.hyperpods.moondrop.capabilities_changed"
@@ -81,7 +79,6 @@ object HyperPodsAction {
     // payload 取值 0/1 与指示灯同口径，命令号集中在 MoondropGaia，UI 侧不写数字。
     const val SPATIAL_AUDIO_SELECT = "chen.action.hyperpods.moondrop.spatial_audio_select"
     const val HEAD_TRACKING_SELECT = "chen.action.hyperpods.moondrop.head_tracking_select"
-    const val LOW_LATENCY_SELECT = "chen.action.hyperpods.moondrop.low_latency_select"
     const val REQUEST_CAPABILITIES = "chen.action.hyperpods.moondrop.request_capabilities"
     const val REQUEST_BATTERY = "chen.action.hyperpods.moondrop.request_battery"
     const val REQUEST_GESTURE = "chen.action.hyperpods.moondrop.request_gesture"

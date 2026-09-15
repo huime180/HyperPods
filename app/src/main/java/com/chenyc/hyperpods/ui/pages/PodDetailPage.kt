@@ -430,19 +430,6 @@ private fun LazyListScope.podControlItems(
                 )
             }
 
-            // 「低延迟」是**系统侧 A2DP 特性**（不是耳机厂商协议命令），模块直接驱动它：
-            // 发 LOW_LATENCY_SELECT，等蓝牙进程的 LOW_LATENCY_CHANGED 回灌（不乐观更新）。
-            // 可见性只看能力位 hasLowLatency —— 能力位没来就整行不显示，宁可没有，
-            // 也不摆一个拨不动的假开关。
-            if (moondrop.lowLatencyVisible) {
-                SwitchPreference(
-                    title = stringResource(R.string.system_low_latency),
-                    summary = stringResource(R.string.system_low_latency_summary),
-                    checked = moondrop.lowLatencyOn,
-                    onCheckedChange = moondrop.onLowLatencyChange,
-                )
-            }
-
             // 系统蓝牙设置入口：直接复用顶栏图标那一个实现（MainUI.openSystemHeadsetSettings），
             // 设备地址由它自己从当前已连接设备取，本页不另存一份、也不硬编码。
             // 这里不再加可见性条件：本页只在已连接时才渲染（MainUI 的 showEarphoneDetail）。

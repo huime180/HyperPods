@@ -532,7 +532,9 @@ object MiLinkServiceHook : HookContext() {
 
     private fun sendAncChanged(mode: Int, fallbackContext: Context? = null) {
         val ctx = fallbackContext ?: context ?: return
-        listOf(BuildConfig.APPLICATION_ID, "com.milink.service", "com.android.settings").forEach { targetPackage ->
+        // 不含 com.android.settings：设置进程不在作用域里（设置侧 hook 已整体删除），
+        // 发过去没有接收方。
+        listOf(BuildConfig.APPLICATION_ID, "com.milink.service").forEach { targetPackage ->
             ctx.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_ANC_CHANGED).apply {
                 putExtra("status", mode)
                 setPackage(targetPackage)
@@ -566,7 +568,8 @@ object MiLinkServiceHook : HookContext() {
     internal fun sendSpatialChanged(mode: Int, fallbackContext: Context? = null) {
         val ctx = fallbackContext ?: context ?: return
         val normalizedMode = mode.coerceIn(ConfigManager.SPATIAL_AUDIO_OFF, ConfigManager.SPATIAL_AUDIO_HEAD_TRACKING)
-        listOf(BuildConfig.APPLICATION_ID, "com.milink.service", "com.android.settings").forEach { targetPackage ->
+        // 不含 com.android.settings，理由同 [sendAncChanged]。
+        listOf(BuildConfig.APPLICATION_ID, "com.milink.service").forEach { targetPackage ->
             ctx.sendBroadcast(Intent(HyperPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED).apply {
                 currentAddress?.let { putExtra("address", it) }
                 putExtra("mode", normalizedMode)

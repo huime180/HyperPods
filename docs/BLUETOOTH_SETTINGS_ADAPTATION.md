@@ -3,7 +3,7 @@
 真机：Xiaomi Pad 8 Pro / HyperOS 4（Android 17），耳机 MOONDROP Pudding（FW 3.5.6）。
 
 本文件记录与 HyperOS「蓝牙设备详情页 / 高级耳机页」有关的适配知识。**设置进程 hook 已整体
-回退**（提交 `d66eb86`，见第二部分），所以文件分成两块：
+回退**（提交 `d66eb86`，实现文件随后从源码树删除，见第二部分），所以文件分成两块：
 
 - **第一部分 仍然有效的知识**：两类页面的区别、原生设备页的结构、模块侧可复用的语义、
   硬约束，以及**当前的**模块入口写法。
@@ -33,8 +33,8 @@
   `重命名` / `取消配对` / `设备类型` / `通话` / `媒体音频` / `允许访问通讯录和通话记录` /
   `与本机音量同步` / **`LHDC`（副标题「提供高质量音频体验」）** /
   **`低延迟`（副标题「在游戏音视频同步下提供低延迟体验」）**。
-- 原生「耳机按键配置」页（`MiuiHeadsetKeyConfigFragment`）的事实见
-  `hook/NativeGestureKeyConfig.kt` 的文件头。
+- 原生「耳机按键配置」页（`MiuiHeadsetKeyConfigFragment`）当时由 `hook/NativeGestureKeyConfig.kt`
+  接管；该实现已随设置侧 hook 一起**删除**，这里只作历史记录（见第二部分）。
 
 ### 3. 用户提出的 5 项（原话记录，勿改写）
 
@@ -100,13 +100,16 @@ context.startActivity(Intent("android.settings.BLUETOOTH_DEVICE_DETAIL_SETTINGS"
 
 ### 7. 设置进程 hook 已整体回退
 
-提交 `d66eb86`：`hook/HookEntry.kt` 不再分发设置相关 hook，`com.android.settings` 分支被注释掉；
+提交 `d66eb86`：`hook/HookEntry.kt` 不再分发设置相关 hook（当时先把 `com.android.settings`
+那条分支注释掉，随后分发代码与实现文件一起删除，树里已不留注释掉的旧分支）；
 `app/src/main/resources/META-INF/xposed/scope.list` 现在只有 3 条
 （`com.android.bluetooth`、`com.milink.service`、`com.xiaomi.bluetooth`）。
 
-- `hook/SettingsHeadsetHook.kt` 仍在源码树里（785 行，设备页伪装 / 电量注入 / 代理改写等），
-  但**没有调用方**，是死代码。
-- `hook/NativeGestureKeyConfig.kt` 只被 `SettingsHeadsetHook.onHook()` 调用，因此同样不生效。
+- `hook/SettingsHeadsetHook.kt`（785 行，设备页伪装 / 电量注入 / 代理改写等）**已从源码树删除**，
+  分发代码与它一起清掉了，`hook/` 下已经没有这个文件。
+- `hook/NativeGestureKeyConfig.kt` 只被 `SettingsHeadsetHook.onHook()` 调用，已随之删除。
+- 原先发往 `com.android.settings` 的广播（水月雨状态回灌、OPPO 状态广播、`ACTION_CONFIG_CHANGED`）
+  也一并删掉：那边唯一的接收方就是上面这两个文件，留着只是空转。
 
 所以下面这些说法当前都不成立，不要再写进文档或 PR 描述：
 
@@ -130,8 +133,8 @@ context.startActivity(Intent("android.settings.BLUETOOTH_DEVICE_DETAIL_SETTINGS"
 
 - B 路线当时参照的实现 `hook/NativeThreeModeAncUi.kt` **已不在源码树里**
   （`ls app/src/main/java/com/chenyc/hyperpods/hook/` 只有 `BluetoothUpstreamHeadsetHook.kt`、
-  `HeadsetStateDispatcher.kt`、`HookContext.kt`、`HookEntry.kt`、`MiBluetoothToastHook.kt`、
-  `NativeGestureKeyConfig.kt`、`SettingsHeadsetHook.kt` 与 `milink/`）。
+  `HeadsetStateDispatcher.kt`、`HookContext.kt`、`HookEntry.kt`、`MiBluetoothToastHook.kt` 与 `milink/`；
+  `NativeGestureKeyConfig.kt`、`SettingsHeadsetHook.kt` 也已删除）。
 - `HyperPodsAction.SHOW_UI`（`chen.action.hyperpods.moondrop.show_ui`）常量仍在，但全仓库
   **没有任何接收方**；A 路线待办里「`SHOW_UI` 那条路已存在」的说法不准确。
 
@@ -151,20 +154,17 @@ context.startActivity(Intent("android.settings.BLUETOOTH_DEVICE_DETAIL_SETTINGS"
   （`chen.action.hyperpods.moondrop.anc_select`，下标语义，由 `MoondropController` 处理）。
   旧描述已不准确；「通知栏那个循环按钮只服务 OPPO」这一遗留仍未处理。
 
-### 11. 低延迟的现状（单独核对过）
+### 11. 低延迟的现状（已彻底删除）
 
-`AGENTS.md` 旧版写「水月雨的低延迟由本模块直接控制」，更早的用户决定是「低延迟不做设置、
-走系统蓝牙设置」。按代码现状，两边都只说对了一半：
+用户的决定：**低延迟不做设置，走系统蓝牙设置页**。模块曾经写过一套「模块直控」的半成品
+（`PodDetailPage` 的 `SwitchPreference`、`MoondropControls.KEY_LOW_LATENCY` / `lowLatencyVisible` /
+`lowLatencyOn`、`LOW_LATENCY_SELECT` / `LOW_LATENCY_CHANGED`、`MoondropModelRegistry.FeatureProfile.lowLatency`、
+`system_low_latency` / `system_low_latency_summary` 文案），但链路从未接通：
+`MoondropCapabilities` 没有 `hasLowLatency` 字段，`MoondropController.publishCapabilities()`
+不发这个键，`hook/HeadsetStateDispatcher.kt` 的 `MOONDROP_CONTROL_ACTIONS` 不含 `LOW_LATENCY_SELECT`
+（即该 action **没有接收方**），能力位恒为 false，耳机页那一行永远不会显示。
 
-- **界面侧确实按「模块直控」写好了**：`PodDetailPage` 用 `SwitchPreference` 渲染，
-  可见性看能力位 `hasLowLatency`（`MoondropControls.KEY_LOW_LATENCY`），
-  拨动发 `LOW_LATENCY_SELECT`、状态等 `LOW_LATENCY_CHANGED` 回灌（不乐观更新），
-  文案是 `system_low_latency` / `system_low_latency_summary`。
-- **蓝牙进程侧没有接线**：`pods/moondrop/MoondropCapabilities.kt` 里没有 `hasLowLatency`
-  字段，`MoondropController.publishCapabilities()` 的能力包里也不发这个键；
-  `hook/HeadsetStateDispatcher.kt` 的 `MOONDROP_CONTROL_ACTIONS` 不含 `LOW_LATENCY_SELECT`，
-  即该 action **没有接收方**；`MoondropModelRegistry.FeatureProfile.lowLatency` 虽在 3 个机型上
-  置 true，但全仓库无处读取。
-
-结论：这是一个**未接线的半成品开关** —— 能力位恒为 false，耳机页上那一行目前不会显示。
-系统侧的低延迟目前只能走系统蓝牙设置页（第 6 节的入口）。本节即 `AGENTS.md` 里低延迟说法的依据。
+这套代码已按「无效代码清理」**整体删除**（能力位键、两个 action、界面字段与开关、机型档案字段、
+两份 `strings.xml` 的文案一并清掉）。现在 `grep -rni lowlatency app/src/main/java` 只剩 OPPO 那条线的
+`GameModeFeature.LOW_LATENCY`（欢律私有设备侧命令，与本项无关）。系统侧的低延迟只能走系统蓝牙
+设置页（第 6 节的入口）。本节即 `AGENTS.md` 里低延迟说法的依据。

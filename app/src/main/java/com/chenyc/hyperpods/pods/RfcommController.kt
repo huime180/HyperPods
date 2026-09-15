@@ -562,7 +562,9 @@ object RfcommController {
 
     private fun sendExternalPodsStatusBroadcast(action: String, fill: Intent.() -> Unit = {}) {
         val ctx = mContext ?: return
-        listOf("com.milink.service", "com.xiaomi.bluetooth", "com.android.settings").forEach { targetPackage ->
+        // 不含 com.android.settings：设置进程不在作用域里，设置侧 hook 已整体删除，
+        // 历史上那一份只是空转。
+        listOf("com.milink.service", "com.xiaomi.bluetooth").forEach { targetPackage ->
             Intent(action).apply {
                 if (::mDevice.isInitialized) {
                     putExtra("address", mDevice.address)

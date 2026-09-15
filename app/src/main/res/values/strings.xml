@@ -199,8 +199,6 @@
     <string name="anc_normal_title">Basic</string>
     <string name="anc_anti_wind_title">Wind noise reduction</string>
     <string name="anc_live_title">Live</string>
-    <string name="system_low_latency">Low Latency</string>
-    <string name="system_low_latency_summary">Provides a low-latency experience for in-game audio and video sync</string>
     <string name="system_bluetooth_settings">System Bluetooth settings</string>
     <string name="system_bluetooth_settings_summary">Opens the system Bluetooth settings page</string>
     <string name="active_codec">Current Codec</string>

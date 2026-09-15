@@ -33,9 +33,6 @@ class MoondropControls(
     val onPromptVolumeChange: (Int) -> Unit = {},
     val lhdcOn: Boolean = false,
     val onLhdcChange: (Boolean) -> Unit = {},
-    /** 低延迟：系统侧 A2DP 特性，不是耳机厂商协议命令，界面只发选择、由蓝牙进程回灌。 */
-    val lowLatencyOn: Boolean = false,
-    val onLowLatencyChange: (Boolean) -> Unit = {},
     val dualConnectionOn: Boolean = false,
     val onDualConnectionChange: (Boolean) -> Unit = {},
     /**
@@ -64,7 +61,6 @@ class MoondropControls(
     val promptToneVisible get() = connected && supports(KEY_PROMPT_TONE)
     val promptVolumeVisible get() = connected && supports(KEY_PROMPT_VOLUME)
     val lhdcVisible get() = connected && supports(KEY_LHDC)
-    val lowLatencyVisible get() = connected && supports(KEY_LOW_LATENCY)
     val dualConnectionVisible get() = connected && supports(KEY_DUAL_CONNECTION)
 
     /** 空间音频 / 头部追踪：各自的能力位（控制器发的 CAP_SPATIAL / CAP_HEAD_TRACKING）。 */
@@ -80,7 +76,6 @@ class MoondropControls(
         const val KEY_PROMPT_TONE = "hasPromptTone"
         const val KEY_PROMPT_VOLUME = "hasPromptVolume"
         const val KEY_LHDC = "hasLhdc"
-        const val KEY_LOW_LATENCY = "hasLowLatency"
         const val KEY_DUAL_CONNECTION = "hasDualConnection"
         const val KEY_SPATIAL = "hasSpatial"
         const val KEY_HEAD_TRACKING = "hasHeadTracking"

@@ -26,3 +26,11 @@ opencode.json
 # 本地临时工作区
 /.work/
 /_analysis/
+
+# 签名材料：密钥库与本地签名属性绝不入库
+# 密钥口令走 ~/.gradle/gradle.properties（仓库外）或 CI 的 GitHub Secrets
+*.jks
+*.keystore
+*.p12
+/keystore.properties
+/signing.properties

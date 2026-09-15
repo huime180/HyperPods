@@ -6,9 +6,12 @@
  * 不需要 ROOT、也不需要先装官方 App。
  *
  * 交互照 MelodyImageImportDialog 的版式：OverlayDialog + 列表 + 选中行高亮 + 取消/导入。
- * 两处刻意的不同：
- *   · 官方目录有 105 款，一次拉 105 张缩略图不现实，所以列表行用默认占位图，
- *     **只为当前选中项**下载一张预览图（约 160~230 KB）；
+ * 几处刻意的不同：
+ *   · 当前这副耳机在目录里的对应款**置顶**并标一行「当前机型」（名字匹配用
+ *     MoondropOfficialImages.bestMatch，命不中就不置顶、不猜），其余保持目录原顺序；
+ *   · 官方目录过滤后仍有 49 款（接口 105 条），一次拉 49 张图不现实，所以列表行只给
+ *     **真正组合出来的行**懒加载官方小图（thumbnailPath，128px 采样 + LruCache），没下到时用占位图；
+ *     上方那张「选中项大预览」仍只为当前选中项下载一张 [MoondropOfficialProduct.boxPath] 大图；
  *   · 官方图不一定三张齐全（很多机型没有左/右耳图），所以导入要求拿到 **BOX**，
  *     左/右耳图有就一起导入 —— 不像欢律那条要求三张齐全。
  */
@@ -16,6 +19,8 @@ package com.chenyc.hyperpods.ui.dialogs
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
+import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -57,6 +62,7 @@ import com.chenyc.hyperpods.R
 import com.chenyc.hyperpods.config.PodImageResource
 import com.chenyc.hyperpods.utils.MoondropOfficialImages
 import com.chenyc.hyperpods.utils.MoondropOfficialProduct
+import java.util.Collections
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.Text
@@ -74,6 +80,8 @@ internal fun MoondropOfficialImageImportDialog(
 ) {
     var products by remember(show) { mutableStateOf<List<MoondropOfficialProduct>>(emptyList()) }
     var selected by remember(show) { mutableStateOf<MoondropOfficialProduct?>(null) }
+    // 当前设备在目录里对应的那一款的 uuid（命不中就是 null，列表里不标、不置顶）
+    var currentModelUuid by remember(show) { mutableStateOf<String?>(null) }
     var preview by remember(show) { mutableStateOf<Bitmap?>(null) }
     var loading by remember(show) { mutableStateOf(false) }
     var importing by remember(show) { mutableStateOf(false) }
@@ -84,16 +92,19 @@ internal fun MoondropOfficialImageImportDialog(
     LaunchedEffect(show, reloadKey) {
         if (!show) return@LaunchedEffect
         loading = true
-        val list = withContext(Dispatchers.IO) { MoondropOfficialImages.fetchProducts() }
-        products = list
-        // 默认选中当前这副耳机（名字能对上就选它，对不上选第一款）—— 多数人就是要导当前这副
-        selected = list.firstOrNull { currentName.isNotBlank() && it.displayName.contains(currentName, true) }
-            ?: list.firstOrNull { currentName.isNotBlank() && currentName.contains(it.displayName, true) }
-            ?: list.firstOrNull()
+        val (list, matched) = withContext(Dispatchers.IO) {
+            val fetched = MoondropOfficialImages.fetchProducts()
+            fetched to MoondropOfficialImages.bestMatch(fetched, currentName)
+        }
+        // 当前机型置顶，其余保持目录原顺序（fetchProducts 已按名称排序）：多数人就是要导当前这副，
+        // 不该让他从几十行里翻。匹配用的是与自动导入同一个函数，命不中就不置顶。
+        products = if (matched == null) list else listOf(matched) + list.filterNot { it.uuid == matched.uuid }
+        currentModelUuid = matched?.uuid
+        selected = matched ?: list.firstOrNull()
         loading = false
     }
 
-    // 只为选中项下载一张预览图：105 款全下太重（每张 160~230 KB）
+    // 只为选中项下载一张预览图：几十款全下太重（每张 160~230 KB）
     LaunchedEffect(selected?.uuid) {
         preview = null
         val path = selected?.boxPath() ?: return@LaunchedEffect
@@ -161,6 +172,7 @@ internal fun MoondropOfficialImageImportDialog(
                     MoondropOfficialProductRow(
                         product = product,
                         selected = product.uuid == selected?.uuid,
+                        isCurrentModel = product.uuid == currentModelUuid,
                         onClick = { selected = product },
                     )
                 }
@@ -218,8 +230,24 @@ internal fun MoondropOfficialImageImportDialog(
 private fun MoondropOfficialProductRow(
     product: MoondropOfficialProduct,
     selected: Boolean,
+    isCurrentModel: Boolean,
     onClick: () -> Unit,
 ) {
+    val thumbnailPath = product.thumbnailPath()
+    // 懒加载：只有真正被组合出来的行才走这条 LaunchedEffect（49 行里同时可见的就十几行），
+    // 滚动离开再回来时靠 MoondropThumbnailCache 直接命中，不会重复下载。
+    var thumbnail by remember(product.uuid) { mutableStateOf(MoondropThumbnailCache.cached(thumbnailPath)) }
+    LaunchedEffect(product.uuid) {
+        val path = thumbnailPath ?: return@LaunchedEffect
+        if (thumbnail == null && !MoondropThumbnailCache.hadFailed(path)) {
+            thumbnail = withContext(Dispatchers.IO) { MoondropThumbnailCache.load(path) }
+        }
+    }
+    // 还没下到（下载中 / 官方没有这张 / 下载失败）就用占位图，与导入对话框原来的观感一致
+    val thumbnailPainter = remember(thumbnail) {
+        thumbnail?.let { bitmap -> BitmapPainter(bitmap.asImageBitmap()) }
+    } ?: painterResource(R.drawable.img_box)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -230,7 +258,7 @@ private fun MoondropOfficialProductRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
-            painter = painterResource(R.drawable.img_box),
+            painter = thumbnailPainter,
             contentDescription = product.displayName,
             modifier = Modifier
                 .size(48.dp)
@@ -256,6 +284,81 @@ private fun MoondropOfficialProductRow(
                 style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.padding(top = 2.dp),
             )
+            if (isCurrentModel) {
+                Text(
+                    text = stringResource(R.string.official_import_current_model),
+                    color = MiuixTheme.colorScheme.primary,
+                    style = MiuixTheme.textStyles.body2,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
         }
+    }
+}
+
+/**
+ * 行内官方小图的内存缓存。
+ *
+ * 为什么需要它：官方图是 100 KB ~ 1 MB 的 PNG，列表有 49 款 —— 既不能进列表就全下，
+ * 也不能滚回来再下一次。这里按「图片路径」缓存解码后的位图，配合 `inSampleSize` 采样，
+ * 每张只在 128px 档位上占几十 KB；按条数限制的 LruCache 天然把老条目挤出去。
+ *
+ * 不用可变的全局 Map 是因为行与行是并发的（各自在自己的协程里下载），LruCache 自己就同步了。
+ */
+private object MoondropThumbnailCache {
+    private const val TAG = "HyperPods-MoondropDialog"
+
+    /** 缩略图目标边长（px）：显示尺寸 48dp，留一倍余量，高密度屏也不发虚。 */
+    private const val TARGET_PX = 128
+
+    /** 49 款里同时可见的不过十几行，64 条足够覆盖整份列表来回滚动。 */
+    private const val MAX_ENTRIES = 64
+
+    private val cache = LruCache<String, Bitmap>(MAX_ENTRIES)
+
+    /** 下载 / 解码失败的路径：本次运行内不再重试，避免滚动时反复打同一个坏地址。 */
+    private val failedPaths: MutableSet<String> = Collections.synchronizedSet(mutableSetOf<String>())
+
+    /** 同步取缓存（LruCache 内部已同步），命中就不必再进 IO。 */
+    fun cached(path: String?): Bitmap? = path?.let { cache.get(it) }
+
+    fun hadFailed(path: String): Boolean = path in failedPaths
+
+    /** 阻塞 IO：调用方必须放在 Dispatchers.IO 里。 */
+    fun load(path: String): Bitmap? {
+        cache.get(path)?.let { return it }
+        val bitmap = MoondropOfficialImages.downloadImage(path)?.let { decodeScaled(it) }
+        if (bitmap != null) {
+            cache.put(path, bitmap)
+        } else {
+            failedPaths.add(path)
+            Log.w(TAG, "thumbnail unavailable: $path")
+        }
+        return bitmap
+    }
+
+    private fun decodeScaled(bytes: ByteArray): Bitmap? {
+        // 先只读尺寸（inJustDecodeBounds 不解码像素），算出 2 的幂采样率再真解码 ——
+        // 直接 decodeByteArray 会把 1125×597 的整张图放进内存，几十行滚一遍就爆了
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight)
+        }
+        return runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) }.getOrNull()
+    }
+
+    /** inSampleSize 只认 2 的幂：每边缩一半，直到再缩就小于目标边长。 */
+    private fun sampleSize(width: Int, height: Int): Int {
+        var sample = 1
+        var w = width
+        var h = height
+        while (w / 2 >= TARGET_PX && h / 2 >= TARGET_PX) {
+            w /= 2
+            h /= 2
+            sample *= 2
+        }
+        return sample
     }
 }

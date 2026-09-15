@@ -22,7 +22,12 @@
  *     （MelodyImageImportDialog 里 LEFT 取的是 rightPath），说明两家的命名视角不一定一致；
  *     这里没有真机可比对，若实机发现左右反了，改这两个取路径的函数即可。
  *
- * 线程：本文件全是阻塞 IO，调用方必须在 Dispatchers.IO 里调。
+ * 「这台设备对应目录里哪一款」由 [MoondropOfficialImages.bestMatch] 回答（设备名与官方展示名
+ * 归一化后互相包含，最长命中；命不中就返回 null 交给用户手选）。它只认名字，**不认品牌** ——
+ * 「是不是水月雨设备」必须走 pods/ 的 PodCatalog，UI 层不得自带宽匹配。
+ *
+ * 线程：`fetchProducts` / `downloadImage` 是阻塞 IO，调用方必须在 Dispatchers.IO 里调；
+ * `bestMatch` / [MoondropOfficialProduct.thumbnailPath] 是纯计算，没有线程要求。
  */
 package com.chenyc.hyperpods.utils
 
@@ -70,6 +75,20 @@ data class MoondropOfficialProduct(
         bannerImgT, bannerImgNightT, bannerImgV2, squareBannerImg, sellpic, bannerImg, bannerImgNight,
     ).firstOrNull { it.isNotBlank() }
 
+    /**
+     * 列表行内缩略图路径：方形图优先。
+     *
+     * 行内缩略图只有 48dp，[boxPath] 是 1125×597 的横向渲染图，塞进方框会被裁掉两侧；
+     * 官方方形图（[squareBannerImg] 系）比例最合适，其次才是 banner 系，最后兜底回机型图。
+     */
+    fun thumbnailPath(): String? = listOf(
+        squareBannerImg,
+        squareBannerImgNight,
+        bannerImgV2,
+        bannerImgNight,
+        boxPath(),
+    ).firstOrNull { !it.isNullOrBlank() }
+
     /** 左耳图：官方 [bannerImgLT]（透明），深色版兜底。 */
     fun leftPath(): String? = listOf(bannerImgLT, bannerImgNightLT).firstOrNull { it.isNotBlank() }
 
@@ -91,12 +110,21 @@ object MoondropOfficialImages {
     private const val FILE_BASE = "https://cdn.moondroplab.tech/"
     private const val TIMEOUT_MS = 15_000
 
+    /**
+     * 「设备名被官方名包含」这一档允许的最短设备名长度。
+     *
+     * 反方向包含本身很弱（官方名越长越容易把短设备名装进去），设备名归一化后只剩一两个
+     * 字符时（例如型号里只剩个 "2"）会把大半个目录都命中，所以短名直接不认。
+     */
+    private const val MIN_REVERSE_MATCH_LENGTH = 3
+
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
-     * 拉官方产品目录（105 款、约 120 KB）。
+     * 拉官方产品目录（接口实测 105 条、约 120 KB）。
      *
-     * 只保留蓝牙耳机（`type = "BT"`）且拿得到机型图的条目，按名称排序。
+     * 只保留蓝牙耳机（`type = "BT"`）且拿得到机型图的条目，按名称排序 ——
+     * 实测这层过滤后剩 49 款（目录里还有大量有线耳机 / 联名配件，它们没有 boxPath）。
      * 任何失败都返回**空列表**：调用方据此显示「拉取失败 / 没有可导入的机型」，
      * 不要把异常带进 Compose（与模块 hook 侧的约定一致）。
      */
@@ -113,9 +141,15 @@ object MoondropOfficialImages {
      *
      * 校验 PNG 魔数：CDN 出错时返回的是 JSON 文本（如 `{"error":"Document not found"}`），
      * 那种响应绝不能当图片写进用户的图片库。
+     *
+     * 路径里的字面空格必须先转义：官方图床确实存在 `Robin's Earphones_white.png`、
+     * `猫咖_通用底_双耳 透明底.png` 这类文件名，而请求行里的裸空格是非法的请求目标 ——
+     * 实测 CDN 在裸空格上直接断连（http=000），换成 %20 后返回正常 PNG（魔数校验通过）。
+     * 只转义空格、其余字符（含中文）原样保留：中文原样请求实测可用，整段百分号编码
+     * 会动到本来正常的路径，没有必要。
      */
     fun downloadImage(path: String): ByteArray? = runCatching {
-        val bytes = httpGet(FILE_BASE + path) ?: return@runCatching null
+        val bytes = httpGet(FILE_BASE + path.replace(" ", "%20")) ?: return@runCatching null
         val isPng = bytes.size > 8 &&
             bytes[0] == 0x89.toByte() &&
             bytes[1] == 'P'.code.toByte() &&
@@ -128,6 +162,57 @@ object MoondropOfficialImages {
             null
         }
     }.onFailure { Log.w(TAG, "downloadImage failed: $path", it) }.getOrNull()
+
+    /**
+     * 展示名归一化：小写、去掉厂牌通用词、只留字母 / 数字 / 汉字。
+     *
+     * 为什么必须归一化：蓝牙设备名与官方目录名几乎不会逐字相同 —— 设备名常带厂牌前缀
+     * （`MOONDROP PUDDING`）或型号后缀（`MD-TWS-056`），而官方名可能只写其中一段。
+     * 去掉 `moondrop` / `水月雨` 是为了避免「所有官方名都因为共用前缀而互相包含」；
+     * 设备名与官方名走同一套归一化，比较才有意义（所以这里不是只归一化设备名一侧）。
+     *
+     * 保留汉字：官方目录里中文名（如「布丁」）也要能对上中文设备名。
+     */
+    private fun normalizeName(value: String): String =
+        value.lowercase()
+            .replace("moondrop", "")
+            .replace("水月雨", "")
+            .filter { it.isLetterOrDigit() }
+
+    /**
+     * 按设备名在官方目录里找最合适的一条；**找不到就返回 null，绝不猜**。
+     *
+     * 匹配是「归一化后互相包含」，但分三档，优先级从高到低：
+     *   1. 完全相等（`MOONDROP EDGE` 对官方 `EDGE`）；
+     *   2. 官方名被设备名包含（设备名更长、更啰嗦）；
+     *   3. 设备名被官方名包含（设备名只写了官方名的一段）。
+     *
+     * 为什么非要分档而不能只「取最长命中」：`edge2` 包含 `edge`，若只按最长命中，
+     * 一台真正的 EDGE 会被官方目录里的 EDGE2 抢走。第 2 档是更可靠的锚定方向
+     * （官方名整段出现在设备名里），所以在第 3 档之前先取；档内才是「最长命中」——
+     * 第 2 档取最长（官方名越长越具体），第 3 档反过来取最短（多出来的字越少越接近）。
+     */
+    fun bestMatch(
+        products: List<MoondropOfficialProduct>,
+        deviceName: String,
+    ): MoondropOfficialProduct? {
+        val key = normalizeName(deviceName)
+        if (key.isEmpty()) return null
+
+        // 归一化只算一次：105 条 × 三段比较，避免在比较里反复做同样的字符串处理
+        val named = products
+            .map { it to normalizeName(it.displayName) }
+            .filter { it.second.isNotEmpty() }
+
+        named.firstOrNull { it.second == key }?.let { return it.first }
+        named.filter { key.contains(it.second) }
+            .maxByOrNull { it.second.length }
+            ?.let { return it.first }
+        if (key.length < MIN_REVERSE_MATCH_LENGTH) return null
+        return named.filter { it.second.contains(key) }
+            .minByOrNull { it.second.length }
+            ?.first
+    }
 
     /** 极简 GET：失败 / 非 2xx 一律返回 null（调用方只看有没有数据）。 */
     private fun httpGet(url: String): ByteArray? {

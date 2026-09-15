@@ -111,6 +111,7 @@
     <string name="official_import_action">导入</string>
     <string name="official_import_parts_full">含左耳 / 右耳图</string>
     <string name="official_import_parts_box_only">仅机型图</string>
+    <string name="official_import_current_model">当前机型</string>
     <string name="theme_title">主题</string>
     <string name="theme_follow_system">跟随系统</string>
     <string name="theme_light">浅色</string>

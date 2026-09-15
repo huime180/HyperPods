@@ -65,6 +65,7 @@ import com.chenyc.hyperpods.ui.pages.EqualizerPage
 import com.chenyc.hyperpods.ui.pages.OppoOnlySettingsPage
 import com.chenyc.hyperpods.ui.pages.RfcommDebugPage
 import com.chenyc.hyperpods.ui.pages.ThemeSettingsPage
+import com.chenyc.hyperpods.utils.MoondropImageAutoImport
 import com.chenyc.hyperpods.utils.RootManager
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.BatteryParams
 import com.chenyc.hyperpods.utils.miuiStrongToast.data.batteryStatusCompat
@@ -868,6 +869,26 @@ fun MainUI(
 
     fun savePodImageBytes(address: String, name: String, images: Map<PodImageResource, ByteArray>) {
         earphonePrefs.value = PodImagePrefs.saveImageBytes(context, prefs, xposedService, address, name, images)
+    }
+
+    // 水月雨设备的官方图自动导入：连上、且这个地址还没有机型图时，按型号从官方目录导一次，
+    // 用户不必自己点右上角。为什么挂在这一层（而不是设备页组合 / entry<Screen.Main> 里）：
+    //   · context / prefs / xposedService 就在手边，与 savePodImageBytes 用的是同一套
+    //     （不必在设备页里再取一次 SharedPreferences 或另开一条参数链）；
+    //   · MainUI 这一层不随底栏切页、二级页进出而销毁 —— 挂在 entry 里的话，用户一进
+    //     均衡器/主题页协程就被取消，几张图下载到一半就没了（协程取消会回滚「试过」标记，
+    //     但没必要把一次导入拖成两次）。
+    // 同一地址一次运行只试一次、只对水月雨设备生效、已有图不覆盖，全部由被调用的对象保证。
+    LaunchedEffect(connectedDeviceAddress, mainTitle.value) {
+        val address = connectedDeviceAddress
+        if (address.isBlank()) return@LaunchedEffect
+        MoondropImageAutoImport.importIfNeeded(
+            context = context,
+            prefs = prefs,
+            service = xposedService,
+            address = address,
+            deviceName = mainTitle.value,
+        )?.let { earphonePrefs.value = it }
     }
 
     fun restartScopes(packages: List<String>) {

@@ -110,6 +110,7 @@
     <string name="official_import_action">Import</string>
     <string name="official_import_parts_full">With left / right images</string>
     <string name="official_import_parts_box_only">Model image only</string>
+    <string name="official_import_current_model">Current model</string>
     <string name="theme_title">Theme</string>
     <string name="theme_follow_system">Follow System</string>
     <string name="theme_light">Light</string>
